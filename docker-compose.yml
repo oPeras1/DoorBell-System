@@ -1,0 +1,14 @@
+services:
+  doorbell:
+    image: mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      - "MARIADB_ROOT_PASSWORD=houseof5"
+      - "MARIADB_DATABASE=doorbell"
+  mailcrab:
+    image: marlonb/mailcrab:latest
+    ports:
+      - '1080:1080'
+      - '1025:1025'
+    networks: [default]
