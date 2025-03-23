@@ -14,7 +14,7 @@
           buildInputs = with pkgs; [
             jdk17
             nodejs
-            maven
+            gradle
             mariadb
           ];
           shellHook = ''
