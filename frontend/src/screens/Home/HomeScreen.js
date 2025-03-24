@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { 
   View, 
   Text, 
@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Image,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
@@ -29,7 +30,6 @@ const HomeScreen = () => {
   const handleRingDoorbell = () => {
     setIsRinging(true);
     
-    // Simulating API call to ring doorbell
     setTimeout(() => {
       setIsRinging(false);
     }, 3000);
@@ -59,94 +59,96 @@ const HomeScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello, {user?.username || 'User'}!</Text>
-          <Text style={styles.status}>
-            <View style={styles.statusDot} />
-            System Online
-          </Text>
-        </View>
-        
-        <TouchableOpacity style={styles.profileButton}>
-          <Image 
-            source={require('../../../assets/avatar.png')} 
-            style={styles.profileImage} 
-          />
-        </TouchableOpacity>
-      </View>
-      
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.doorStatusCard}>
-          <View style={styles.doorStatusHeader}>
-            <Text style={styles.doorStatusTitle}>Front Door Status</Text>
-            <View style={styles.doorStatusBadge}>
-              <Text style={styles.doorStatusBadgeText}>Secured</Text>
-            </View>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hello, {user?.username || 'User'}!</Text>
+            <Text style={styles.status}>
+              <View style={styles.statusDot} />
+              System Online
+            </Text>
           </View>
           
-          <View style={styles.doorStatusBody}>
-            <View style={styles.doorStatusItem}>
-              <Ionicons name="lock-closed" size={22} color={colors.success} />
-              <Text style={styles.doorStatusText}>Door Locked</Text>
-            </View>
-            <View style={styles.doorStatusItem}>
-              <Ionicons name="thermometer" size={22} color={colors.info} />
-              <Text style={styles.doorStatusText}>72°F</Text>
-            </View>
-            <View style={styles.doorStatusItem}>
-              <Ionicons name="battery-full" size={22} color={colors.success} />
-              <Text style={styles.doorStatusText}>96% Battery</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.doorbellContainer}>
-          <Button 
-            title={isRinging ? "Ringing..." : "Ring Doorbell"} 
-            onPress={handleRingDoorbell}
-            loading={isRinging}
-            disabled={isRinging}
-            iconLeft={!isRinging && <Ionicons name="notifications" size={22} color="white" />}
-          />
-        </View>
-        
-        <View style={styles.activityContainer}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <View style={styles.activityList}>
-            {DUMMY_ACTIVITIES.map(renderActivityItem)}
-          </View>
-          
-          <TouchableOpacity style={styles.viewAllButton}>
-            <Text style={styles.viewAllText}>View All Activity</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+          <TouchableOpacity style={styles.profileButton}>
+            <Image 
+              source={require('../../../assets/avatar.png')} 
+              style={styles.profileImage} 
+            />
           </TouchableOpacity>
         </View>
-      </ScrollView>
-      
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="home" size={24} color={colors.primary} />
-          <Text style={[styles.navText, { color: colors.primary }]}>Home</Text>
-        </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Users</Text>
-        </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.doorStatusCard}>
+            <View style={styles.doorStatusHeader}>
+              <Text style={styles.doorStatusTitle}>Front Door Status</Text>
+              <View style={styles.doorStatusBadge}>
+                <Text style={styles.doorStatusBadgeText}>Secured</Text>
+              </View>
+            </View>
+            
+            <View style={styles.doorStatusBody}>
+              <View style={styles.doorStatusItem}>
+                <Ionicons name="lock-closed" size={22} color={colors.success} />
+                <Text style={styles.doorStatusText}>Door Locked</Text>
+              </View>
+              <View style={styles.doorStatusItem}>
+                <Ionicons name="thermometer" size={22} color={colors.info} />
+                <Text style={styles.doorStatusText}>72°F</Text>
+              </View>
+              <View style={styles.doorStatusItem}>
+                <Ionicons name="battery-full" size={22} color={colors.success} />
+                <Text style={styles.doorStatusText}>96% Battery</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.doorbellContainer}>
+            <Button 
+              title={isRinging ? "Ringing..." : "Ring Doorbell"} 
+              onPress={handleRingDoorbell}
+              loading={isRinging}
+              disabled={isRinging}
+              iconLeft={!isRinging && <Ionicons name="notifications" size={22} color="white" />}
+            />
+          </View>
+          
+          <View style={styles.activityContainer}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <View style={styles.activityList}>
+              {DUMMY_ACTIVITIES.map(renderActivityItem)}
+            </View>
+            
+            <TouchableOpacity style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All Activity</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem} onPress={logout}>
-          <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="home" size={24} color={colors.primary} />
+            <Text style={[styles.navText, { color: colors.primary }]}>Home</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Users</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navItem} onPress={logout}>
+            <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -157,12 +159,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  container: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 20 : 0,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
+    marginTop: spacing.large,
   },
   greeting: {
     fontSize: 24,
@@ -203,7 +210,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.large,
-    paddingBottom: 90, // Space for bottom nav
+    paddingBottom: 90,
   },
   doorStatusCard: {
     backgroundColor: colors.card,

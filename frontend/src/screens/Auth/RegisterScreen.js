@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-  Alert
 } from 'react-native';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
@@ -16,22 +15,21 @@ import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import ErrorMessage from '../../components/ErrorMessage';
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useContext(AuthContext);
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
 
   const validateForm = () => {
     const newErrors = {};
     
     if (!username) newErrors.username = 'Username is required';
-    if (!email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
     
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
@@ -45,15 +43,17 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleRegister = async () => {
     if (!validateForm()) return;
+    setErrorMessage('');
     
     try {
       setLoading(true);
-      await register({ username, email, password });
+      await register({ username, password });
       
       // Navegar para login após registro bem-sucedido
       navigation.navigate('Login');
     } catch (error) {
       console.error('Registration error:', error);
+      setErrorMessage(error.response?.data || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -81,6 +81,8 @@ const RegisterScreen = ({ navigation }) => {
           
           <Text style={styles.subtitle}>Fill in the form to create your account</Text>
           
+          {errorMessage ? <ErrorMessage message={errorMessage} /> : null}
+          
           <View style={styles.formContainer}>
             <InputField
               label="Username"
@@ -89,17 +91,6 @@ const RegisterScreen = ({ navigation }) => {
               onChangeText={setUsername}
               icon={<Ionicons name="person-outline" size={22} color={colors.primary} />}
               error={errors.username}
-              autoCapitalize="none"
-            />
-            
-            <InputField
-              label="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChangeText={setEmail}
-              icon={<Ionicons name="mail-outline" size={22} color={colors.primary} />}
-              error={errors.email}
-              keyboardType="email-address"
               autoCapitalize="none"
             />
             
@@ -128,6 +119,7 @@ const RegisterScreen = ({ navigation }) => {
               onPress={handleRegister} 
               loading={loading}
               disabled={loading}
+              style={styles.signUpButton}
             />
             
             <View style={styles.loginContainer}>
@@ -177,6 +169,9 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+  },
+  signUpButton: {
+    marginTop: spacing.large,
   },
   loginContainer: {
     flexDirection: 'row',

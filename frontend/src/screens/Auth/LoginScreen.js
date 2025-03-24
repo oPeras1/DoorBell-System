@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: spacing.medium,
+    marginBottom: spacing.xxlarge,
   },
   forgotPasswordText: {
     color: colors.primary,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: spacing.large,
+    marginTop: spacing.medium,
   },
   registerText: {
     color: colors.textSecondary,

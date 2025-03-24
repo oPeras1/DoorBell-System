@@ -1,9 +1,16 @@
 package com.operas.model;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -19,11 +26,6 @@ public class User {
     @NotBlank(message = "Username is required")
     @Column(unique = true, nullable = false)
     private String username;
-    
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email should be valid")
-    @Column(unique = true, nullable = false)
-    private String email;
     
     @NotBlank(message = "Password is required")
     @Column(nullable = false)

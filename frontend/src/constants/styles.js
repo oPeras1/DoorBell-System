@@ -2,7 +2,8 @@ export const spacing = {
   small: 8,
   medium: 16,
   large: 24,
-  xlarge: 32
+  xlarge: 32,
+  xxlarge: 64
 };
 
 export const borderRadius = {

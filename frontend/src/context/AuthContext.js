@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, checkAuthStatus } from '../services/auth';
-import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
 
@@ -34,7 +33,7 @@ export const AuthProvider = ({ children }) => {
         setUserToken(response.token);
         return response;
       } catch (error) {
-        Alert.alert('Login Failed', error.response?.data || 'Please check your credentials');
+        console.error('Login error', error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -45,10 +44,9 @@ export const AuthProvider = ({ children }) => {
       try {
         setIsLoading(true);
         const response = await apiRegister(userData);
-        Alert.alert('Success', 'Registration successful! Please login.');
         return response;
       } catch (error) {
-        Alert.alert('Registration Failed', error.response?.data || 'Please try again');
+        console.error('Registration error', error);
         throw error;
       } finally {
         setIsLoading(false);

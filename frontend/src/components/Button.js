@@ -54,7 +54,7 @@ const Button = ({
           {iconLeft && <View style={styles.iconLeft}>{iconLeft}</View>}
           <Text style={[getTextStyle(), disabled && styles.textDisabled]}>{title}</Text>
           {iconRight && <View style={styles.iconRight}>{iconRight}</View>}
-        </View>
+        </View> 
       )}
     </TouchableOpacity>
   );
