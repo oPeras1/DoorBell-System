@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   StatusBar,
   Platform
 } from 'react-native';
@@ -56,9 +55,12 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      
+    <View style={styles.root}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
@@ -150,18 +152,23 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 20 : 0,
+    // paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 20 : 0,
   },
   header: {
     flexDirection: 'row',

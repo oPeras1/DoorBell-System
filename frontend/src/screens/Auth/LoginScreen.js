@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { 
   View, 
   Text, 
@@ -8,10 +8,11 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  SafeAreaView
+  StatusBar
 } from 'react-native';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
+import Message from '../../components/Message';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
 
   const validateForm = () => {
     const newErrors = {};
@@ -39,9 +41,11 @@ const LoginScreen = ({ navigation }) => {
     
     try {
       setLoading(true);
+      setErrorMessage('');
       await login({ username, password });
     } catch (error) {
-      console.error('Login error:', error);
+      const message = error.response?.data?.message || error.message || 'Login failed. Please try again.';
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -51,8 +55,22 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate('Register');
   };
 
+  const dismissError = () => {
+    setErrorMessage('');
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.root}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
+      <Message 
+        message={errorMessage} 
+        onDismiss={dismissError}
+        type="error"
+      />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -71,7 +89,7 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.subtitle}>Welcome back! Please sign in to continue</Text>
           </View>
           
-          <View style={styles.formContainer}>
+          <View style={styles.formContainer}>   
             <InputField
               label="Username"
               placeholder="Enter your username"
@@ -100,7 +118,7 @@ const LoginScreen = ({ navigation }) => {
               title="Sign In" 
               onPress={handleLogin} 
               loading={loading}
-              disabled={loading}
+              disabled={loading || password.length < 6 || username.length < 4}
             />
             
             <View style={styles.registerContainer}>
@@ -112,14 +130,15 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  root: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44, // 44 é comum no iOS notch
   },
   container: {
     flex: 1,
@@ -151,6 +170,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.small,
   },
   formContainer: {
+    marginTop: spacing.large,
     width: '100%',
   },
   forgotPassword: {
@@ -172,7 +192,7 @@ const styles = StyleSheet.create({
   registerLink: {
     color: colors.primary,
     fontWeight: '600',
-  }
+  },
 });
 
 export default LoginScreen;

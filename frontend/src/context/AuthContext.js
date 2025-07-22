@@ -28,28 +28,20 @@ export const AuthProvider = ({ children }) => {
   const authContext = {
     login: async (credentials) => {
       try {
-        setIsLoading(true);
         const response = await apiLogin(credentials);
         setUserToken(response.token);
         return response;
       } catch (error) {
-        console.error('Login error', error);
         throw error;
-      } finally {
-        setIsLoading(false);
       }
     },
     
     register: async (userData) => {
       try {
-        setIsLoading(true);
         const response = await apiRegister(userData);
         return response;
       } catch (error) {
-        console.error('Registration error', error);
         throw error;
-      } finally {
-        setIsLoading(false);
       }
     },
     
@@ -60,7 +52,6 @@ export const AuthProvider = ({ children }) => {
         setUserToken(null);
         setUser(null);
       } catch (error) {
-        console.error('Logout error', error);
         setUserToken(null);
         setUser(null);
       } finally {

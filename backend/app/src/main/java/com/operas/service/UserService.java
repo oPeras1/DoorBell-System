@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.operas.model.User;
 import com.operas.repository.UserRepository;
+import com.operas.exceptions.UsernameAlreadyExistsException;
 
 @Service
 public class UserService {
@@ -21,14 +22,10 @@ public class UserService {
     public User registerUser(User user) {
         // Check if username already exists
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
+            throw new UsernameAlreadyExistsException("Username already exists");
         }
         
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // Set default type if not provided
-        if (user.getType() == null || user.getType().isEmpty()) {
-            user.setType("USER");
-        }
         return userRepository.save(user);
     }
     
