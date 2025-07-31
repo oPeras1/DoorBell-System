@@ -27,6 +27,20 @@ services:
     networks:
       - doorbell-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: doorbell_frontend
+    restart: unless-stopped
+    ports:
+      - "2081:3000"
+    depends_on:
+      - mariadb
+    networks:
+      - doorbell-network
+
+
 volumes:
   mariadb_data:
 
