@@ -4,8 +4,10 @@ import com.operas.dto.AuthRequest;
 import com.operas.dto.AuthResponse;
 import com.operas.dto.UserDto;
 import com.operas.model.User;
+import com.operas.model.Log;
 import com.operas.security.JwtUtil;
 import com.operas.service.UserService;
+import com.operas.service.LogService;
 import com.operas.exceptions.WrongCredentialsException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +26,9 @@ public class AuthController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private LogService logService;
     
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -34,6 +39,8 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody User user) {
         userService.registerUser(user);
+
+        logService.createLog(user.getId(), new Log("User registered: " + user.getUsername(), user, "REGISTRATION"));
         return ResponseEntity.ok("User registered successfully");
     }
     
@@ -44,7 +51,11 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
             );
             String token = jwtUtil.generateToken(authRequest.getUsername());
+
             User user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+
+            logService.createLog(user.getId(), new Log("User logged in: " + authRequest.getUsername(), user, "LOGIN"));
+            
             return ResponseEntity.ok(new AuthResponse(token, UserDto.fromEntity(user)));
         } catch (BadCredentialsException e) {
             throw new WrongCredentialsException("Username or password incorrect");
