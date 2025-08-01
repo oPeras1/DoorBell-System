@@ -1,0 +1,49 @@
+services:
+  mariadb:
+    image: mariadb:11.0
+    container_name: doorbell_db
+    restart: unless-stopped
+    environment:
+      - "MARIADB_ROOT_PASSWORD=houseof5"
+      - "MARIADB_DATABASE=doorbell"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - doorbell-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: doorbell_backend
+    restart: unless-stopped
+    ports:
+      - "2080:8080"
+    depends_on:
+      - mariadb
+    networks:
+      - doorbell-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: doorbell_frontend
+    restart: unless-stopped
+    ports:
+      - "2081:3000"
+    depends_on:
+      - mariadb
+    networks:
+      - doorbell-network
+
+
+volumes:
+  mariadb_data:
+
+networks:
+  doorbell-network:
+    driver: bridge
