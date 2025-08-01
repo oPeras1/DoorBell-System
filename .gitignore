@@ -1,3 +1,5 @@
 *.class
 .vscode/
 **/apiConfig.js
+docker-compose.yml
+**/application.properties
