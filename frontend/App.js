@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
@@ -18,20 +18,58 @@ const ProtocolGate = ({ children }) => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ProtocolGate>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          <AppNavigator />
-        </NavigationContainer>
-      </ProtocolGate>
-    </AuthProvider>
+    <View style={styles.appContainer}>
+      <AuthProvider>
+        <ProtocolGate>
+          <NavigationContainer>
+            <StatusBar 
+              style={Platform.OS === 'web' ? 'auto' : 'light'} 
+              translucent={Platform.OS === 'android'}
+            />
+            <AppNavigator />
+          </NavigationContainer>
+        </ProtocolGate>
+      </AuthProvider>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  block: { flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#fff' },
-  blockTitle: { color:'#b00', fontWeight:'bold', fontSize:18, marginBottom:8 },
-  blockText: { color:'#444', fontSize:16 },
-  loading: { flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#fff' }
+  appContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    ...(Platform.OS === 'web' && {
+      minHeight: '100vh',
+      width: '100vw',
+    }),
+  },
+  block: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#fff',
+    ...(Platform.OS === 'web' && {
+      minHeight: '100vh',
+    }),
+  },
+  blockTitle: { 
+    color: '#b00', 
+    fontWeight: 'bold', 
+    fontSize: 18, 
+    marginBottom: 8 
+  },
+  blockText: { 
+    color: '#444', 
+    fontSize: 16 
+  },
+  loading: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#fff',
+    ...(Platform.OS === 'web' && {
+      minHeight: '100vh',
+    }),
+  }
 });

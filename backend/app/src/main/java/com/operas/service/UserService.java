@@ -7,8 +7,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.operas.model.User;
+import com.operas.dto.UserDto;
 import com.operas.repository.UserRepository;
+import com.operas.security.CustomUserDetails;
 import com.operas.exceptions.UsernameAlreadyExistsException;
+import com.operas.exceptions.UserNotFoundException;
 
 @Service
 public class UserService {
@@ -31,5 +34,17 @@ public class UserService {
     
     public Optional<User> findByUsername(String username){
         return userRepository.findByUsername(username);
+    }
+    
+    public Iterable<UserDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserDto::fromEntity)
+                .toList();
+    }
+
+    public UserDto getCurrentUser(CustomUserDetails userDetails) {
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("The user does not exist"));
+        return UserDto.fromEntity(user);
     }
 }

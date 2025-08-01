@@ -13,7 +13,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "statusBarStyle": "dark"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,10 +23,16 @@
       },
       "permissions": [
         "READ_PHONE_STATE"
-      ]
+      ],
+      "statusBar": {
+        "translucent": true,
+        "barStyle": "light-content"
+      },
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "sdkVersion": "53.0.0"
   }

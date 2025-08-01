@@ -23,8 +23,9 @@ import lombok.Setter;
 @Table(name = "users")
 public class User {
     public enum UserType {
-        USER,
-        HOUSER
+        GUEST,
+        HOUSER,
+        KNOWLEDGER
     }
 
     @Id
@@ -43,5 +44,5 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserType type = UserType.USER;
+    private UserType type = UserType.GUEST;
 }

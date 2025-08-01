@@ -1,5 +1,6 @@
 package com.operas.config;
 
+import com.operas.security.CustomAuthenticationEntryPoint;
 import com.operas.security.CustomUserDetailsService;
 import com.operas.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.lang.NonNull;
 
 @Configuration
 public class SecurityConfig {
@@ -22,7 +24,7 @@ public class SecurityConfig {
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addCorsMappings(CorsRegistry registry) {
+            public void addCorsMappings(@NonNull CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins("http://localhost:8081", "http://192.168.3.224:8081")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -38,6 +40,9 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
     
+    @Autowired
+    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    
     @Bean
     public SecurityFilterChain filterChain(org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
         http
@@ -47,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/login", "/auth/register", "/arduino/command").permitAll()
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(customAuthenticationEntryPoint))
             .authenticationProvider(authenticationProvider());
         
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

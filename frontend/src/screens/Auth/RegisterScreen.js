@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,7 +7,8 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  StatusBar
+  StatusBar,
+  Animated
 } from 'react-native';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
@@ -27,10 +28,50 @@ const RegisterScreen = ({ navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Validação dinâmica
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(0.95)).current;
+
   const usernameValid = username.length >= 4;
   const passwordValid = password.length >= 6;
   const passwordsMatch = password === confirmPassword && password.length > 0;
+
+  useEffect(() => {
+    // Enhanced entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: false,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 50,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, []);
+
+  // Button scale animation when form is valid
+  useEffect(() => {
+    if (usernameValid && passwordValid && passwordsMatch) {
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 100,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.spring(buttonScaleAnim, {
+        toValue: 0.95,
+        friction: 6,
+        tension: 100,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [usernameValid, passwordValid, passwordsMatch]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -81,19 +122,37 @@ const RegisterScreen = ({ navigation }) => {
   return (
     <View style={styles.root}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-      <Message message={errorMessage} onDismiss={dismissError} type="error" style={{ left: styles.header.paddingLeft || styles.header.marginLeft || spacing.large }} />
-      <Message message={successMessage} onDismiss={dismissSuccess} type="success" style={{ left: styles.header.paddingLeft || styles.header.marginLeft || spacing.large }} />
+      <Message message={errorMessage} onDismiss={dismissError} type="error" />
+      <Message message={successMessage} onDismiss={dismissSuccess} type="success" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
+          <Animated.View style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color={colors.primary} />
             </TouchableOpacity>
             <Text style={styles.title}>Create Account</Text>
-          </View>
-          <Text style={styles.subtitle}>Please fill out the form to create your account. Note that if you are not a member of the House, you may need to wait for approval to open the door.</Text>
+          </Animated.View>
+          <Animated.Text style={[
+            styles.subtitle,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}>Please fill out the form to create your account. Note that if you are not a member of the House, you may need to wait for approval to open the door.</Animated.Text>
           
-          <View style={styles.formContainer}>
+          <Animated.View style={[
+            styles.formContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}>
             <InputField
               label="Username"
               placeholder="Choose a username"
@@ -123,13 +182,30 @@ const RegisterScreen = ({ navigation }) => {
             />
 
             {/* Requisitos visuais */}
-            <View style={styles.requirementsBox}>
+            <Animated.View style={[
+              styles.requirementsBox,
+              {
+                opacity: fadeAnim,
+                transform: [{ 
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0]
+                  })
+                }]
+              }
+            ]}>
               <Requirement met={usernameValid} text="Username with at least 4 characters" />
               <Requirement met={passwordValid} text="Password with at least 6 characters" />
               <Requirement met={passwordsMatch} text="Passwords match" />
-            </View>
+            </Animated.View>
 
-            <View style={styles.Register}>
+            <Animated.View style={[
+              styles.Register,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: buttonScaleAnim }]
+              }
+            ]}>
               <Button 
                 title="Sign Up" 
                 onPress={handleRegister} 
@@ -142,8 +218,8 @@ const RegisterScreen = ({ navigation }) => {
                   <Text style={styles.loginLink}>Sign In</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </Animated.View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

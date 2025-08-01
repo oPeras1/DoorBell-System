@@ -5,11 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const login = async (credentials) => {
   try {
     const response = await api.post(API_ENDPOINTS.LOGIN, credentials);
-    const { token } = response.data;
+    const { token, user } = response.data;
     
-    // Save token to AsyncStorage
+    // Save token and user to AsyncStorage
     if (token) {
       await AsyncStorage.setItem('userToken', token);
+    }
+    if (user) {
+      await AsyncStorage.setItem('user', JSON.stringify(user));
     }
     
     return response.data;
@@ -31,10 +34,12 @@ export const logout = async () => {
   try {
     await api.post(API_ENDPOINTS.LOGOUT);
     await AsyncStorage.removeItem('userToken');
+    await AsyncStorage.removeItem('user');
     return true;
   } catch (error) {
-    // Remove token from AsyncStorage even if the server request fails
+    // Remove token and user from AsyncStorage even if the server request fails
     await AsyncStorage.removeItem('userToken');
+    await AsyncStorage.removeItem('user');
     return false;
   }
 };
@@ -45,5 +50,14 @@ export const checkAuthStatus = async () => {
     return token;
   } catch (error) {
     return null;
+  }
+};
+
+export const getCurrentUser = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.USER_ME);
+    return response.data;
+  } catch (error) {
+    throw error;
   }
 };

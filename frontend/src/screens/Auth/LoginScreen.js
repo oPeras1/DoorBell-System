@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,7 +8,8 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  StatusBar
+  StatusBar,
+  Animated
 } from 'react-native';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
@@ -25,6 +26,54 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    // Enhanced entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: false,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 50,
+        useNativeDriver: false,
+      }),
+      Animated.spring(logoScaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, []);
+
+  // Button scale animation when form is valid
+  useEffect(() => {
+    if (username.length >= 4 && password.length >= 6) {
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 100,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.spring(buttonScaleAnim, {
+        toValue: 0.95,
+        friction: 6,
+        tension: 100,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [username, password]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -79,7 +128,16 @@ const LoginScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.logoContainer}>
+          <Animated.View style={[
+            styles.logoContainer,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: logoScaleAnim }
+              ]
+            }
+          ]}>
             <Image 
               source={require('../../../assets/doorbell-logo.png')} 
               style={styles.logo}
@@ -87,9 +145,15 @@ const LoginScreen = ({ navigation }) => {
             />
             <Text style={styles.title}>DoorBell Access</Text>
             <Text style={styles.subtitle}>Welcome back! Please sign in to continue</Text>
-          </View>
+          </Animated.View>
           
-          <View style={styles.formContainer}>   
+          <Animated.View style={[
+            styles.formContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}>   
             <InputField
               label="Username"
               placeholder="Enter your username"
@@ -114,12 +178,14 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <Button 
-              title="Sign In" 
-              onPress={handleLogin} 
-              loading={loading}
-              disabled={loading || password.length < 6 || username.length < 4}
-            />
+            <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+              <Button 
+                title="Sign In" 
+                onPress={handleLogin} 
+                loading={loading}
+                disabled={loading || password.length < 6 || username.length < 4}
+              />
+            </Animated.View>
             
             <View style={styles.registerContainer}>
               <Text style={styles.registerText}>Don't have an account? </Text>
@@ -127,7 +193,7 @@ const LoginScreen = ({ navigation }) => {
                 <Text style={styles.registerLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -138,7 +204,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44, // 44 é comum no iOS notch
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
   container: {
     flex: 1,

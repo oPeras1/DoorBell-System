@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, checkAuthStatus } from '../services/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthContext = createContext();
 
@@ -12,8 +13,12 @@ export const AuthProvider = ({ children }) => {
     const bootstrapAsync = async () => {
       try {
         const token = await checkAuthStatus();
+        const userJson = await AsyncStorage.getItem('user');
         if (token) {
           setUserToken(token);
+        }
+        if (userJson) {
+          setUser(JSON.parse(userJson));
         }
       } catch (e) {
         console.error('Failed to load token', e);
@@ -30,6 +35,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await apiLogin(credentials);
         setUserToken(response.token);
+        if (response.user) {
+          setUser(response.user);
+        }
         return response;
       } catch (error) {
         throw error;
@@ -51,9 +59,11 @@ export const AuthProvider = ({ children }) => {
         await apiLogout();
         setUserToken(null);
         setUser(null);
+        await AsyncStorage.removeItem('user');
       } catch (error) {
         setUserToken(null);
         setUser(null);
+        await AsyncStorage.removeItem('user');
       } finally {
         setIsLoading(false);
       }
@@ -61,7 +71,8 @@ export const AuthProvider = ({ children }) => {
     
     user,
     userToken,
-    isLoading
+    isLoading,
+    setUser
   };
 
   return (

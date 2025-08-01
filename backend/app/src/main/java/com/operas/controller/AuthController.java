@@ -2,6 +2,7 @@ package com.operas.controller;
 
 import com.operas.dto.AuthRequest;
 import com.operas.dto.AuthResponse;
+import com.operas.dto.UserDto;
 import com.operas.model.User;
 import com.operas.security.JwtUtil;
 import com.operas.service.UserService;
@@ -43,7 +44,8 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
             );
             String token = jwtUtil.generateToken(authRequest.getUsername());
-            return ResponseEntity.ok(new AuthResponse(token));
+            User user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+            return ResponseEntity.ok(new AuthResponse(token, UserDto.fromEntity(user)));
         } catch (BadCredentialsException e) {
             throw new WrongCredentialsException("Username or password incorrect");
         }

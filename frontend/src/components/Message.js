@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Animated, View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
 
 const AUTO_CLOSE_MS = 5000;
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const isWeb = Platform.OS === 'web';
 
 const ICONS = {
   error: { name: 'alert-circle', color: 'white', bg: colors.danger },
@@ -18,6 +19,9 @@ const Message = ({ message, onDismiss, type = 'error', style }) => {
   const timerRef = useRef(null);
   const isMounted = useRef(true);
 
+  // Calculate dynamic width based on current screen width
+  const iconProps = ICONS[type] || ICONS.error;
+
   useEffect(() => {
     isMounted.current = true;
 
@@ -26,13 +30,13 @@ const Message = ({ message, onDismiss, type = 'error', style }) => {
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 350,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.spring(slideAnim, {
           toValue: 0,
           friction: 7,
           tension: 60,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
 
@@ -53,12 +57,12 @@ const Message = ({ message, onDismiss, type = 'error', style }) => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 250,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(slideAnim, {
         toValue: -80,
         duration: 250,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start(() => {
       if (onDismiss && isMounted.current) onDismiss();
@@ -67,15 +71,12 @@ const Message = ({ message, onDismiss, type = 'error', style }) => {
 
   if (!message) return null;
 
-  const iconProps = ICONS[type] || ICONS.error;
-
   return (
     <Animated.View
       style={[
         styles.container,
-        { backgroundColor: iconProps.bg },
-        style,
         {
+          backgroundColor: iconProps.bg,
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
           shadowOpacity: fadeAnim.interpolate({
@@ -83,6 +84,7 @@ const Message = ({ message, onDismiss, type = 'error', style }) => {
             outputRange: [0, 0.15],
           }),
         },
+        style,
       ]}
       pointerEvents="box-none"
     >
@@ -103,22 +105,37 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: spacing.xlarge,
-    left: spacing.large,
-    right: spacing.large,
     zIndex: 100,
     borderRadius: borderRadius.medium,
     padding: spacing.medium,
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 50,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    width: SCREEN_WIDTH - 2 * spacing.large,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+    } : Platform.OS === 'android' ? {
+      elevation: 8,
+      shadowColor: 'transparent',
+    } : {}),
+    ...(isWeb ? {
+      alignSelf: 'center',
+      width: 400,
+      marginLeft: 'auto',
+      marginRight: 'auto',
+      left: 0,
+      right: 0,
+    } : {
+      left: spacing.large,
+      right: spacing.large,
+    }),
+    maxWidth: isWeb ? 400 : '100%',
   },
   iconContainer: {
     marginRight: spacing.small,
+    flexShrink: 0,
   },
   message: {
     color: 'white',
@@ -126,10 +143,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 20,
+    ...(isWeb && {
+      wordWrap: 'break-word',
+      overflowWrap: 'break-word',
+      hyphens: 'auto',
+    }),
   },
   closeButton: {
     padding: spacing.small,
     marginLeft: spacing.small,
+    flexShrink: 0,
   }
 });
 
