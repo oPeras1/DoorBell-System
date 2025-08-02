@@ -1,7 +1,15 @@
 package com.operas.controller;
 
+import com.operas.model.User;
+import com.operas.model.Log;
+import com.operas.service.UserService;
+import com.operas.service.LogService;
+import com.operas.security.CustomUserDetails;
+
 import com.fazecast.jSerialComm.SerialPort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,9 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/arduino")
 public class ArduinoController {
 
+    @Autowired
+    private LogService logService;
+
     @PostMapping("/command")
-    public ResponseEntity<?> sendCommand() {
+    public ResponseEntity<?> sendCommand(@AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
+
             // List available ports for debugging
             SerialPort[] ports = SerialPort.getCommPorts();
             for (SerialPort port : ports) {
@@ -58,6 +70,10 @@ public class ArduinoController {
                 // Close the port
                 comPort.closePort();
                 if (response.toString().contains("Relay deactivated!")) {
+                    // Log the command execution
+                    User user = userDetails.getUser();
+                    logService.createLog(user.getId(), new Log("Arduino command executed: " + command.trim(), user, "OPEN_DOOR"));
+
                     return ResponseEntity.ok("Command 'open' sent successfully");
                 } else {
                     return ResponseEntity.badRequest().body("Arduino received command but didn’t process it: " + response);
