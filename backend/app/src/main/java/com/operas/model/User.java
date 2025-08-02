@@ -14,6 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -45,4 +46,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserType type = UserType.GUEST;
+
+    //Expiration date for the user
+    @Column(name = "expiration_date")
+    private LocalDateTime expirationDate;
 }
