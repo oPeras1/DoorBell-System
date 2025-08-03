@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
@@ -285,23 +284,24 @@ const UsersScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Users</Text>
-          <View style={styles.addButtonPlaceholder} />
-        </View>
+        {/* Top Field sempre visível */}
+        <TopField 
+          greeting={getTimeBasedGreeting()}
+          userName={currentUser?.username}
+          userAvatar={require('../../../assets/avatar.png')}
+          userType={currentUser?.type}
+          isOnline={true}
+          onProfilePress={() => {}}
+          showDarkModeToggle={true}
+        />
+        {/* Loading abaixo do TopField */}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading users...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -346,6 +346,7 @@ const UsersScreen = ({ navigation }) => {
               onRefresh={onRefresh}
               colors={[colors.primary]}
               tintColor={colors.primary}
+              progressViewOffset={Platform.OS === 'android' ? 80 : 95} // Offset to appear below TopField
             />
           }
           showsVerticalScrollIndicator={false}
@@ -432,6 +433,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1001, // Higher than TopField's zIndex (1000)
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? 80 : 95, // Account for TopField height
   },
   loadingText: {
     marginTop: spacing.medium,

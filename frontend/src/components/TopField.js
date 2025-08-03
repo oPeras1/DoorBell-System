@@ -6,7 +6,9 @@ import {
   StyleSheet, 
   Image, 
   Animated,
-  Platform 
+  Platform,
+  Easing,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -33,6 +35,9 @@ const USER_TYPE_INFO = {
   }
 };
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const isSmallScreen = SCREEN_WIDTH < 370;
+
 const TopField = ({ 
   greeting, 
   userName, 
@@ -43,6 +48,7 @@ const TopField = ({
   showDarkModeToggle = true 
 }) => {
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [glowOpacity] = useState(new Animated.Value(0));
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
 
@@ -62,25 +68,43 @@ const TopField = ({
       }),
     ]).start();
 
-    // Pulse animation for online indicator
+    // Suave animação de brilho para online indicator
     if (isOnline) {
-      const createPulse = () => {
-        Animated.loop(
-          Animated.sequence([
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
             Animated.timing(pulseAnim, {
-              toValue: 1.4,
-              duration: 1500,
+              toValue: 1.2,
+              duration: 900,
+              easing: Easing.inOut(Easing.ease),
               useNativeDriver: false,
             }),
+            Animated.timing(glowOpacity, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: false,
+            }),
+          ]),
+          Animated.parallel([
             Animated.timing(pulseAnim, {
               toValue: 1,
-              duration: 1500,
+              duration: 900,
+              easing: Easing.inOut(Easing.ease),
               useNativeDriver: false,
             }),
-          ])
-        ).start();
-      };
-      createPulse();
+            Animated.timing(glowOpacity, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: false,
+            }),
+          ]),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+      glowOpacity.setValue(0);
     }
   }, [isOnline]);
 
@@ -103,6 +127,7 @@ const TopField = ({
   return (
     <Animated.View style={[
       styles.topField,
+      isSmallScreen && styles.topFieldSmall,
       {
         opacity: fadeAnim,
         transform: [{ translateY: slideAnim }]
@@ -110,14 +135,18 @@ const TopField = ({
     ]}>
       {/* Background gradient effect */}
       <View style={styles.backgroundGradient} />
-      
       {/* Decorative elements */}
       <View style={[styles.decorativeCircle1, { backgroundColor: `${getTimeBasedColor()}10` }]} />
       <View style={[styles.decorativeCircle2, { backgroundColor: `${colors.primary}08` }]} />
-      
-      <View style={styles.contentContainer}>
+      <View style={[
+        styles.contentContainer,
+        isSmallScreen && styles.contentContainerSmall
+      ]}>
         {/* Left Section - Greeting */}
-        <View style={styles.leftSection}>
+        <View style={[
+          styles.leftSection,
+          isSmallScreen && styles.leftSectionSmall
+        ]}>
           <View style={styles.greetingContainer}>
             <View style={styles.greetingRow}>
               <Ionicons 
@@ -147,46 +176,64 @@ const TopField = ({
             )}
           </View>
         </View>
-
         {/* Right Section - Controls */}
         <View style={styles.rightSection}>
-          {/* Door Status */}
-          <View style={styles.doorStatusContainer}>
-            <Ionicons name="home" size={24} color={colors.primary} />
-            <Animated.View style={[
-              styles.statusIndicator,
-              {
-                backgroundColor: isOnline ? '#22C55E' : '#EF4444',
-                transform: [{ scale: isOnline ? pulseAnim : 1 }]
-              }
-            ]} />
-          </View>
-
-          {/* Dark Mode Toggle (placeholder) */}
-          {showDarkModeToggle && (
-            <TouchableOpacity style={styles.darkModeButton} activeOpacity={0.7}>
-              <Ionicons name="moon-outline" size={20} color={colors.textSecondary} />
+          {/* Controls Capsule */}
+          <View style={[
+            styles.controlsCapsule,
+            isSmallScreen && styles.controlsCapsuleSmall
+          ]}>
+            {/* Service Status */}
+            <TouchableOpacity style={[
+              styles.actionButton,
+              isSmallScreen && styles.actionButtonSmall
+            ]} activeOpacity={0.7}>
+              <Ionicons 
+                name="lock-closed-outline"
+                size={isSmallScreen ? 18 : 24}
+                color={isOnline ? '#22C55E' : '#EF4444'} 
+              />
+              {isOnline && (
+                <Animated.View style={[
+                  styles.onlineGlow,
+                  isSmallScreen && styles.onlineGlowSmall,
+                  { 
+                    transform: [{ scale: pulseAnim }],
+                    opacity: glowOpacity
+                  }
+                ]} />
+              )}
             </TouchableOpacity>
-          )}
-
-          {/* User Profile */}
-          <TouchableOpacity 
-            style={styles.profileContainer} 
-            onPress={onProfilePress}
-            activeOpacity={0.8}
-          >
-            <View style={styles.profileImageContainer}>
+            {/* Dark Mode Toggle */}
+            {showDarkModeToggle && (
+              <TouchableOpacity style={[
+                styles.actionButton,
+                isSmallScreen && styles.actionButtonSmall
+              ]} activeOpacity={0.7}>
+                <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+            {/* User Profile */}
+            <TouchableOpacity 
+              style={styles.profileContainer} 
+              onPress={onProfilePress}
+              activeOpacity={0.8}
+            >
               <Image 
                 source={userAvatar || require('../../assets/avatar.png')} 
-                style={styles.profileImage}
+                style={[
+                  styles.profileImage,
+                  isSmallScreen && styles.profileImageSmall
+                ]}
                 resizeMode="cover"
               />
               <View style={[
                 styles.profileStatusDot,
+                isSmallScreen && styles.profileStatusDotSmall,
                 { backgroundColor: isOnline ? '#22C55E' : '#EF4444' }
               ]} />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Animated.View>
@@ -200,7 +247,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.card,
-    paddingTop: Platform.OS === 'android' ? 15 : 30,
+    paddingTop: 10,
     paddingBottom: 10,
     zIndex: 1000,
     // Shadow styles
@@ -212,6 +259,10 @@ const styles = StyleSheet.create({
     } : {
       elevation: 8,
     }),
+  },
+  topFieldSmall: {
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   backgroundGradient: {
     position: 'absolute',
@@ -246,9 +297,17 @@ const styles = StyleSheet.create({
     zIndex: 1,
     minHeight: 50,
   },
+  contentContainerSmall: {
+    paddingHorizontal: spacing.small,
+    paddingVertical: 2,
+    minHeight: 36,
+  },
   leftSection: {
     flex: 1,
     marginRight: spacing.medium,
+  },
+  leftSectionSmall: {
+    marginRight: spacing.small,
   },
   greetingContainer: {
     flex: 1,
@@ -306,47 +365,61 @@ const styles = StyleSheet.create({
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.large,
   },
-  doorStatusContainer: {
-    width: 44,
-    height: 44,
-    backgroundColor: `${colors.primary}15`,
-    borderRadius: 22,
+  controlsCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.textSecondary}10`,
+    borderRadius: 30,
+    paddingHorizontal: spacing.small,
+    paddingVertical: 5,
+    gap: spacing.small,
+  },
+  controlsCapsuleSmall: {
+    borderRadius: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    gap: 4,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  statusIndicator: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.card,
+  actionButtonSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
-  darkModeButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: `${colors.textSecondary}10`,
+  onlineGlow: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.25)',
+    zIndex: -1,
+  },
+  onlineGlowSmall: {
+    borderRadius: 14,
   },
   profileContainer: {
     position: 'relative',
   },
-  profileImageContainer: {
-    position: 'relative',
-  },
   profileImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 2,
     borderColor: colors.card,
+  },
+  profileImageSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   profileStatusDot: {
     position: 'absolute',
@@ -357,6 +430,12 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 2,
     borderColor: colors.card,
+  },
+  profileStatusDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
   },
 });
 

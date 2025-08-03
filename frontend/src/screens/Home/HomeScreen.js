@@ -207,11 +207,26 @@ const HomeScreen = ({ navigation }) => {
         }).start();
       }
 
-      const response = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random');
-      const data = await response.json();
+      let factText = '';
+      let attempts = 0;
       
+      // Keep fetching until we get a fact with 150 characters or less
+      do {
+        attempts++;
+        try {
+          const response = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random');
+          const data = await response.json();
+          factText = data.text.trim();
+        } catch (fetchError) {
+          // If API fails, break and use fallback
+          console.log(`Fetch attempt ${attempts} failed:`, fetchError);
+          factText = 'Você sabia que o QR Code foi inventado no Japão em 1994?';
+          break;
+        }
+      } while (factText.length > 150);
+
       setTimeout(() => {
-        setRandomFact(data.text.trim());
+        setRandomFact(factText);
         if (!isFirstLoad) {
           // Fade in new text
           Animated.timing(factOpacity, {
