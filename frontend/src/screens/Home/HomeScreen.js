@@ -56,7 +56,7 @@ const getUserTypeInfo = (type) => {
       return {
         icon: 'person',
         color: '#6B7280',
-        bgColor: '#F3F4F6',
+        bgColor: '#f3f4f6f8',
         title: 'User',
         subtitle: 'Standard Access'
       };
