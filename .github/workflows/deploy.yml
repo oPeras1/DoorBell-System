@@ -31,7 +31,10 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         script: |
           cd ~/DoorBell-System
+          export APP_SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
           git pull origin main
           docker compose down
           docker compose build --no-cache
           docker compose up -d
+      env:
+        APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
