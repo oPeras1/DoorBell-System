@@ -16,6 +16,8 @@ import { getCurrentUser } from '../../services/auth';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/Button';
 import Message from '../../components/Message';
+import api from '../../services/api';
+import { API_ENDPOINTS } from '../../config/apiConfig';
 
 const DUMMY_ACTIVITIES = [
   { id: 1, time: '10:30 AM', date: 'Today', action: 'Door Bell Ring', user: 'Guest' },
@@ -64,6 +66,7 @@ const getUserTypeInfo = (type) => {
 const HomeScreen = ({ navigation }) => {
   const { logout, user, setUser } = useContext(AuthContext);
   const [isRinging, setIsRinging] = useState(false);
+  const [isOpeningDoor, setIsOpeningDoor] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [randomFact, setRandomFact] = useState('');
   const [isLoadingFact, setIsLoadingFact] = useState(false);
@@ -315,6 +318,31 @@ const HomeScreen = ({ navigation }) => {
     }, 3000);
   };
 
+  const handleOpenDoor = async () => {
+    try {
+      setIsOpeningDoor(true);
+      
+      // Make request to the DOOR endpoint
+      const response = await api.post(API_ENDPOINTS.DOOR);
+      
+      // Handle successful response
+      console.log('Door opened successfully:', response.data);
+      
+      // You can add a success message here if needed
+      // For example: show a toast or temporary message
+      
+    } catch (error) {
+      console.error('Failed to open door:', error);
+      
+      // Handle error - you might want to show an error message to the user
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+    } finally {
+      setIsOpeningDoor(false);
+    }
+  };
+
   const toggleAutoRefresh = () => {
     setAutoRefresh(!autoRefresh);
   };
@@ -481,6 +509,17 @@ const HomeScreen = ({ navigation }) => {
               loading={isRinging}
               disabled={isRinging}
               iconLeft={!isRinging && <Ionicons name="notifications" size={22} color="white" />}
+            />
+            
+            <View style={styles.buttonSpacing} />
+            
+            <Button 
+              title={isOpeningDoor ? "Opening..." : "Open Door"} 
+              onPress={handleOpenDoor}
+              loading={isOpeningDoor}
+              disabled={isOpeningDoor}
+              iconLeft={!isOpeningDoor && <Ionicons name="lock-open" size={22} color="white" />}
+              style={styles.openDoorButton}
             />
           </View>
           
@@ -818,6 +857,12 @@ const styles = StyleSheet.create({
   },
   doorbellContainer: {
     marginVertical: spacing.large,
+  },
+  buttonSpacing: {
+    height: spacing.medium,
+  },
+  openDoorButton: {
+    backgroundColor: colors.secondary,
   },
   sectionTitle: {
     fontSize: 20,
