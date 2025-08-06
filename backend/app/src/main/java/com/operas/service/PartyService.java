@@ -49,7 +49,7 @@ public class PartyService {
                 // Only parties they were invited to and that haven't passed
                 return parties.stream()
                         .filter(p -> p.getGuests() != null &&
-                                p.getGuests().stream().anyMatch(u -> u.getId().equals(user.getId())) &&
+                                p.getGuests().stream().anyMatch(u -> u.getUser().getId().equals(user.getId())) &&
                                 p.getDateTime() != null &&
                                 p.getDateTime().isAfter(now))
                         .map(PartyDto::fromEntity)

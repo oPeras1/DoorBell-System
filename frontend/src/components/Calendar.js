@@ -88,7 +88,7 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
       const week = [];
       for (let j = 0; j < 7; j++) {
         if (i === 0 && j < firstDayOfMonth) {
-          week.push(<View key={`empty-${j}`} style={styles.dayContainer} />);
+          week.push(<View key={`empty-${i}-${j}`} style={styles.dayContainer} />);
         } else if (dayCounter <= daysInMonth) {
           const day = dayCounter;
           const isSelected = date.getDate() === day && date.getMonth() === displayMonth && date.getFullYear() === displayYear;
@@ -108,6 +108,8 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
             </TouchableOpacity>
           );
           dayCounter++;
+        } else {
+          week.push(<View key={`empty-${i}-${j}`} style={styles.dayContainer} />);
         }
       }
       grid.push(<View key={`week-${i}`} style={styles.weekContainer}>{week}</View>);
@@ -239,7 +241,8 @@ const styles = StyleSheet.create({
   },
   weekContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   dayContainer: {
     width: '14.28%',

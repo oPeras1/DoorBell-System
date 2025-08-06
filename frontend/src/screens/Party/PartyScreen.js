@@ -95,7 +95,6 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
 
   const formatRooms = () => {
     if (!party.rooms || party.rooms.length === 0) {
-      // Fallback for old single room format
       if (party.room) {
         const roomConfig = ROOM_CONFIG[party.room];
         return roomConfig ? roomConfig.name : party.room;
@@ -339,11 +338,11 @@ const PartyScreen = ({ navigation }) => {
     if (currentUser?.type === 'KNOWLEDGER') {
       return showPastParties ? 'Past Parties' : 'Active Parties';
     } else if (currentUser?.type === 'HOUSER') {
-      return 'My Parties';
+      return 'Active Parties';
     } else {
       return 'My Invitations';
     }
-  };
+  };  
 
   useEffect(() => {
     fetchParties();
@@ -435,7 +434,7 @@ const PartyScreen = ({ navigation }) => {
                 </TouchableOpacity>
               )}
               
-              {canCreateParty() && (
+              {canCreateParty() && filteredParties.length > 0 && (
                 <TouchableOpacity 
                   style={styles.createButton} 
                   activeOpacity={0.8}

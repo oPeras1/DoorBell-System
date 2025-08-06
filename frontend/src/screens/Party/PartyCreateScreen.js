@@ -438,53 +438,28 @@ const PartyCreateScreen = ({ navigation, route }) => {
                   <Ionicons name="calendar-outline" size={20} color={colors.primary} />
                   <Text style={styles.sectionTitle}>Schedule</Text>
                 </View>
-                {Platform.OS === 'web' ? (
-                  <View style={styles.webDateRows}>
-                    <View style={styles.webDateRow}>
-                      <Text style={styles.fieldLabel}>Start</Text>
-                      <input
-                        type="datetime-local"
-                        style={styles.webDateInput}
-                        value={formData.dateTime ? new Date(formData.dateTime).toISOString().slice(0,16) : ''}
-                        min={new Date().toISOString().slice(0,16)}
-                        onChange={e => handleWebDateChange('dateTime', e.target.value)}
-                      />
-                    </View>
-                    <View style={styles.webDateRow}>
-                      <Text style={styles.fieldLabel}>End</Text>
-                      <input
-                        type="datetime-local"
-                        style={styles.webDateInput}
-                        value={formData.endDateTime ? new Date(formData.endDateTime).toISOString().slice(0,16) : ''}
-                        min={formData.dateTime ? new Date(formData.dateTime).toISOString().slice(0,16) : ''}
-                        onChange={e => handleWebDateChange('endDateTime', e.target.value)}
-                      />
-                    </View>
+                <View style={styles.dateTimeRow}>
+                  <View style={styles.dateTimeField}>
+                    <Text style={styles.fieldLabel}>Start</Text>
+                    <TouchableOpacity 
+                      style={styles.dateTimeButton}
+                      onPress={() => openDatePicker('start')}
+                    >
+                      <Ionicons name="calendar" size={20} color={colors.primary} />
+                      <Text style={styles.dateTimeText}>{formatDateTime(formData.dateTime)}</Text>
+                    </TouchableOpacity>
                   </View>
-                ) : (
-                  <View style={styles.dateTimeRow}>
-                    <View style={styles.dateTimeField}>
-                      <Text style={styles.fieldLabel}>Start</Text>
-                      <TouchableOpacity 
-                        style={styles.dateTimeButton}
-                        onPress={() => openDatePicker('start')}
-                      >
-                        <Ionicons name="calendar" size={20} color={colors.primary} />
-                        <Text style={styles.dateTimeText}>{formatDateTime(formData.dateTime)}</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.dateTimeField}>
-                      <Text style={styles.fieldLabel}>End</Text>
-                      <TouchableOpacity 
-                        style={styles.dateTimeButton}
-                        onPress={() => openDatePicker('end')}
-                      >
-                        <Ionicons name="time" size={20} color={colors.primary} />
-                        <Text style={styles.dateTimeText}>{formatDateTime(formData.endDateTime)}</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={styles.dateTimeField}>
+                    <Text style={styles.fieldLabel}>End</Text>
+                    <TouchableOpacity 
+                      style={styles.dateTimeButton}
+                      onPress={() => openDatePicker('end')}
+                    >
+                      <Ionicons name="time" size={20} color={colors.primary} />
+                      <Text style={styles.dateTimeText}>{formatDateTime(formData.endDateTime)}</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
+                </View>
               </View>
 
               {/* Room Selection */}
