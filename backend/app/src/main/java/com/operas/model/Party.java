@@ -68,7 +68,8 @@ public class Party {
     public enum GuestStatus {
         GOING,
         NOT_GOING,
-        LATE
+        LATE,
+        UNDECIDED
     }
 
     @Id

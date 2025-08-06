@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TopField from '../../components/TopField';
 import { getParties, deleteParty } from '../../services/partyService';
 import PopUp from '../../components/PopUp';
+import Message from '../../components/Message';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -247,7 +248,7 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
   );
 };
 
-const PartyScreen = ({ navigation }) => {
+const PartyScreen = ({ navigation, route }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
@@ -257,6 +258,7 @@ const PartyScreen = ({ navigation }) => {
   const [showPastParties, setShowPastParties] = useState(false);
   const [popUpVisible, setPopUpVisible] = useState(false);
   const [partyToDelete, setPartyToDelete] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const getTimeBasedGreeting = () => {
     const hour = new Date().getHours();
@@ -293,7 +295,7 @@ const PartyScreen = ({ navigation }) => {
       await deleteParty(partyToDelete);
       setParties(prev => prev.filter(p => p.id !== partyToDelete));
     } catch (error) {
-      // Opcional: pode adicionar feedback visual se desejar
+      // Opcional
     } finally {
       setPopUpVisible(false);
       setPartyToDelete(null);
@@ -312,21 +314,21 @@ const PartyScreen = ({ navigation }) => {
 
   const filterParties = () => {
     const now = new Date();
-    
+
     if (currentUser?.type === 'KNOWLEDGER') {
       if (showPastParties) {
-        return parties.filter(party => 
-          party.dateTime && new Date(party.dateTime) < now
+        // Past parties: endDateTime < now
+        return parties.filter(party =>
+          party.endDateTime && new Date(party.endDateTime) < now
         );
       } else {
-        return parties.filter(party => 
-          !party.dateTime || 
-          new Date(party.dateTime) >= now || 
-          party.status === 'IN_PROGRESS'
+        // Active parties: endDateTime >= now (includes future and ongoing)
+        return parties.filter(party =>
+          party.endDateTime && new Date(party.endDateTime) >= now
         );
       }
     }
-    
+
     return parties;
   };
 
@@ -362,183 +364,197 @@ const PartyScreen = ({ navigation }) => {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (route?.params?.successMessage) {
+      setSuccessMessage(route.params.successMessage);
+      navigation.setParams({ successMessage: undefined });
+    }
+  }, [route?.params?.successMessage]);
+
   const filteredParties = filterParties();
 
   return (
-    <View style={styles.container}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
+    <>
+      <Message
+        message={successMessage}
+        onDismiss={() => setSuccessMessage('')}
+        type="success"
       />
-      
-      <TopField 
-        greeting={getTimeBasedGreeting()}
-        userName={currentUser?.username}
-        userAvatar={require('../../../assets/avatar.png')}
-        userType={currentUser?.type}
-        isOnline={true}
-        onProfilePress={() => {}}
-        showDarkModeToggle={true}
-        onLogout={logout}
-      />
-      
-      <Animated.View style={[
-        styles.contentContainer, 
-        { 
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
-        }
-      ]}>
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-              progressViewOffset={Platform.OS === 'android' ? 80 : 95} // Adicionado para Android
-            />
+      <View style={styles.container}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="dark-content"
+        />
+        
+        <TopField 
+          greeting={getTimeBasedGreeting()}
+          userName={currentUser?.username}
+          userAvatar={require('../../../assets/avatar.png')}
+          userType={currentUser?.type}
+          isOnline={true}
+          onProfilePress={() => {}}
+          showDarkModeToggle={true}
+          onLogout={logout}
+        />
+        
+        <Animated.View style={[
+          styles.contentContainer, 
+          { 
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
           }
-        >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <View style={styles.headerContent}>
-              <Text style={styles.pageTitle}>{getHeaderTitle()}</Text>
-              <Text style={styles.pageSubtitle}>
-                {filteredParties.length} {filteredParties.length === 1 ? 'party' : 'parties'}
-              </Text>
-            </View>
-            
-            <View style={styles.headerActions}>
-              {currentUser?.type === 'KNOWLEDGER' && (
-                <TouchableOpacity 
-                  style={[styles.filterButton, showPastParties && styles.filterButtonActive]}
-                  onPress={() => setShowPastParties(!showPastParties)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons 
-                    name={showPastParties ? "time" : "calendar"} 
-                    size={16} 
-                    color={showPastParties ? colors.card : colors.primary} 
-                  />
-                  <Text style={[
-                    styles.filterButtonText, 
-                    showPastParties && styles.filterButtonTextActive
-                  ]}>
-                    {showPastParties ? 'Past' : 'Active'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              
-              {canCreateParty() && filteredParties.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.createButton} 
-                  activeOpacity={0.8}
-                  onPress={() => navigation.navigate('PartyCreate')}
-                >
-                  <Ionicons name="add" size={20} color={colors.card} />
-                  <Text style={styles.createButtonText}>Create</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* Content */}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading parties...</Text>
-            </View>
-          ) : filteredParties.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons name="calendar-outline" size={64} color={colors.textSecondary} />
+        ]}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+                progressViewOffset={Platform.OS === 'android' ? 80 : 95} // Adicionado para Android
+              />
+            }
+          >
+            {/* Header Section */}
+            <View style={styles.headerSection}>
+              <View style={styles.headerContent}>
+                <Text style={styles.pageTitle}>{getHeaderTitle()}</Text>
+                <Text style={styles.pageSubtitle}>
+                  {filteredParties.length} {filteredParties.length === 1 ? 'party' : 'parties'}
+                </Text>
               </View>
-              <Text style={styles.emptyTitle}>
-                {showPastParties ? 'No Past Parties' : 'No Parties Yet'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {currentUser?.type === 'GUEST' 
-                  ? "You haven't been invited to any parties yet"
-                  : showPastParties
-                  ? "No parties have been completed yet"
-                  : "Create your first party to get started!"
-                }
-              </Text>
-              {canCreateParty() && !showPastParties && (
-                <TouchableOpacity 
-                  style={styles.emptyCreateButton} 
-                  activeOpacity={0.8}
-                  onPress={() => navigation.navigate('PartyCreate')}
-                >
-                  <Ionicons name="add-circle" size={20} color={colors.primary} />
-                  <Text style={styles.emptyCreateButtonText}>Create Party</Text>
-                </TouchableOpacity>
-              )}
+              
+              <View style={styles.headerActions}>
+                {currentUser?.type === 'KNOWLEDGER' && (
+                  <TouchableOpacity 
+                    style={[styles.filterButton, showPastParties && styles.filterButtonActive]}
+                    onPress={() => setShowPastParties(!showPastParties)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons 
+                      name={showPastParties ? "time" : "calendar"} 
+                      size={16} 
+                      color={showPastParties ? colors.card : colors.primary} 
+                    />
+                    <Text style={[
+                      styles.filterButtonText, 
+                      showPastParties && styles.filterButtonTextActive
+                    ]}>
+                      {showPastParties ? 'Past' : 'Active'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
+                {canCreateParty() && filteredParties.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.createButton} 
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('PartyCreate')}
+                  >
+                    <Ionicons name="add" size={20} color={colors.card} />
+                    <Text style={styles.createButtonText}>Create</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          ) : (
-            <View style={styles.partiesContainer}>
-              {filteredParties.map((party, index) => (
-                <PartyCard
-                  key={party.id}
-                  party={party}
-                  userRole={currentUser}
-                  onDelete={handleDeleteParty}
-                  onPress={() => {}}
-                />
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </Animated.View>
-      
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Users')}
-        >
-          <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Users</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="calendar" size={24} color={colors.primary} />
-          <Text style={[styles.navText, { color: colors.primary }]}>Party</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
 
-      <PopUp
-        visible={popUpVisible}
-        title="Delete Party"
-        message="Are you sure you want to delete this party?"
-        confirmText="Delete"
-        cancelText="Cancel"
-        type="danger"
-        onConfirm={confirmDeleteParty}
-        onCancel={cancelDeleteParty}
-        showCancel={true}
-      />
-    </View>
+            {/* Content */}
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading parties...</Text>
+              </View>
+            ) : filteredParties.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconContainer}>
+                  <Ionicons name="calendar-outline" size={64} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.emptyTitle}>
+                  {showPastParties ? 'No Past Parties' : 'No Parties Yet'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {currentUser?.type === 'GUEST' 
+                    ? "You haven't been invited to any parties yet"
+                    : showPastParties
+                    ? "No parties have been completed yet"
+                    : "Create your first party to get started!"
+                  }
+                </Text>
+                {canCreateParty() && !showPastParties && (
+                  <TouchableOpacity 
+                    style={styles.emptyCreateButton} 
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('PartyCreate')}
+                  >
+                    <Ionicons name="add-circle" size={20} color={colors.primary} />
+                    <Text style={styles.emptyCreateButtonText}>Create Party</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.partiesContainer}>
+                {filteredParties.map((party, index) => (
+                  <PartyCard
+                    key={party.id}
+                    party={party}
+                    userRole={currentUser}
+                    onDelete={handleDeleteParty}
+                    onPress={() => {}}
+                  />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
+        
+        <View style={styles.bottomNav}>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Home</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Users')}
+          >
+            <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Users</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="calendar" size={24} color={colors.primary} />
+            <Text style={[styles.navText, { color: colors.primary }]}>Party</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
+
+        <PopUp
+          visible={popUpVisible}
+          title="Delete Party"
+          message="Are you sure you want to delete this party?"
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+          onConfirm={confirmDeleteParty}
+          onCancel={cancelDeleteParty}
+          showCancel={true}
+        />
+      </View>
+    </>
   );
 };
 
@@ -555,7 +571,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    // paddingTop aumentado para afastar do TopField
     paddingTop: Platform.OS === 'android' ? 100 : 115,
     paddingHorizontal: spacing.large,
     paddingBottom: 100,
@@ -574,7 +589,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.small,
   },
   pageSubtitle: {
     fontSize: 16,

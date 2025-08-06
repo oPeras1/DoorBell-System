@@ -135,11 +135,11 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
         <Text style={styles.timeSeparator}>:</Text>
         {/* Minute */}
         <View style={styles.timeUnit}>
-          <TouchableOpacity onPress={() => handleTimeChange('minute', 5)} style={styles.timeButton}>
+          <TouchableOpacity onPress={() => handleTimeChange('minute', 1)} style={styles.timeButton}>
             <Ionicons name="chevron-up" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.timeValue}>{String(date.getMinutes()).padStart(2, '0')}</Text>
-          <TouchableOpacity onPress={() => handleTimeChange('minute', -5)} style={styles.timeButton}>
+          <TouchableOpacity onPress={() => handleTimeChange('minute', -1)} style={styles.timeButton}>
             <Ionicons name="chevron-down" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>

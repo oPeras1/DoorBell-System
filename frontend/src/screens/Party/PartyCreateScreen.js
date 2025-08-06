@@ -153,24 +153,23 @@ const PartyCreateScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
+
     try {
       setLoading(true);
       setErrorMessage('');
-      
+
       const partyData = {
         ...formData,
         status: 'SCHEDULED',
-        guests: formData.guests.map(guest => ({ id: guest.id }))
+        guests: formData.guests.map(guest => ({
+          user: { id: guest.id },
+          status: 'UNDECIDED'
+        }))
       };
-      
+
       await createParty(partyData);
       setHasUnsavedChanges(false);
-      setSuccessMessage('Party created successfully!');
-      
-      setTimeout(() => {
-        navigation.goBack();
-      }, 1500);
+      navigation.navigate('Party', { successMessage: 'Party created successfully!' });
     } catch (error) {
       console.error('Error creating party:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to create party. Please try again.');
@@ -253,11 +252,6 @@ const PartyCreateScreen = ({ navigation, route }) => {
         message={errorMessage}
         onDismiss={() => setErrorMessage('')}
         type="error"
-      />
-      <Message 
-        message={successMessage}
-        onDismiss={() => setSuccessMessage('')}
-        type="success"
       />
       <View style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />

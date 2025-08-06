@@ -12,19 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 import com.operas.model.Party;
 import com.operas.model.User;
 import com.operas.model.Party.GuestStatusPair;
-import com.operas.model.Party.GuestStatus;
-import com.operas.dto.PartyDto.GuestStatusPairDto;
 import com.operas.dto.PartyDto;
 import com.operas.repository.PartyRepository;
+import com.operas.repository.UserRepository;
 import com.operas.exceptions.BadRequestException;
 
 @Service
 public class PartyService {
     private final PartyRepository partyRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public PartyService(PartyRepository partyRepository) {
+    public PartyService(PartyRepository partyRepository, UserRepository userRepository) {
         this.partyRepository = partyRepository;
+        this.userRepository = userRepository;
     }
 
     public List<PartyDto> getParties(User user) {
@@ -69,6 +70,9 @@ public class PartyService {
         LocalDateTime dateTime = partyDto.getDateTime();
         LocalDateTime endDateTime = partyDto.getEndDateTime();
 
+        if (now.isAfter(dateTime)) {
+            throw new BadRequestException("Party start date/time cannot be in the past.");
+        }
         if (dateTime == null || endDateTime == null) {
             throw new BadRequestException("Start and end date/time must be provided.");
         }
@@ -78,11 +82,6 @@ public class PartyService {
         if (java.time.Duration.between(dateTime, endDateTime).toHours() > 24) {
             throw new BadRequestException("Party duration cannot exceed 24 hours.");
         }
-        LocalDateTime createdAt = dateTime.minusMinutes(5);
-        if (!createdAt.isAfter(now.minusMinutes(1))) {
-            throw new BadRequestException("Party must be scheduled at least 5 minutes after creation.");
-        }
-
         if (partyDto.getRooms() == null || partyDto.getRooms().isEmpty()) {
             throw new BadRequestException("A party must have at least one room.");
         }
@@ -91,16 +90,20 @@ public class PartyService {
         party.setHost(user);
         party.setName(partyDto.getName());
         party.setDescription(partyDto.getDescription());
-        party.setCreatedAt(createdAt);
+        party.setCreatedAt(now);
         party.setDateTime(dateTime);
         party.setEndDateTime(endDateTime);
 
         party.setGuests(
             partyDto.getGuests().stream()
                 .map(dto -> {
-                    User u = new User();
-                    u.setId(dto.getUser().getId());
-                    return new GuestStatusPair(u, dto.getStatus());
+                    if (dto.getUser() == null || dto.getUser().getId() == null) {
+                        throw new BadRequestException("Each guest must have a valid user.");
+                    }
+                    User guestUser = userRepository.findById(dto.getUser().getId())
+                            .orElseThrow(() -> new BadRequestException("Guest user with ID " + dto.getUser().getId() + " not found."));
+                    Party.GuestStatus status = dto.getStatus() != null ? dto.getStatus() : Party.GuestStatus.UNDECIDED;
+                    return new GuestStatusPair(guestUser, status);
                 })
                 .collect(Collectors.toList())
         );
