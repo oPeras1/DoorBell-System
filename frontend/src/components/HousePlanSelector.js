@@ -1,0 +1,555 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Platform,
+  Dimensions,
+  ScrollView,
+  Pressable,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
+import Svg, { Rect, Text as SvgText, G } from 'react-native-svg';
+import { colors } from '../constants/colors';
+import { spacing, borderRadius } from '../constants/styles';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+const ROOM_MAPPING = {
+  KITCHEN: 'Kitchen',
+  WC1: 'WC 1',
+  WC2: 'WC 2',
+  FILIPE_B: "Filipe's Room",
+  GUI_B: "Guilherme's Room",
+  HUGO_B: "Hugo's Room",
+  LEO_B: "Leo's Room",
+  VIC_B: "Vic's Room",
+  LIVING_ROOM: 'Living Room',
+  BALCONY: 'Balcony',
+};
+
+const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false }) => {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const positionX = useSharedValue(0);
+  const positionY = useSharedValue(0);
+  const savedPositionX = useSharedValue(0);
+  const savedPositionY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      const newScale = Math.max(0.5, Math.min(savedScale.value * e.scale, 3));
+      scale.value = newScale;
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      positionX.value = savedPositionX.value + e.translationX;
+      positionY.value = savedPositionY.value + e.translationY;
+    })
+    .onEnd(() => {
+      savedPositionX.value = positionX.value;
+      savedPositionY.value = positionY.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: positionX.value },
+      { translateY: positionY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const Corridor = ({ x, y, width, height }) => (
+    <Rect x={x} y={y} width={width} height={height} fill="#e9ecef" stroke="#dee2e6" strokeWidth={1.5} />
+  );
+  
+  const ClickableRoom = ({ id, x, y, width, height, label, labelX, labelY, isBathroom = false }) => {
+    const isSelected = multiSelect ? selectedRooms.includes(id) : selectedRooms[0] === id;
+    const [isHovered, setIsHovered] = useState(false);
+
+    const handleRoomPress = () => {
+      if (multiSelect) {
+        const newSelection = isSelected 
+          ? selectedRooms.filter(roomId => roomId !== id)
+          : [...selectedRooms, id];
+        onRoomSelect(newSelection);
+      } else {
+        onRoomSelect([id]);
+      }
+    };
+
+    const renderLabel = () => {
+      if (id === 'VIC_B') {
+        return (
+          <>
+            <SvgText
+              x={labelX}
+              y={labelY - 8}
+              fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+              fontSize="13"
+              fontWeight="500"
+              fill={isSelected ? colors.card : '#495057'}
+              textAnchor="middle"
+              dominantBaseline="central"
+              pointerEvents="none"
+              style={{ ...(Platform.OS === 'web' && { userSelect: 'none' }) }}
+            >
+              Vic's
+            </SvgText>
+            <SvgText
+              x={labelX}
+              y={labelY + 8}
+              fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+              fontSize="13"
+              fontWeight="500"
+              fill={isSelected ? colors.card : '#495057'}
+              textAnchor="middle"
+              dominantBaseline="central"
+              pointerEvents="none"
+              style={{ ...(Platform.OS === 'web' && { userSelect: 'none' }) }}
+            >
+              Room
+            </SvgText>
+          </>
+        );
+      }
+      return (
+        <SvgText
+          x={labelX}
+          y={labelY}
+          fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+          fontSize="13"
+          fontWeight="500"
+          fill={isSelected ? colors.card : '#495057'}
+          textAnchor="middle"
+          dominantBaseline="central"
+          pointerEvents="none"
+          style={{ ...(Platform.OS === 'web' && { userSelect: 'none' }) }}
+        >
+          {label}
+        </SvgText>
+      );
+    };
+
+    return (
+      <G
+        onPress={handleRoomPress}
+        {...(Platform.OS === 'web' && {
+          onMouseEnter: () => setIsHovered(true),
+          onMouseLeave: () => setIsHovered(false),
+        })}
+      >
+        <Rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill={
+            isSelected
+              ? colors.primary
+              : isHovered && Platform.OS === 'web'
+              ? '#e2e6ea'
+              : isBathroom
+              ? '#e7f5ff'
+              : '#f8f9fa'
+          }
+          stroke={isSelected ? colors.primary : '#dee2e6'}
+          strokeWidth={isSelected ? 3 : 1.5}
+          style={{
+            ...(Platform.OS === 'web' && {
+              cursor: 'pointer',
+              transition: 'fill 0.2s ease-in-out',
+            })
+          }}
+        />
+        {/* Selection indicator for multi-select */}
+        {multiSelect && isSelected && (
+          <G>
+            <Rect
+              x={x + width - 25}
+              y={y + 5}
+              width="20"
+              height="20"
+              rx="10"
+              fill={colors.primary}
+            />
+            <SvgText
+              x={x + width - 15}
+              y={y + 15}
+              fontFamily="system-ui"
+              fontSize="12"
+              fontWeight="bold"
+              fill="white"
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              ✓
+            </SvgText>
+          </G>
+        )}
+        {renderLabel()}
+      </G>
+    );
+  };
+
+  return (
+    <GestureDetector gesture={composedGesture}>
+      <Animated.View style={[styles.planSvgContainer, animatedStyle]}>
+        <Svg width="752" height="430" viewBox="-0.5 -0.5 752 430">
+          <G transform="translate(-15, -100)">
+            <Corridor x="120" y="220" width="40" height="60" />
+            <ClickableRoom id="KITCHEN" x="30" y="160" width="90" height="120" label="Kitchen" labelX={75} labelY={220} />
+            <ClickableRoom id="WC1" x="120" y="160" width="90" height="60" label="WC 1" labelX={165} labelY={190} isBathroom />
+            <ClickableRoom id="WC2" x="160" y="220" width="50" height="60" label="WC 2" labelX={185} labelY={250} isBathroom />
+            <ClickableRoom id="FILIPE_B" x="210" y="160" width="110" height="160" label="Filipe's Room" labelX={265} labelY={220} />
+            <ClickableRoom id="GUI_B" x="320" y="160" width="180" height="160" label="Guilherme's Room" labelX={410} labelY={220} />
+            <Corridor x="30" y="280" width="470" height="30" />
+            <ClickableRoom id="HUGO_B" x="30" y="310" width="270" height="140" label="Hugo's Room" labelX={165} labelY={380} />
+            <ClickableRoom id="LEO_B" x="300" y="310" width="140" height="140" label="Leo's Room" labelX={370} labelY={380} />
+            <ClickableRoom id="VIC_B" x="440" y="310" width="60" height="140" label="Vic's Room" labelX={470} labelY={380} />
+            <ClickableRoom id="LIVING_ROOM" x="500" y="280" width="130" height="170" label="Living Room" labelX={565} labelY={365} />
+            <ClickableRoom id="BALCONY" x="630" y="160" width="120" height="290" label="Balcony" labelX={690} labelY={305} />
+            <Corridor x="160" y="140" width="120" height="20" />
+            <Corridor x="500" y="160" width="130" height="120" />
+            <Corridor x="160" y="450" width="80" height="20" />
+            <Corridor x="330" y="450" width="80" height="20" />
+          </G>
+        </Svg>
+      </Animated.View>
+    </GestureDetector>
+  );
+};
+
+const HousePlanSelector = ({ 
+  visible, 
+  selectedRooms = [], // Changed from selectedRoom
+  onRoomsSelect, // Changed from onRoomSelect
+  onClose, 
+  multiSelect = false 
+}) => {
+  const fadeAnim = useSharedValue(0);
+  const scaleAnim = useSharedValue(0.9);
+
+  React.useEffect(() => {
+    if (visible) {
+      fadeAnim.value = withTiming(1, { duration: 300 });
+      scaleAnim.value = withSpring(1, { damping: 15, stiffness: 120 });
+    } else {
+      fadeAnim.value = withTiming(0, { duration: 200 });
+      scaleAnim.value = withSpring(0.9, { damping: 10 });
+    }
+  }, [visible]);
+
+  const animatedModalStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+    transform: [{ scale: scaleAnim.value }],
+  }));
+
+  const handleRoomToggle = (roomSelection) => {
+    onRoomsSelect(roomSelection);
+  };
+
+  const handleQuickSelect = (roomId) => {
+    if (multiSelect) {
+      const isSelected = selectedRooms.includes(roomId);
+      const newSelection = isSelected 
+        ? selectedRooms.filter(id => id !== roomId)
+        : [...selectedRooms, roomId];
+      onRoomsSelect(newSelection);
+    } else {
+      onRoomsSelect([roomId]);
+    }
+  };
+
+  const handleConfirmAndClose = () => {
+    if (selectedRooms.length > 0) {
+      onClose();
+    }
+  };
+
+  const formatSelectedCount = () => {
+    if (selectedRooms.length === 0) return 'Select rooms';
+    if (selectedRooms.length === 1) {
+      const roomName = ROOM_MAPPING[selectedRooms[0]];
+      return `Confirm ${roomName}`;
+    }
+    return `Confirm ${selectedRooms.length} rooms`;
+  };
+
+  return (
+    <Modal visible={visible} transparent={true} animationType="none" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Animated.View style={[styles.modalContainer, animatedModalStyle]}>
+          <Pressable style={{ flex: 1 }} onPress={(e) => e.stopPropagation()}>
+            <GestureHandlerRootView style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {multiSelect ? 'Select Rooms' : 'Select a Room'}
+                  {multiSelect && selectedRooms.length > 0 && (
+                    <Text style={styles.selectionCount}> ({selectedRooms.length} selected)</Text>
+                  )}
+                </Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* House Plan Container */}
+              <View style={styles.planContainer}>
+                <InteractiveHousePlan 
+                  selectedRooms={selectedRooms} 
+                  onRoomSelect={handleRoomToggle}
+                  multiSelect={multiSelect}
+                />
+              </View>
+
+              {/* Room Selection List */}
+              <View style={styles.roomsList}>
+                <View style={styles.roomsListHeader}>
+                  {Platform.OS === 'web'
+                    ? (multiSelect && selectedRooms.length > 0 && (
+                        <TouchableOpacity 
+                          style={styles.clearButton}
+                          onPress={() => onRoomsSelect([])}
+                        >
+                          <Text style={styles.clearButtonText}>Clear All</Text>
+                        </TouchableOpacity>
+                      ))
+                    : (
+                      <>
+                        <Text style={styles.roomsListTitle}>Quick Selection:</Text>
+                        {multiSelect && selectedRooms.length > 0 && (
+                          <TouchableOpacity 
+                            style={styles.clearButton}
+                            onPress={() => onRoomsSelect([])}
+                          >
+                            <Text style={styles.clearButtonText}>Clear All</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )
+                  }
+                </View>
+                {Platform.OS !== 'web' && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.roomChips}>
+                      {Object.entries(ROOM_MAPPING).map(([roomId, roomName]) => {
+                        const isSelected = selectedRooms.includes(roomId);
+                        return (
+                          <TouchableOpacity
+                            key={roomId}
+                            style={[styles.roomChip, isSelected && styles.roomChipSelected]}
+                            onPress={() => handleQuickSelect(roomId)}
+                          >
+                            <Text style={[styles.roomChipText, isSelected && styles.roomChipTextSelected]}>
+                              {roomName}
+                            </Text>
+                            {multiSelect && isSelected && (
+                              <Ionicons name="checkmark" size={16} color={colors.card} style={styles.chipCheckmark} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+
+              {/* Footer */}
+              <View style={styles.modalFooter}>
+                <TouchableOpacity 
+                  style={[styles.confirmButton, selectedRooms.length === 0 && styles.confirmButtonDisabled]} 
+                  onPress={handleConfirmAndClose}
+                  disabled={selectedRooms.length === 0}
+                >
+                  <Text style={[styles.confirmButtonText, selectedRooms.length === 0 && styles.confirmButtonTextDisabled]}>
+                    {formatSelectedCount()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </GestureHandlerRootView>
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Platform.OS === 'web' ? spacing.large : spacing.medium,
+  },
+  modalContainer: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 800 : SCREEN_WIDTH - 20,
+    height: SCREEN_HEIGHT * 0.85,
+    maxHeight: 700,
+    overflow: 'hidden',
+    flexDirection: 'column',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: `0px 8px 16px rgba(0, 0, 0, 0.25)`,
+    } : {
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 12,
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.large,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  closeButton: {
+    padding: spacing.small,
+  },
+  planContainer: {
+    flex: 1,
+    backgroundColor: '#f1f3f5',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        marginBottom: 0,
+      },
+      default: {
+        marginBottom: spacing.large,
+      }
+    }),
+  },
+  planSvgContainer: {
+    width: 752,
+    height: 430,
+  },
+  roomsList: {
+    padding: spacing.large,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    ...Platform.select({
+      web: {
+        marginTop: 0,
+        paddingTop: spacing.medium,
+        paddingBottom: spacing.medium,
+      }
+    }),
+  },
+  roomsListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.medium,
+  },
+  roomChips: {
+    flexDirection: 'row',
+    gap: spacing.small,
+  },
+  roomChip: {
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  roomChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roomChipText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  roomChipTextSelected: {
+    color: colors.card,
+    fontWeight: '600',
+  },
+  modalFooter: {
+    padding: spacing.large,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.medium,
+    borderRadius: borderRadius.medium,
+    alignItems: 'center',
+    transition: 'background-color 0.2s ease',
+  },
+  confirmButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  confirmButtonText: {
+    color: colors.card,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButtonTextDisabled: {
+    color: colors.textSecondary,
+  },
+  selectionCount: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.primary,
+  },
+  roomsListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        marginBottom: 0,
+      },
+      default: {
+        marginBottom: spacing.medium,
+      }
+    }),
+  },
+  clearButton: {
+    paddingHorizontal: spacing.small,
+    paddingVertical: 4,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  chipCheckmark: {
+    marginLeft: spacing.small,
+  },
+});
+
+export default HousePlanSelector;

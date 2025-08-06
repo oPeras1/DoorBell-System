@@ -511,14 +511,20 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.navText}>Users</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Settings</Text>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Party')}
+          >
+            <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Party</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.navItem} onPress={logout}>
-            <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Logout</Text>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Settings</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

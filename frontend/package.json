@@ -5,16 +5,18 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/datetimepicker": "github:react-native-community/datetimepicker",
     "@react-navigation/native": "^7.0.18",
     "@react-navigation/stack": "^7.2.2",
     "axios": "^1.8.4",
+    "expo": "~53.0.20",
     "expo-device": "^7.1.4",
     "expo-linear-gradient": "^14.1.5",
     "expo-status-bar": "~2.2.3",
@@ -22,14 +24,17 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-device-info": "^14.0.4",
-    "react-native-gesture-handler": "^2.24.0",
+    "react-native-gesture-handler": "~2.24.0",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "react-native-reanimated": "~3.17.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "latest",
     "expo": "53.0.20",
     "expo-cli": "^6.3.12"
   },

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAllUsers } from '../../services/userService';
 import Message from '../../components/Message';
 import TopField from '../../components/TopField';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const USER_TYPE_INFO = {
   KNOWLEDGER: {
@@ -28,6 +29,9 @@ const USER_TYPE_INFO = {
     title: 'Knowledger',
     subtitle: 'Full Access',
     priority: 1,
+    gradient: ['#8B5CF6', '#7C3AED'],
+    description: 'Complete system control',
+    cardBg: '#f5f3ff',
   },
   HOUSER: {
     icon: 'home',
@@ -37,6 +41,9 @@ const USER_TYPE_INFO = {
     title: 'Houser',
     subtitle: 'Resident Access',
     priority: 2,
+    gradient: ['#10B981', '#059669'],
+    description: 'Home management access',
+    cardBg: '#e6fcf5',
   },
   GUEST: {
     icon: 'person-outline',
@@ -46,6 +53,9 @@ const USER_TYPE_INFO = {
     title: 'Guest',
     subtitle: 'Limited Access',
     priority: 3,
+    gradient: ['#9CA3AF', '#6B7280'],
+    description: 'Basic visitor access',
+    cardBg: '#f3f4f6',
   }
 };
 
@@ -75,7 +85,6 @@ const UsersScreen = ({ navigation }) => {
   useEffect(() => {
     fetchUsers();
     
-    // Enhanced entrance animation with fade and slide
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -96,7 +105,6 @@ const UsersScreen = ({ navigation }) => {
       setError(null);
       const usersData = await getAllUsers();
       
-      // Sort users by priority (Knowledger -> Houser -> Guest)
       const sortedUsers = usersData.sort((a, b) => {
         const priorityA = USER_TYPE_INFO[a.type]?.priority || 999;
         const priorityB = USER_TYPE_INFO[b.type]?.priority || 999;
@@ -107,10 +115,8 @@ const UsersScreen = ({ navigation }) => {
       
       setUsers(sortedUsers);
     } catch (error) {
-      // Check if it's a 404 error (user not authenticated)
       if (error.response && error.response.status === 404) {
         console.log('User not authenticated, redirecting to login...');
-        // Force logout to clear any invalid tokens
         await logout();
         return;
       }
@@ -131,9 +137,10 @@ const UsersScreen = ({ navigation }) => {
 
   const getUserTypeInfo = (type) => USER_TYPE_INFO[type] || USER_TYPE_INFO.GUEST;
 
-  const renderUserCard = (user, index) => {
+  const renderUserCard = (user, index, arr) => {
     const userInfo = getUserTypeInfo(user.type);
     const isCurrentUser = user.username === currentUser?.username;
+
     return (
       <AnimatedTouchable
         key={user.username}
@@ -147,85 +154,58 @@ const UsersScreen = ({ navigation }) => {
                 inputRange: [0, 1],
                 outputRange: [30 + (index * 5), 0]
               })
-            }]
+            }],
+            marginBottom: index < arr.length - 1 ? spacing.medium : 0,
           }
         ]}
-        activeOpacity={0.8}
+        activeOpacity={0.95}
+        onPress={() => {
+          // Add haptic feedback or navigation
+        }}
       >
-        {isCurrentUser && (
-          <View style={styles.currentUserBadge}>
-            <Ionicons name="star" size={12} color={colors.warning} />
-            <Text style={styles.currentUserText}>You</Text>
+        <LinearGradient
+          colors={[`${userInfo.color}1A`, `${userInfo.color}0D`]}
+          style={styles.userCardGradient}
+        >
+          <View style={styles.userCardContent}>
+            <View style={styles.userLeftSection}>
+              <View style={styles.userAvatar}>
+                <View style={[styles.userAvatarInner, { backgroundColor: userInfo.bgColor }]}>
+                  <Text style={[styles.userInitial, { color: userInfo.color }]}>
+                    {user.username.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={[styles.userGlow, { backgroundColor: `${userInfo.color}20` }]} />
+              </View>
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user.username}</Text>
+                <View style={[styles.userTypeBadge, { backgroundColor: userInfo.bgColor }]}>
+                  <Ionicons name={userInfo.icon} size={12} color={userInfo.color} />
+                  <Text style={[styles.userTypeText, { color: userInfo.color }]}>
+                    {userInfo.title}
+                  </Text>
+                </View>
+                {isCurrentUser && <Text style={styles.userDescription}>(You)</Text>}
+              </View>
+            </View>
+            <View style={styles.userRightSection}>
+              {!isCurrentUser && (
+                <TouchableOpacity 
+                  style={[styles.userActionButton, { borderColor: `${userInfo.color}80`, backgroundColor: `${userInfo.color}15` }]}
+                  onPress={() => {
+                    // Add user action
+                  }}
+                >
+                  <Ionicons name="ellipsis-vertical" size={16} color={userInfo.color} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        )}
-        <View style={styles.userCardContent}>
-          <View style={styles.userAvatar}>
-            <View style={[styles.userAvatarInner, { backgroundColor: userInfo.bgColor }]}> 
-              <Text style={[styles.userInitial, { color: userInfo.color }]}> 
-                {user.username.charAt(0).toUpperCase()} 
-              </Text> 
-            </View> 
-            <View style={[styles.userStatusDot, { backgroundColor: userInfo.color }]} /> 
-          </View> 
-          <View style={styles.userInfo}> 
-            <Text style={styles.userName}>{user.username}</Text> 
-            <View style={[styles.userTypeBadge, { backgroundColor: userInfo.bgColor }]}> 
-              <Ionicons name={userInfo.icon} size={12} color={userInfo.color} /> 
-              <Text style={[styles.userTypeText, { color: userInfo.color }]}> 
-                {userInfo.title} 
-              </Text> 
-            </View> 
-            <Text style={styles.userSubtitle}>{userInfo.subtitle}</Text> 
-          </View> 
-          <TouchableOpacity style={[styles.userActionButton, { borderColor: userInfo.color }]}> 
-            <Ionicons name="chevron-forward" size={18} color={userInfo.color} /> 
-          </TouchableOpacity> 
-        </View> 
+          <View style={[styles.userCardAccent, { backgroundColor: userInfo.color }]} />
+        </LinearGradient>
       </AnimatedTouchable>
     );
   };
-
-
-
-  const getStatsData = () => {
-    const stats = users.reduce((acc, user) => {
-      acc[user.type] = (acc[user.type] || 0) + 1;
-      return acc;
-    }, {});
-
-    return [
-      { type: 'KNOWLEDGER', count: stats.KNOWLEDGER || 0, ...USER_TYPE_INFO.KNOWLEDGER },
-      { type: 'HOUSER', count: stats.HOUSER || 0, ...USER_TYPE_INFO.HOUSER },
-      { type: 'GUEST', count: stats.GUEST || 0, ...USER_TYPE_INFO.GUEST }
-    ];
-  };
-
-  const renderStatsCard = (stat, index) => (
-    <Animated.View 
-      key={stat.type}
-      style={[
-        styles.statsCard,
-        { backgroundColor: stat.bgColor, borderColor: stat.borderColor },
-        {
-          opacity: fadeAnim,
-          transform: [{
-            translateY: fadeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [30 + (index * 10), 0]
-            })
-          }]
-        }
-      ]}
-    >
-      <View style={[styles.statsIconContainer, { backgroundColor: stat.color }]}>
-        <Ionicons name={stat.icon} size={24} color="white" />
-      </View>
-      <View style={styles.statsContent}>
-        <Text style={[styles.statsCount, { color: stat.color }]}>{stat.count}</Text>
-        <Text style={[styles.statsLabel, { color: stat.color }]}>{stat.title}</Text>
-      </View>
-    </Animated.View>
-  );
 
   const getUsersByRole = () => {
     const usersByRole = {
@@ -246,9 +226,9 @@ const UsersScreen = ({ navigation }) => {
 
   const renderRoleSection = (roleType, roleUsers, sectionIndex) => {
     if (roleUsers.length === 0) return null;
-    
+
     const roleInfo = USER_TYPE_INFO[roleType];
-    
+
     return (
       <Animated.View 
         key={roleType}
@@ -265,18 +245,29 @@ const UsersScreen = ({ navigation }) => {
           }
         ]}
       >
-        <View style={styles.roleSectionHeader}>
-          <View style={[styles.roleIconContainer, { backgroundColor: roleInfo.color }]}>
-            <Ionicons name={roleInfo.icon} size={18} color="white" />
+        <View style={[
+          styles.roleSectionCard,
+          { borderLeftColor: roleInfo.color, borderLeftWidth: 4 }
+        ]}>
+          <View style={styles.roleSectionHeader}>
+            <View style={styles.roleHeaderLeft}>
+              <View style={[styles.roleIconContainer, { backgroundColor: roleInfo.color }]}>
+                <Ionicons name={roleInfo.icon} size={20} color="white" />
+              </View>
+              <View style={styles.roleTitleContainer}>
+                <Text style={[styles.roleTitle, { color: roleInfo.color }]}>{roleInfo.title}s</Text>
+                <Text style={styles.roleSubtitle}>{roleInfo.subtitle}</Text>
+              </View>
+            </View>
+            
+            <View style={[styles.roleCountBadge, { backgroundColor: `${roleInfo.color}1A` }]}>
+              <Text style={[styles.roleCountText, { color: roleInfo.color }]}>{roleUsers.length}</Text>
+            </View>
           </View>
-          <View style={styles.roleTitleContainer}>
-            <Text style={[styles.roleTitle, { color: roleInfo.color }]}>{roleInfo.title}s</Text>
-            <Text style={styles.roleSubtitle}>{roleInfo.subtitle} • {roleUsers.length} user{roleUsers.length !== 1 ? 's' : ''}</Text>
+          
+          <View style={styles.roleUsersList}>
+            {roleUsers.map((user, index) => renderUserCard(user, index, roleUsers))}
           </View>
-        </View>
-        
-        <View style={styles.roleUsersList}>
-          {roleUsers.map((user, index) => renderUserCard(user, index))}
         </View>
       </Animated.View>
     );
@@ -286,7 +277,6 @@ const UsersScreen = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-        {/* Top Field sempre visível */}
         <TopField 
           greeting={getTimeBasedGreeting()}
           userName={currentUser?.username}
@@ -295,11 +285,42 @@ const UsersScreen = ({ navigation }) => {
           isOnline={true}
           onProfilePress={() => {}}
           showDarkModeToggle={true}
+          onLogout={logout}
         />
-        {/* Loading abaixo do TopField */}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading users...</Text>
+        </View>
+        
+        <View style={styles.bottomNav}>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Home</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="people" size={24} color={colors.primary} />
+            <Text style={[styles.navText, { color: colors.primary }]}>Users</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Party')}
+          >
+            <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Party</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -313,13 +334,6 @@ const UsersScreen = ({ navigation }) => {
         barStyle="dark-content"
       />
       
-      <Message 
-        message={error}
-        onDismiss={dismissError}
-        type="error"
-      />
-      
-      {/* Top Field Component */}
       <TopField 
         greeting={getTimeBasedGreeting()}
         userName={currentUser?.username}
@@ -328,6 +342,13 @@ const UsersScreen = ({ navigation }) => {
         isOnline={true}
         onProfilePress={() => {}}
         showDarkModeToggle={true}
+        onLogout={logout}
+      />
+
+      <Message 
+        message={error}
+        onDismiss={dismissError}
+        type="error"
       />
       
       <Animated.View style={[
@@ -346,48 +367,61 @@ const UsersScreen = ({ navigation }) => {
               onRefresh={onRefresh}
               colors={[colors.primary]}
               tintColor={colors.primary}
-              progressViewOffset={Platform.OS === 'android' ? 80 : 95} // Offset to appear below TopField
+              progressViewOffset={Platform.OS === 'android' ? 80 : 95}
             />
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* Users by Role */}
           <View style={styles.rolesContainer}>
             {Object.entries(getUsersByRole()).map(([roleType, roleUsers], index) => 
               renderRoleSection(roleType, roleUsers, index)
             )}
           </View>
           
-          {/* Overview Section - Moved to bottom */}
-          <Animated.View style={[styles.statsSection, styles.bottomStatsSection, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>Overview</Text>
-            <View style={styles.statsContainer}>
-              {getStatsData().map(renderStatsCard)}
-              {/* Total Users Card */}
-              <Animated.View 
-                style={[
-                  styles.statsCard,
-                  styles.totalStatsCard,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{
-                      translateY: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [30, 0]
-                      })
-                    }]
-                  }
-                ]}
+          <Animated.View style={[styles.statsSection, { opacity: fadeAnim }]}>
+            <Animated.View
+              style={{
+                transform: [{
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0]
+                  })
+                }]
+              }}
+            >
+              <LinearGradient
+                colors={[`${colors.primary}1A`, `${colors.primary}0A`]}
+                style={styles.totalOverviewCard}
               >
-                <View style={[styles.statsIconContainer, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="people" size={24} color="white" />
+                <View style={styles.totalOverviewContent}>
+                  <View style={styles.totalOverviewLeft}>
+                    <View style={[styles.totalIconContainer, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="people" size={32} color="white" />
+                    </View>
+                    <View style={styles.totalTextContainer}>
+                      <Text style={styles.totalCount}>{users.length}</Text>
+                      <Text style={styles.totalLabel}>Total Users</Text>
+                      <Text style={styles.totalSubtext}>Registered in the system</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.totalOverviewRight}>
+                    <View style={styles.quickStatsContainer}>
+                      {Object.entries(getUsersByRole()).map(([roleType, roleUsers]) => {
+                        if (roleUsers.length === 0) return null;
+                        const roleInfo = USER_TYPE_INFO[roleType];
+                        return (
+                          <View key={roleType} style={styles.quickStatItem}>
+                            <View style={[styles.quickStatDot, { backgroundColor: roleInfo.color }]} />
+                            <Text style={styles.quickStatText}>{roleUsers.length} {roleInfo.title}s</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.statsContent}>
-                  <Text style={[styles.statsCount, { color: colors.primary }]}>{users.length}</Text>
-                  <Text style={[styles.statsLabel, { color: colors.primary }]}>Total Users</Text>
-                </View>
-              </Animated.View>
-            </View>
+              </LinearGradient>
+            </Animated.View>
           </Animated.View>
         </ScrollView>
       </Animated.View>
@@ -406,19 +440,26 @@ const UsersScreen = ({ navigation }) => {
           <Text style={[styles.navText, { color: colors.primary }]}>Users</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Settings</Text>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Party')}
+        >
+          <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
+          <Text style={styles.navText}>Party</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem} onPress={() => logout()}>
-          <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Logout</Text>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+          <Text style={styles.navText}>Settings</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -433,9 +474,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1001, // Higher than TopField's zIndex (1000)
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 80 : 95, // Account for TopField height
+    paddingTop: Platform.OS === 'android' ? 80 : 95,
   },
   loadingText: {
     marginTop: spacing.medium,
@@ -447,16 +487,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: Platform.OS === 'android' ? 80 : 95,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   statsSection: {
-    padding: spacing.large,
-  },
-  bottomStatsSection: {
+    paddingHorizontal: spacing.large,
     marginTop: spacing.large,
-    paddingTop: spacing.large,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    paddingTop: spacing.medium,
   },
   sectionTitle: {
     fontSize: 18,
@@ -464,78 +500,103 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.medium,
   },
-  statsContainer: {
-    flexDirection: 'column',
-    gap: spacing.medium,
+  totalOverviewCard: {
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
   },
-  statsCard: {
+  totalOverviewContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.large,
-    borderRadius: borderRadius.large,
-    borderWidth: 1,
-    minHeight: 70,
-    // Different shadow styles for iOS and Android
-    ...(Platform.OS === 'ios' ? {
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    } : {
-      elevation: 2,
-      shadowColor: 'transparent', // Remove shadow color on Android
-    }),
+    justifyContent: 'space-between',
   },
-  totalStatsCard: {
-    backgroundColor: `${colors.primary}08`,
-    borderColor: `${colors.primary}30`,
-    // Override elevation for total stats card on Android
-    ...(Platform.OS === 'android' && {
-      elevation: 1,
-      shadowColor: 'transparent',
-    }),
+  totalOverviewLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  statsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  totalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.large,
   },
-  statsContent: {
+  totalTextContainer: {
     flex: 1,
   },
-  statsCount: {
-    fontSize: 24,
-    fontWeight: '700',
+  totalCount: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.primary,
     marginBottom: 2,
   },
-  statsLabel: {
-    fontSize: 16,
+  totalLabel: {
+    fontSize: 18,
     fontWeight: '600',
-    opacity: 0.9,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  totalSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  totalOverviewRight: {
+    alignItems: 'flex-end',
+  },
+  quickStatsContainer: {
+    alignItems: 'flex-end',
+  },
+  quickStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  quickStatDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  quickStatText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   rolesContainer: {
     paddingHorizontal: spacing.large,
-    paddingBottom: spacing.medium,
     marginTop: spacing.large,
   },
   roleSection: {
-    marginBottom: spacing.large,
+    marginBottom: spacing.xlarge,
+  },
+  roleSectionCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    overflow: 'hidden', 
   },
   roleSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.medium,
-    paddingBottom: spacing.small,
+    justifyContent: 'space-between',
+    marginBottom: spacing.large,
+    paddingBottom: spacing.medium,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  roleHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   roleIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.medium,
@@ -553,112 +614,113 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  roleUsersList: {
+  roleCountBadge: {
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  roleCountText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  roleUsersList: { 
     gap: spacing.medium,
   },
   userCard: {
-    backgroundColor: colors.card,
     borderRadius: borderRadius.large,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  userCardGradient: {
     position: 'relative',
-    // Different shadow styles for iOS and Android
-    ...(Platform.OS === 'ios' ? {
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-    } : {
-      elevation: 2,
-      shadowColor: 'transparent',
-    }),
   },
-  currentUserCard: {
-    borderWidth: 2,
+  currentUserCard: { 
+    transform: [{ scale: 1.02 }],
     borderColor: colors.warning,
-  },
-  currentUserBadge: {
-    position: 'absolute',
-    top: spacing.small,
-    right: spacing.small,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${colors.warning}15`,
-    paddingHorizontal: spacing.small,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  currentUserText: {
-    marginLeft: 4,
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.warning,
   },
   userCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing.large,
+  },
+  userLeftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   userAvatar: {
     position: 'relative',
-    marginRight: spacing.medium,
+    marginRight: spacing.large,
   },
   userAvatarInner: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   userInitial: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
   },
-  userStatusDot: {
+  userGlow: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.card,
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 32,
+    zIndex: -1,
   },
   userInfo: {
     flex: 1,
+    gap: 4,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 4,
   },
   userTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.small,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 4,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: 6,
+    borderRadius: borderRadius.medium,
   },
   userTypeText: {
-    marginLeft: 4,
-    fontSize: 12,
-    fontWeight: '600',
+    marginLeft: 6,
+    fontSize: 13,
+    fontWeight: '700',
   },
-  userSubtitle: {
+  userDescription: {
     fontSize: 13,
     color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  userRightSection: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   userActionButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+  },
+  userCardAccent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
   },
   bottomNav: {
     position: 'absolute',
@@ -671,16 +733,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.medium,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    // Different shadow styles for iOS and Android
-    ...(Platform.OS === 'ios' ? {
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    } : {
-      elevation: 8,
-      shadowColor: 'transparent',
-    }),
   },
   navItem: {
     alignItems: 'center',

@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "statusBarStyle": "dark"
+      "statusBarStyle": "dark",
+      "bundleIdentifier": "com.anonymous.DoorBell"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +29,8 @@
         "translucent": true,
         "barStyle": "light-content"
       },
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.anonymous.DoorBell"
     },
     "web": {
       "favicon": "./assets/favicon.png",
