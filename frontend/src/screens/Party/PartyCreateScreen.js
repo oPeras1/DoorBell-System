@@ -21,28 +21,24 @@ import HousePlanSelector from '../../components/HousePlanSelector';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
+import { PARTY_TYPE_CONFIG, ROOMS } from '../../constants/party';
 
 
-const PARTY_TYPES = [
-  { key: 'HOUSE_PARTY', label: 'House Party', icon: 'home', color: '#8B5CF6', gradient: ['#8B5CF6', '#A855F7'] },
-  { key: 'KNOWLEDGE_SHARING', label: 'Knowledge Sharing', icon: 'school', color: '#3B82F6', gradient: ['#3B82F6', '#2563EB'] },
-  { key: 'GAME_NIGHT', label: 'Game Night', icon: 'game-controller', color: '#10B981', gradient: ['#10B981', '#059669'] },
-  { key: 'MOVIE_NIGHT', label: 'Movie Night', icon: 'film', color: '#F59E0B', gradient: ['#F59E0B', '#D97706'] },
-  { key: 'DINNER', label: 'Dinner', icon: 'restaurant', color: '#EF4444', gradient: ['#EF4444', '#DC2626'] },
-  { key: 'CLEANING', label: 'Cleaning', icon: 'brush', color: '#6B7280', gradient: ['#6B7280', '#4B5563'] }
-];
+const PARTY_TYPES = Object.entries(PARTY_TYPE_CONFIG).map(([key, value]) => ({
+  key,
+  label: value.name,
+  icon: value.icon,
+  color: value.color,
+  gradient: value.gradient,
+}));
 
-const ROOMS = [
-  { key: 'WC1', label: 'WC 1', icon: 'water', color: '#06B6D4' },
-  { key: 'WC2', label: 'WC 2', icon: 'water', color: '#0891B2' },
-  { key: 'KITCHEN', label: 'Kitchen', icon: 'restaurant-outline', color: '#F59E0B' },
-  { key: 'LIVING_ROOM', label: 'Living Room', icon: 'tv', color: '#8B5CF6' },
-  { key: 'HUGO_B', label: "Hugo's Room", icon: 'bed', color: '#EF4444' },
-  { key: 'LEO_B', label: "Leo's Room", icon: 'bed', color: '#10B981' },
-  { key: 'VIC_B', label: "Vic's Room", icon: 'bed', color: '#F97316' },
-  { key: 'GUI_B', label: "Guilherme's Room", icon: 'bed', color: '#3B82F6' },
-  { key: 'BALCONY', label: 'Balcony', icon: 'flower', color: '#84CC16' }
-];
+const normalizeString = (str) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+};
 
 const PartyCreateScreen = ({ navigation, route }) => {
   const { user: currentUser } = useContext(AuthContext);
@@ -61,15 +57,14 @@ const PartyCreateScreen = ({ navigation, route }) => {
   });
   
   const [availableUsers, setAvailableUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);  
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [datePickerType, setDatePickerType] = useState('start'); // 'start' or 'end'
   const [showRoomSelector, setShowRoomSelector] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedPopup, setShowUnsavedPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [guestSearch, setGuestSearch] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -92,7 +87,6 @@ const PartyCreateScreen = ({ navigation, route }) => {
   const fetchUsers = async () => {
     try {
       const users = await getAllUsers();
-      // Filter out current user from guest list
       const otherUsers = users.filter(user => user.id !== currentUser?.id);
       setAvailableUsers(otherUsers);
     } catch (error) {
@@ -246,14 +240,22 @@ const PartyCreateScreen = ({ navigation, route }) => {
 
   const isFormValid = formData.name.trim() && formData.guests.length > 0 && formData.rooms.length > 0;
 
+  const filteredUsers = guestSearch
+    ? availableUsers.filter(user =>
+        normalizeString(user.username).includes(normalizeString(guestSearch))
+      )
+    : availableUsers;
+
   return (
     <>
-      <Message 
-        message={errorMessage}
-        onDismiss={() => setErrorMessage('')}
-        type="error"
-      />
       <View style={styles.container}>
+        <View style={styles.messageContainer}>
+          <Message 
+            message={errorMessage}
+            onDismiss={() => setErrorMessage('')}
+            type="error"
+          />
+        </View>
         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
         
         {/* Enhanced Header */}
@@ -372,7 +374,7 @@ const PartyCreateScreen = ({ navigation, route }) => {
                           ]}>
                             <Ionicons 
                               name={type.icon} 
-                              size={24} // consistent size
+                              size={24}
                               color={type.color}
                             />
                           </View>
@@ -409,7 +411,7 @@ const PartyCreateScreen = ({ navigation, route }) => {
                           ]}>
                             <Ionicons 
                               name={type.icon} 
-                              size={20} // consistent size
+                              size={20}
                               color={type.color}
                             />
                           </View>
@@ -490,9 +492,18 @@ const PartyCreateScreen = ({ navigation, route }) => {
                     Guests ({formData.guests.length} selected)
                   </Text>
                 </View>
-                
+                {/* Search for guests */}
+                <View style={styles.fieldContainer}>
+                  <TextInput
+                    style={styles.guestSearchInput}
+                    placeholder="Search guests..."
+                    placeholderTextColor={colors.textSecondary}
+                    value={guestSearch}
+                    onChangeText={setGuestSearch}
+                  />
+                </View>
                 <View style={styles.guestsList}>
-                  {availableUsers.map((user) => {
+                  {filteredUsers.map((user) => {
                     const isSelected = formData.guests.some(guest => guest.id === user.id);
                     return (
                       <TouchableOpacity
@@ -524,6 +535,9 @@ const PartyCreateScreen = ({ navigation, route }) => {
                       </TouchableOpacity>
                     );
                   })}
+                  {filteredUsers.length === 0 && (
+                    <Text style={styles.noGuestsText}>No guests found.</Text>
+                  )}
                 </View>
               </View>
             </Animated.View>
@@ -576,6 +590,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  messageContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 25 : 0,
+    left: 0,
+    right: 0,
+    zIndex: 2000,
+    pointerEvents: 'box-none',
   },
   header: {
     position: 'absolute',
@@ -936,6 +958,22 @@ fontSize: 14,
   webDateRow: {
     flexDirection: 'column',
     marginBottom: 8,
+  },
+  guestSearchInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: spacing.small,
+  },
+  noGuestsText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: spacing.medium,
   },
 });
 

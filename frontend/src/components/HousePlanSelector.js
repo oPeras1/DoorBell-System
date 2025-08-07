@@ -38,7 +38,7 @@ const ROOM_MAPPING = {
   BALCONY: 'Balcony',
 };
 
-const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false }) => {
+const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false, viewOnly = false }) => {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const positionX = useSharedValue(0);
@@ -84,6 +84,8 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
     const [isHovered, setIsHovered] = useState(false);
 
     const handleRoomPress = () => {
+      if (viewOnly) return; // Don't allow selection in view-only mode
+      
       if (multiSelect) {
         const newSelection = isSelected 
           ? selectedRooms.filter(roomId => roomId !== id)
@@ -150,7 +152,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
     return (
       <G
         onPress={handleRoomPress}
-        {...(Platform.OS === 'web' && {
+        {...(Platform.OS === 'web' && !viewOnly && {
           onMouseEnter: () => setIsHovered(true),
           onMouseLeave: () => setIsHovered(false),
         })}
@@ -163,7 +165,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
           fill={
             isSelected
               ? colors.primary
-              : isHovered && Platform.OS === 'web'
+              : (isHovered && Platform.OS === 'web' && !viewOnly)
               ? '#e2e6ea'
               : isBathroom
               ? '#e7f5ff'
@@ -172,14 +174,14 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
           stroke={isSelected ? colors.primary : '#dee2e6'}
           strokeWidth={isSelected ? 3 : 1.5}
           style={{
-            ...(Platform.OS === 'web' && {
+            ...(Platform.OS === 'web' && !viewOnly && {
               cursor: 'pointer',
               transition: 'fill 0.2s ease-in-out',
             })
           }}
         />
-        {/* Selection indicator for multi-select */}
-        {multiSelect && isSelected && (
+        {/* Selection indicator for multi-select - hide in view-only mode */}
+        {multiSelect && isSelected && !viewOnly && (
           <G>
             <Rect
               x={x + width - 25}
@@ -238,10 +240,11 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
 
 const HousePlanSelector = ({ 
   visible, 
-  selectedRooms = [], // Changed from selectedRoom
-  onRoomsSelect, // Changed from onRoomSelect
+  selectedRooms = [],
+  onRoomsSelect, 
   onClose, 
-  multiSelect = false 
+  multiSelect = false,
+  viewOnly = false
 }) => {
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.9);
@@ -262,7 +265,9 @@ const HousePlanSelector = ({
   }));
 
   const handleRoomToggle = (roomSelection) => {
-    onRoomsSelect(roomSelection);
+    if (!viewOnly) {
+      onRoomsSelect(roomSelection);
+    }
   };
 
   const handleQuickSelect = (roomId) => {
@@ -292,6 +297,24 @@ const HousePlanSelector = ({
     return `Confirm ${selectedRooms.length} rooms`;
   };
 
+  // If viewOnly is true, render inline component instead of modal
+  if (viewOnly) {
+    return (
+      <View style={styles.inlineContainer}>
+        <GestureHandlerRootView style={styles.inlineGestureContainer}>
+          <View style={styles.inlinePlanContainer}>
+            <InteractiveHousePlan 
+              selectedRooms={selectedRooms} 
+              onRoomSelect={handleRoomToggle}
+              multiSelect={multiSelect}
+              viewOnly={viewOnly}
+            />
+          </View>
+        </GestureHandlerRootView>
+      </View>
+    );
+  }
+
   return (
     <Modal visible={visible} transparent={true} animationType="none" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -301,8 +324,13 @@ const HousePlanSelector = ({
               {/* Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {multiSelect ? 'Select Rooms' : 'Select a Room'}
-                  {multiSelect && selectedRooms.length > 0 && (
+                  {viewOnly 
+                    ? 'Party Locations' 
+                    : multiSelect 
+                      ? 'Select Rooms' 
+                      : 'Select a Room'
+                  }
+                  {!viewOnly && multiSelect && selectedRooms.length > 0 && (
                     <Text style={styles.selectionCount}> ({selectedRooms.length} selected)</Text>
                   )}
                 </Text>
@@ -317,73 +345,78 @@ const HousePlanSelector = ({
                   selectedRooms={selectedRooms} 
                   onRoomSelect={handleRoomToggle}
                   multiSelect={multiSelect}
+                  viewOnly={viewOnly}
                 />
               </View>
 
-              {/* Room Selection List */}
-              <View style={styles.roomsList}>
-                <View style={styles.roomsListHeader}>
-                  {Platform.OS === 'web'
-                    ? (multiSelect && selectedRooms.length > 0 && (
-                        <TouchableOpacity 
-                          style={styles.clearButton}
-                          onPress={() => onRoomsSelect([])}
-                        >
-                          <Text style={styles.clearButtonText}>Clear All</Text>
-                        </TouchableOpacity>
-                      ))
-                    : (
-                      <>
-                        <Text style={styles.roomsListTitle}>Quick Selection:</Text>
-                        {multiSelect && selectedRooms.length > 0 && (
+              {/* Room Selection List - Hide in view-only mode */}
+              {!viewOnly && (
+                <View style={styles.roomsList}>
+                  <View style={styles.roomsListHeader}>
+                    {Platform.OS === 'web'
+                      ? (multiSelect && selectedRooms.length > 0 && (
                           <TouchableOpacity 
                             style={styles.clearButton}
                             onPress={() => onRoomsSelect([])}
                           >
                             <Text style={styles.clearButtonText}>Clear All</Text>
                           </TouchableOpacity>
-                        )}
-                      </>
-                    )
-                  }
+                        ))
+                      : (
+                        <>
+                          <Text style={styles.roomsListTitle}>Quick Selection:</Text>
+                          {multiSelect && selectedRooms.length > 0 && (
+                            <TouchableOpacity 
+                              style={styles.clearButton}
+                              onPress={() => onRoomsSelect([])}
+                            >
+                              <Text style={styles.clearButtonText}>Clear All</Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      )
+                    }
+                  </View>
+                  {Platform.OS !== 'web' && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.roomChips}>
+                        {Object.entries(ROOM_MAPPING).map(([roomId, roomName]) => {
+                          const isSelected = selectedRooms.includes(roomId);
+                          return (
+                            <TouchableOpacity
+                              key={roomId}
+                              style={[styles.roomChip, isSelected && styles.roomChipSelected]}
+                              onPress={() => handleQuickSelect(roomId)}
+                            >
+                              <Text style={[styles.roomChipText, isSelected && styles.roomChipTextSelected]}>
+                                {roomName}
+                              </Text>
+                              {multiSelect && isSelected && (
+                                <Ionicons name="checkmark" size={16} color={colors.card} style={styles.chipCheckmark} />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+                  )}
                 </View>
-                {Platform.OS !== 'web' && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.roomChips}>
-                      {Object.entries(ROOM_MAPPING).map(([roomId, roomName]) => {
-                        const isSelected = selectedRooms.includes(roomId);
-                        return (
-                          <TouchableOpacity
-                            key={roomId}
-                            style={[styles.roomChip, isSelected && styles.roomChipSelected]}
-                            onPress={() => handleQuickSelect(roomId)}
-                          >
-                            <Text style={[styles.roomChipText, isSelected && styles.roomChipTextSelected]}>
-                              {roomName}
-                            </Text>
-                            {multiSelect && isSelected && (
-                              <Ionicons name="checkmark" size={16} color={colors.card} style={styles.chipCheckmark} />
-                            )}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
-                )}
-              </View>
+              )}
 
-              {/* Footer */}
-              <View style={styles.modalFooter}>
-                <TouchableOpacity 
-                  style={[styles.confirmButton, selectedRooms.length === 0 && styles.confirmButtonDisabled]} 
-                  onPress={handleConfirmAndClose}
-                  disabled={selectedRooms.length === 0}
-                >
-                  <Text style={[styles.confirmButtonText, selectedRooms.length === 0 && styles.confirmButtonTextDisabled]}>
-                    {formatSelectedCount()}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              {/* Footer - Hide confirm button in view-only mode */}
+              {!viewOnly && (
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity 
+                    style={[styles.confirmButton, selectedRooms.length === 0 && styles.confirmButtonDisabled]} 
+                    onPress={handleConfirmAndClose}
+                    disabled={selectedRooms.length === 0}
+                  >
+                    <Text style={[styles.confirmButtonText, selectedRooms.length === 0 && styles.confirmButtonTextDisabled]}>
+                      {formatSelectedCount()}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </GestureHandlerRootView>
           </Pressable>
         </Animated.View>
@@ -549,6 +582,22 @@ const styles = StyleSheet.create({
   },
   chipCheckmark: {
     marginLeft: spacing.small,
+  },
+  inlineContainer: {
+    backgroundColor: 'transparent', 
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+    height: 300,
+  },
+  inlineGestureContainer: {
+    flex: 1,
+  },
+  inlinePlanContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

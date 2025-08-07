@@ -19,6 +19,13 @@ public class PartyController {
     @Autowired
     private PartyService partyService;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<PartyDto> getPartyById(@PathVariable Long id,
+                                                 @AuthenticationPrincipal CustomUserDetails userDetails) {
+        PartyDto party = partyService.getPartyById(id, userDetails.getUser());
+        return ResponseEntity.ok(party);
+    }
+
     @GetMapping("/")
     public List<PartyDto> getParties(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return partyService.getParties(userDetails.getUser());

@@ -39,20 +39,20 @@ public class PartyService {
                         .map(PartyDto::fromEntity)
                         .collect(Collectors.toList());
             case HOUSER:
-                // Future and ongoing parties
+                // Future parties only
                 return parties.stream()
-                        .filter(p -> p.getDateTime() != null &&
-                                (p.getDateTime().isAfter(now) ||
-                                 (p.getStatus() == Party.PartyStatus.IN_PROGRESS)))
+                        .filter(p -> p.getEndDateTime() != null &&
+                                p.getEndDateTime().isAfter(now))
                         .map(PartyDto::fromEntity)
                         .collect(Collectors.toList());
             case GUEST:
-                // Only parties they were invited to and that haven't passed
+                // Only parties they were invited to and that haven't ended
                 return parties.stream()
                         .filter(p -> p.getGuests() != null &&
                                 p.getGuests().stream().anyMatch(u -> u.getUser().getId().equals(user.getId())) &&
-                                p.getDateTime() != null &&
-                                p.getDateTime().isAfter(now))
+                                p.getEndDateTime() != null &&
+                                p.getEndDateTime().isAfter(now)
+                        )
                         .map(PartyDto::fromEntity)
                         .collect(Collectors.toList());
             default:
@@ -70,8 +70,8 @@ public class PartyService {
         LocalDateTime dateTime = partyDto.getDateTime();
         LocalDateTime endDateTime = partyDto.getEndDateTime();
 
-        if (now.isAfter(dateTime)) {
-            throw new BadRequestException("Party start date/time cannot be in the past.");
+        if (!dateTime.isAfter(now) && !dateTime.isEqual(now)) {
+            throw new BadRequestException("Party start date/time must be in the future.");
         }
         if (dateTime == null || endDateTime == null) {
             throw new BadRequestException("Start and end date/time must be provided.");
@@ -118,10 +118,41 @@ public class PartyService {
     public void deleteParty(Long id, User user) {
         Party party = partyRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Party not found"));
-        // Only the host can delete the party
-        if (!party.getHost().getId().equals(user.getId())) {
-            throw new SecurityException("Only the host can delete the party");
+        // Only the host or a KNOWLEDGER can delete the party
+        if (!party.getHost().getId().equals(user.getId()) && user.getType() != User.UserType.KNOWLEDGER) {
+            throw new SecurityException("Only the host or a KNOWLEDGER can delete the party");
         }
         partyRepository.deleteById(id);
+    }
+
+    public PartyDto getPartyById(Long id, User user) {
+        Party party = partyRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Party not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        switch (user.getType()) {
+            case KNOWLEDGER:
+                // Do nothing
+                break;
+            case HOUSER:
+                // Only see parties that are future
+                if (party.getEndDateTime() == null || !party.getEndDateTime().isAfter(now)) {
+                    throw new BadRequestException("You do not have permission to view this party.");
+                }
+                break;
+            case GUEST:
+                // Only see parties that they were invited to and that haven't ended
+                boolean isInvited = party.getGuests() != null &&
+                    party.getGuests().stream().anyMatch(u -> u.getUser().getId().equals(user.getId()));
+                if (!isInvited || party.getEndDateTime() == null || !party.getEndDateTime().isAfter(now)) {
+                    throw new BadRequestException("You do not have permission to view this party.");
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid user role");
+        }
+
+        return PartyDto.fromEntity(party);
     }
 }

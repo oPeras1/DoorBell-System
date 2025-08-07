@@ -69,6 +69,7 @@ public class Party {
         GOING,
         NOT_GOING,
         LATE,
+        ARRIVED,
         UNDECIDED
     }
 

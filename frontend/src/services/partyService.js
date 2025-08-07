@@ -25,3 +25,13 @@ export const deleteParty = async (partyId) => {
     throw error;
   }
 };
+
+export const getPartyById = async (partyId) => {
+  try {
+    const response = await api.get(`/party/${partyId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching party details:', error);
+    throw error;
+  }
+};

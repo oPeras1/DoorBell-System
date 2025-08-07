@@ -11,7 +11,8 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
-  Dimensions
+  Dimensions,
+  TextInput
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
@@ -21,36 +22,10 @@ import TopField from '../../components/TopField';
 import { getParties, deleteParty } from '../../services/partyService';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
+import Calendar from '../../components/Calendar';
+import { PARTY_TYPE_CONFIG, ROOM_CONFIG, STATUS_CONFIG } from '../../constants/party';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-
-const PARTY_TYPE_CONFIG = {
-  HOUSE_PARTY: { icon: 'home', color: '#8B5CF6', bgColor: '#F3E8FF', name: 'House Party' },
-  KNOWLEDGE_SHARING: { icon: 'school', color: '#3B82F6', bgColor: '#DBEAFE', name: 'Knowledge Sharing' },
-  GAME_NIGHT: { icon: 'game-controller', color: '#10B981', bgColor: '#D1FAE5', name: 'Game Night' },
-  MOVIE_NIGHT: { icon: 'film', color: '#F59E0B', bgColor: '#FEF3C7', name: 'Movie Night' },
-  DINNER: { icon: 'restaurant', color: '#EF4444', bgColor: '#FEE2E2', name: 'Dinner' },
-  CLEANING: { icon: 'brush', color: '#6B7280', bgColor: '#F3F4F6', name: 'Cleaning' }
-};
-
-const ROOM_CONFIG = {
-  WC1: { icon: 'water', name: 'Casa de Banho 1', color: '#06B6D4' },
-  WC2: { icon: 'water', name: 'Casa de Banho 2', color: '#06B6D4' },
-  KITCHEN: { icon: 'restaurant-outline', name: 'Cozinha', color: '#F59E0B' },
-  LIVING_ROOM: { icon: 'tv', name: 'Sala de Estar', color: '#8B5CF6' },
-  HUGO_B: { icon: 'bed', name: 'Quarto Hugo', color: '#EF4444' },
-  LEO_B: { icon: 'bed', name: 'Quarto Leonardo', color: '#10B981' },
-  VIC_B: { icon: 'bed', name: 'Quarto Vicente', color: '#F97316' },
-  GUI_B: { icon: 'bed', name: 'Quarto Guilherme', color: '#3B82F6' },
-  BALCONY: { icon: 'flower', name: 'Varanda', color: '#84CC16' }
-};
-
-const STATUS_CONFIG = {
-  SCHEDULED: { icon: 'time', color: '#3B82F6', name: 'Scheduled' },
-  IN_PROGRESS: { icon: 'play-circle', color: '#10B981', name: 'In Progress' },
-  COMPLETED: { icon: 'checkmark-circle', color: '#6B7280', name: 'Completed' },
-  CANCELLED: { icon: 'close-circle', color: '#EF4444', name: 'Cancelled' }
-};
 
 const PartyCard = ({ party, userRole, onDelete, onPress }) => {
   const [cardAnim] = useState(new Animated.Value(0));
@@ -85,13 +60,10 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
     return `${hours}h`;
   };
 
-  const isUpcoming = () => {
-    if (!party.dateTime) return false;
-    return new Date(party.dateTime) > new Date();
-  };
-
   const canDelete = () => {
-    return userRole && userRole.type !== 'GUEST' && party.host && party.host.id === userRole.id;
+    // Allow host or KNOWLEDGER to delete
+    return userRole && userRole.type !== 'GUEST' &&
+      (party.host && party.host.id === userRole.id || userRole.type === 'KNOWLEDGER');
   };
 
   const formatRooms = () => {
@@ -218,17 +190,9 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
           </View>
         </View>
 
-        {/* Actions */}
-        <View style={styles.cardActions}>
-          <View style={styles.actionLeft}>
-            {isUpcoming() && (
-              <View style={styles.upcomingBadge}>
-                <Ionicons name="time-outline" size={12} color={colors.primary} />
-                <Text style={styles.upcomingText}>Upcoming</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.actionRight}>
+        {/* Footer: View Details and Delete */}
+        <View style={styles.cardFooter}>
+          <View style={styles.cardFooterActions}>
             {canDelete() && (
               <TouchableOpacity 
                 style={styles.deleteButton}
@@ -238,7 +202,12 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.detailsButton} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.detailsButton} 
+              onPress={() => onPress()}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.detailsButtonText}>View Details</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -246,6 +215,14 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
       </TouchableOpacity>
     </Animated.View>
   );
+};
+
+const normalizeString = (str) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/\s+/g, '') // remove spaces
+    .toLowerCase();
 };
 
 const PartyScreen = ({ navigation, route }) => {
@@ -259,6 +236,11 @@ const PartyScreen = ({ navigation, route }) => {
   const [popUpVisible, setPopUpVisible] = useState(false);
   const [partyToDelete, setPartyToDelete] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [partySearch, setPartySearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showDateFromPicker, setShowDateFromPicker] = useState(false);
+  const [showDateToPicker, setShowDateToPicker] = useState(false);
 
   const getTimeBasedGreeting = () => {
     const hour = new Date().getHours();
@@ -371,16 +353,41 @@ const PartyScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.successMessage]);
 
-  const filteredParties = filterParties();
+  const filteredParties = filterParties()
+    .filter(party => {
+      if (partySearch) {
+        if (!normalizeString(party.name).includes(normalizeString(partySearch))) {
+          return false;
+        }
+      }
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        if (party.dateTime && new Date(party.dateTime) < fromDate) return false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        if (party.dateTime && new Date(party.dateTime) > toDate) return false;
+      }
+      return true;
+    });
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   return (
     <>
-      <Message
-        message={successMessage}
-        onDismiss={() => setSuccessMessage('')}
-        type="success"
-      />
       <View style={styles.container}>
+        <View style={styles.messageContainer}>
+          <Message
+            message={successMessage}
+            onDismiss={() => setSuccessMessage('')}
+            type="success"
+          />
+        </View>
         <StatusBar
           translucent
           backgroundColor="transparent"
@@ -415,7 +422,7 @@ const PartyScreen = ({ navigation, route }) => {
                 onRefresh={onRefresh}
                 colors={[colors.primary]}
                 tintColor={colors.primary}
-                progressViewOffset={Platform.OS === 'android' ? 80 : 95} // Adicionado para Android
+                progressViewOffset={Platform.OS === 'android' ? 80 : 95} 
               />
             }
           >
@@ -462,6 +469,108 @@ const PartyScreen = ({ navigation, route }) => {
               </View>
             </View>
 
+            {/* Search and filters */}
+            <View style={styles.filterSection}>
+              <View style={styles.filterHeader}>
+                <Ionicons name="filter-outline" size={20} color={colors.primary} />
+                <Text style={styles.filterTitle}>Filters</Text>
+              </View>
+              
+              <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                  <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search party name..."
+                    placeholderTextColor={colors.textSecondary}
+                    value={partySearch}
+                    onChangeText={setPartySearch}
+                  />
+                  {partySearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setPartySearch('')}>
+                      <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.dateFiltersContainer}>
+                <Text style={styles.dateFilterLabel}>Date Range</Text>
+                <View style={styles.dateInputsRow}>
+                  <View style={styles.dateInputWrapper}>
+                    <TouchableOpacity
+                      style={styles.dateInputContainer}
+                      onPress={() => setShowDateFromPicker(true)}
+                    >
+                      <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+                      <Text style={styles.dateInputText}>
+                        {dateFrom ? formatDate(dateFrom) : 'From'}
+                      </Text>
+                      {dateFrom.length > 0 && (
+                        <TouchableOpacity onPress={() => setDateFrom('')}>
+                          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.dateInputWrapper}>
+                    <TouchableOpacity
+                      style={styles.dateInputContainer}
+                      onPress={() => setShowDateToPicker(true)}
+                    >
+                      <Ionicons name="calendar" size={18} color={colors.textSecondary} />
+                      <Text style={styles.dateInputText}>
+                        {dateTo ? formatDate(dateTo) : 'To'}
+                      </Text>
+                      {dateTo.length > 0 && (
+                        <TouchableOpacity onPress={() => setDateTo('')}>
+                          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                {(partySearch || dateFrom || dateTo) && (
+                  <TouchableOpacity 
+                    style={styles.clearFiltersButton}
+                    onPress={() => {
+                      setPartySearch('');
+                      setDateFrom('');
+                      setDateTo('');
+                    }}
+                  >
+                    <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+                    <Text style={styles.clearFiltersText}>Clear all filters</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Calendars for date filtering */}
+            <Calendar
+              visible={showDateFromPicker}
+              onClose={() => setShowDateFromPicker(false)}
+              onDateSelect={date => {
+                setDateFrom(date.toISOString());
+                setShowDateFromPicker(false);
+              }}
+              selectedDate={dateFrom ? new Date(dateFrom) : new Date()}
+              minimumDate={null}
+              title="Select Start Date"
+            />
+            <Calendar
+              visible={showDateToPicker}
+              onClose={() => setShowDateToPicker(false)}
+              onDateSelect={date => {
+                setDateTo(date.toISOString());
+                setShowDateToPicker(false);
+              }}
+              selectedDate={dateTo ? new Date(dateTo) : new Date()}
+              minimumDate={dateFrom ? new Date(dateFrom) : null}
+              title="Select End Date"
+            />
+
             {/* Content */}
             {loading ? (
               <View style={styles.loadingContainer}>
@@ -474,17 +583,24 @@ const PartyScreen = ({ navigation, route }) => {
                   <Ionicons name="calendar-outline" size={64} color={colors.textSecondary} />
                 </View>
                 <Text style={styles.emptyTitle}>
-                  {showPastParties ? 'No Past Parties' : 'No Parties Yet'}
+                  {partySearch || dateFrom || dateTo
+                    ? 'No parties match your filters'
+                    : showPastParties
+                      ? 'No Past Parties'
+                      : 'No Parties Yet'}
                 </Text>
                 <Text style={styles.emptySubtitle}>
-                  {currentUser?.type === 'GUEST' 
-                    ? "You haven't been invited to any parties yet"
-                    : showPastParties
-                    ? "No parties have been completed yet"
-                    : "Create your first party to get started!"
+                  {partySearch || dateFrom || dateTo
+                    ? "Try adjusting your search or date filters."
+                    : currentUser?.type === 'GUEST'
+                      ? "You haven't been invited to any parties yet"
+                      : showPastParties
+                        ? "No parties have been completed yet"
+                        : "Create your first party to get started!"
                   }
                 </Text>
-                {canCreateParty() && !showPastParties && (
+                
+                {canCreateParty() && !showPastParties && !(partySearch || dateFrom || dateTo) && (
                   <TouchableOpacity 
                     style={styles.emptyCreateButton} 
                     activeOpacity={0.8}
@@ -503,7 +619,7 @@ const PartyScreen = ({ navigation, route }) => {
                     party={party}
                     userRole={currentUser}
                     onDelete={handleDeleteParty}
-                    onPress={() => {}}
+                    onPress={() => navigation.navigate('PartyDetails', { partyId: party.id })}
                   />
                 ))}
               </View>
@@ -563,6 +679,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  messageContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 25 : 0,
+    left: 0,
+    right: 0,
+    zIndex: 2000,
+    pointerEvents: 'box-none',
   },
   contentContainer: {
     flex: 1,
@@ -639,14 +763,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxlarge,
-    // Centralizar horizontal e verticalmente
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: Dimensions.get('window').height * 0.50,
   },
   emptyContainer: {
     flex: 1,
-    // Centralizar horizontal e verticalmente
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing.xxLarge,
@@ -690,7 +812,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   partiesContainer: {
-    gap: spacing.medium,
+    gap: spacing.small,
   },
   partyCard: {
     backgroundColor: colors.card,
@@ -743,6 +865,7 @@ const styles = StyleSheet.create({
   },
   cardHeaderRight: {
     alignItems: 'flex-end',
+    gap: spacing.small,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -784,42 +907,30 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: spacing.medium,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+  cardFooter: {
+    alignItems: 'flex-end',
+    marginTop: spacing.small,
   },
-  actionLeft: {
-    flex: 1,
-  },
-  upcomingBadge: {
+  cardFooterActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  upcomingText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actionRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
   },
   deleteButton: {
     padding: spacing.small,
     borderRadius: borderRadius.small,
     backgroundColor: `${colors.danger}10`,
-    marginRight: spacing.small,
   },
   detailsButton: {
-    padding: spacing.small,
-    borderRadius: borderRadius.small,
-    backgroundColor: `${colors.primary}10`,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    paddingVertical: spacing.small,
+  },
+  detailsButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
   },
   bottomNav: {
     position: 'absolute',
@@ -850,6 +961,107 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     color: colors.textSecondary,
+  },
+  filterSection: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    marginBottom: spacing.large,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        border: `1.5px solid ${colors.border}`,
+        boxShadow: '0 2px 12px rgba(67,97,238,0.08), 0 1.5px 0px rgba(67,97,238,0.08)',
+      },
+    }),
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.medium,
+  },
+  filterTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginLeft: spacing.small,
+  },
+  searchContainer: {
+    marginBottom: spacing.large, 
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.medium,
+    height: 48,
+    gap: spacing.small,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  dateFiltersContainer: {
+    gap: spacing.medium, 
+  },
+  dateFilterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.small,
+  },
+  dateInputsRow: {
+    flexDirection: 'row',
+    gap: spacing.small,
+  },
+  dateInputWrapper: {
+    flex: 1,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.medium,
+    height: 48,
+    gap: spacing.small,
+  },
+  dateInputText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.primary}10`,
+    borderRadius: borderRadius.medium,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.medium,
+    marginTop: spacing.small,
+    gap: spacing.small,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
   },
 });
 

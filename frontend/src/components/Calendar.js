@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -10,14 +10,58 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
   const [date, setDate] = useState(selectedDate || new Date());
   const [displayMonth, setDisplayMonth] = useState(date.getMonth());
   const [displayYear, setDisplayYear] = useState(date.getFullYear());
+  const intervalRef = useRef(null);
+
+  // Get effective minimum date - if no minimumDate provided, don't enforce any minimum
+  const getEffectiveMinimum = () => {
+    if (!minimumDate) return null;
+    
+    // If minimumDate is provided but is in the past, use current time
+    const now = new Date();
+    return minimumDate < now ? now : minimumDate;
+  };
+
+  // Update minimum time every minute when modal is visible and minimum is current time
+  useEffect(() => {
+    if (visible && minimumDate) {
+      const now = new Date();
+      // Only set up interval if minimum is current time (within 1 minute)
+      if (Math.abs(minimumDate.getTime() - now.getTime()) < 60000) {
+        intervalRef.current = setInterval(() => {
+          const currentTime = new Date();
+          // Check if selected date/time is now in the past
+          if (date < currentTime) {
+            setDate(new Date(currentTime));
+          }
+        }, 60000); // Update every minute
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [visible, minimumDate, date]);
 
   useEffect(() => {
     if (selectedDate) {
-      setDate(new Date(selectedDate));
-      setDisplayMonth(selectedDate.getMonth());
-      setDisplayYear(selectedDate.getFullYear());
+      const newDate = new Date(selectedDate);
+      const effectiveMinimum = getEffectiveMinimum();
+      
+      // Ensure the selected date is not before minimum
+      if (effectiveMinimum && newDate < effectiveMinimum) {
+        setDate(new Date(effectiveMinimum));
+        setDisplayMonth(effectiveMinimum.getMonth());
+        setDisplayYear(effectiveMinimum.getFullYear());
+      } else {
+        setDate(newDate);
+        setDisplayMonth(newDate.getMonth());
+        setDisplayYear(newDate.getFullYear());
+      }
     }
-  }, [selectedDate, visible]);
+  }, [selectedDate, visible, minimumDate]);
 
   const changeMonth = (amount) => {
     const newDate = new Date(displayYear, displayMonth + amount, 1);
@@ -27,9 +71,26 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
 
   const handleDayPress = (day) => {
     const newDate = new Date(displayYear, displayMonth, day, date.getHours(), date.getMinutes());
-    if (minimumDate && newDate < new Date(minimumDate.getFullYear(), minimumDate.getMonth(), minimumDate.getDate())) {
-      return;
+    const effectiveMinimum = getEffectiveMinimum();
+    
+    if (effectiveMinimum) {
+      const dayStart = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
+      const minDayStart = new Date(effectiveMinimum.getFullYear(), effectiveMinimum.getMonth(), effectiveMinimum.getDate());
+      
+      if (dayStart < minDayStart) {
+        return;
+      }
+      
+      // If selecting today, ensure time is not before minimum
+      if (dayStart.getTime() === minDayStart.getTime()) {
+        if (newDate < effectiveMinimum) {
+          // Set to minimum time for today
+          setDate(new Date(effectiveMinimum));
+          return;
+        }
+      }
     }
+    
     setDate(newDate);
   };
 
@@ -41,10 +102,12 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
       newDate.setMinutes(date.getMinutes() + amount);
     }
 
-    if (minimumDate && newDate < minimumDate) {
-        setDate(new Date(minimumDate));
-        return;
+    const effectiveMinimum = getEffectiveMinimum();
+    if (effectiveMinimum && newDate < effectiveMinimum) {
+      setDate(new Date(effectiveMinimum));
+      return;
     }
+    
     setDate(newDate);
   };
 
@@ -81,6 +144,7 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
   const renderCalendarGrid = () => {
     const daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
     const firstDayOfMonth = new Date(displayYear, displayMonth, 1).getDay();
+    const effectiveMinimum = getEffectiveMinimum();
     const grid = [];
     let dayCounter = 1;
 
@@ -93,7 +157,7 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
           const day = dayCounter;
           const isSelected = date.getDate() === day && date.getMonth() === displayMonth && date.getFullYear() === displayYear;
           const currentDate = new Date(displayYear, displayMonth, day);
-          const isDisabled = minimumDate && currentDate < new Date(minimumDate.getFullYear(), minimumDate.getMonth(), minimumDate.getDate());
+          const isDisabled = effectiveMinimum && currentDate < new Date(effectiveMinimum.getFullYear(), effectiveMinimum.getMonth(), effectiveMinimum.getDate());
 
           week.push(
             <TouchableOpacity
@@ -118,34 +182,67 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
     return grid;
   };
 
-  const renderTimePicker = () => (
-    <View style={styles.timePickerContainer}>
-      <Text style={styles.timePickerLabel}>Time</Text>
-      <View style={styles.timePickerControls}>
-        {/* Hour */}
-        <View style={styles.timeUnit}>
-          <TouchableOpacity onPress={() => handleTimeChange('hour', 1)} style={styles.timeButton}>
-            <Ionicons name="chevron-up" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.timeValue}>{String(date.getHours()).padStart(2, '0')}</Text>
-          <TouchableOpacity onPress={() => handleTimeChange('hour', -1)} style={styles.timeButton}>
-            <Ionicons name="chevron-down" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.timeSeparator}>:</Text>
-        {/* Minute */}
-        <View style={styles.timeUnit}>
-          <TouchableOpacity onPress={() => handleTimeChange('minute', 1)} style={styles.timeButton}>
-            <Ionicons name="chevron-up" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.timeValue}>{String(date.getMinutes()).padStart(2, '0')}</Text>
-          <TouchableOpacity onPress={() => handleTimeChange('minute', -1)} style={styles.timeButton}>
-            <Ionicons name="chevron-down" size={24} color={colors.primary} />
-          </TouchableOpacity>
+  const renderTimePicker = () => {
+    const effectiveMinimum = getEffectiveMinimum();
+    const isToday = effectiveMinimum && 
+      date.getDate() === effectiveMinimum.getDate() &&
+      date.getMonth() === effectiveMinimum.getMonth() &&
+      date.getFullYear() === effectiveMinimum.getFullYear();
+
+    const canDecreaseHour = !effectiveMinimum || 
+      !isToday || 
+      date.getHours() > effectiveMinimum.getHours();
+    
+    const canDecreaseMinute = !effectiveMinimum || 
+      !isToday || 
+      date.getHours() > effectiveMinimum.getHours() ||
+      (date.getHours() === effectiveMinimum.getHours() && date.getMinutes() > effectiveMinimum.getMinutes());
+
+    return (
+      <View style={styles.timePickerContainer}>
+        <Text style={styles.timePickerLabel}>Time</Text>
+        <View style={styles.timePickerControls}>
+          {/* Hour */}
+          <View style={styles.timeUnit}>
+            <TouchableOpacity onPress={() => handleTimeChange('hour', 1)} style={styles.timeButton}>
+              <Ionicons name="chevron-up" size={24} color={colors.primary} />
+            </TouchableOpacity>
+            <Text style={styles.timeValue}>{String(date.getHours()).padStart(2, '0')}</Text>
+            <TouchableOpacity 
+              onPress={() => handleTimeChange('hour', -1)} 
+              style={[styles.timeButton, !canDecreaseHour && styles.timeButtonDisabled]}
+              disabled={!canDecreaseHour}
+            >
+              <Ionicons 
+                name="chevron-down" 
+                size={24} 
+                color={canDecreaseHour ? colors.primary : colors.border} 
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.timeSeparator}>:</Text>
+          {/* Minute */}
+          <View style={styles.timeUnit}>
+            <TouchableOpacity onPress={() => handleTimeChange('minute', 1)} style={styles.timeButton}>
+              <Ionicons name="chevron-up" size={24} color={colors.primary} />
+            </TouchableOpacity>
+            <Text style={styles.timeValue}>{String(date.getMinutes()).padStart(2, '0')}</Text>
+            <TouchableOpacity 
+              onPress={() => handleTimeChange('minute', -1)} 
+              style={[styles.timeButton, !canDecreaseMinute && styles.timeButtonDisabled]}
+              disabled={!canDecreaseMinute}
+            >
+              <Ionicons 
+                name="chevron-down" 
+                size={24} 
+                color={canDecreaseMinute ? colors.primary : colors.border} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <Modal
@@ -288,6 +385,9 @@ const styles = StyleSheet.create({
   },
   timeButton: {
     padding: spacing.small,
+  },
+  timeButtonDisabled: {
+    opacity: 0.3,
   },
   timeValue: {
     fontSize: 24,
