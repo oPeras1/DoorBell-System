@@ -18,16 +18,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.JoinTable;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.CascadeType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Embeddable;
-
-import com.operas.model.User;
 
 @Getter
 @Setter
@@ -65,14 +62,6 @@ public class Party {
         CLEANING
     }
 
-    public enum GuestStatus {
-        GOING,
-        NOT_GOING,
-        LATE,
-        ARRIVED,
-        UNDECIDED
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -95,9 +84,8 @@ public class Party {
     private LocalDateTime dateTime;
     private LocalDateTime endDateTime; 
 
-    @ElementCollection
-    @CollectionTable(name = "party_guests", joinColumns = @JoinColumn(name = "party_id"))
-    private List<GuestStatusPair> guests = new ArrayList<>();
+    @OneToMany(mappedBy = "party", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GuestStatus> guests = new ArrayList<>();
 
     @ElementCollection(targetClass = Room.class)
     @CollectionTable(name = "party_rooms", joinColumns = @JoinColumn(name = "party_id"))
@@ -115,19 +103,4 @@ public class Party {
     @Column(nullable = false)
     @NotNull(message = "Party type cannot be null")
     private PartyType type;
-
-    @Embeddable
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class GuestStatusPair {
-        @ManyToOne
-        @JoinColumn(name = "user_id")
-        private User user;
-
-        @Enumerated(EnumType.STRING)
-        @Column(name = "status")
-        private GuestStatus status;
-    }
 }

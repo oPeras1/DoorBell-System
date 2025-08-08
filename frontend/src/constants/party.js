@@ -79,7 +79,5 @@ export const STATUS_CONFIG = {
 export const GUEST_STATUS_CONFIG = {
   GOING: { icon: 'checkmark-circle', color: '#10B981', gradient: ['#10B981', '#059669'], name: 'Going' },
   NOT_GOING: { icon: 'close-circle', color: '#EF4444', gradient: ['#EF4444', '#DC2626'], name: 'Not Going' },
-  LATE: { icon: 'time', color: '#F59E0B', gradient: ['#F59E0B', '#D97706'], name: 'Running Late' },
-  ARRIVED: { icon: 'location', color: '#8B5CF6', gradient: ['#8B5CF6', '#A855F7'], name: 'Arrived' },
   UNDECIDED: { icon: 'help-circle', color: '#6B7280', gradient: ['#6B7280', '#4B5563'], name: 'Undecided' }
 };

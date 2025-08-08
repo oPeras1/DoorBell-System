@@ -11,26 +11,32 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.operas.model.Party;
 import com.operas.model.User;
-import com.operas.model.Party.GuestStatusPair;
-import com.operas.dto.PartyDto;
+import com.operas.model.GuestStatus;
 import com.operas.repository.PartyRepository;
 import com.operas.repository.UserRepository;
+import com.operas.repository.GuestStatusRepository;
 import com.operas.exceptions.BadRequestException;
+import com.operas.dto.PartyDto;
 
 @Service
 public class PartyService {
     private final PartyRepository partyRepository;
     private final UserRepository userRepository;
+    private final GuestStatusRepository guestStatusRepository;
 
     @Autowired
-    public PartyService(PartyRepository partyRepository, UserRepository userRepository) {
+    public PartyService(PartyRepository partyRepository, UserRepository userRepository, GuestStatusRepository guestStatusRepository) {
         this.partyRepository = partyRepository;
         this.userRepository = userRepository;
+        this.guestStatusRepository = guestStatusRepository;
     }
 
     public List<PartyDto> getParties(User user) {
         List<Party> parties = partyRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
+
+        // Update automatic statuses before filtering
+        parties.forEach(party -> updateAutomaticStatus(party, now));
 
         switch (user.getType()) {
             case KNOWLEDGER:
@@ -60,6 +66,28 @@ public class PartyService {
         }
     }
 
+    private void updateAutomaticStatus(Party party, LocalDateTime now) {
+        // Don't override CANCELLED status
+        if (party.getStatus() == Party.PartyStatus.CANCELLED) {
+            return;
+        }
+
+        Party.PartyStatus newStatus;
+        if (party.getEndDateTime() != null && now.isAfter(party.getEndDateTime())) {
+            newStatus = Party.PartyStatus.COMPLETED;
+        } else if (party.getDateTime() != null && now.isAfter(party.getDateTime()) && 
+                   party.getEndDateTime() != null && now.isBefore(party.getEndDateTime())) {
+            newStatus = Party.PartyStatus.IN_PROGRESS;
+        } else {
+            newStatus = Party.PartyStatus.SCHEDULED;
+        }
+
+        if (party.getStatus() != newStatus) {
+            party.setStatus(newStatus);
+            partyRepository.save(party);
+        }
+    }
+
     @Transactional
     public PartyDto createParty(User user, PartyDto partyDto) {
         if (user.getType() == User.UserType.GUEST) {
@@ -82,6 +110,9 @@ public class PartyService {
         if (java.time.Duration.between(dateTime, endDateTime).toHours() > 24) {
             throw new BadRequestException("Party duration cannot exceed 24 hours.");
         }
+        if (java.time.Duration.between(dateTime, endDateTime).toMinutes() < 20) {
+            throw new BadRequestException("Party duration must be at least 20 minutes.");
+        }
         if (partyDto.getRooms() == null || partyDto.getRooms().isEmpty()) {
             throw new BadRequestException("A party must have at least one room.");
         }
@@ -93,24 +124,31 @@ public class PartyService {
         party.setCreatedAt(now);
         party.setDateTime(dateTime);
         party.setEndDateTime(endDateTime);
-
-        party.setGuests(
-            partyDto.getGuests().stream()
-                .map(dto -> {
-                    if (dto.getUser() == null || dto.getUser().getId() == null) {
-                        throw new BadRequestException("Each guest must have a valid user.");
-                    }
-                    User guestUser = userRepository.findById(dto.getUser().getId())
-                            .orElseThrow(() -> new BadRequestException("Guest user with ID " + dto.getUser().getId() + " not found."));
-                    Party.GuestStatus status = dto.getStatus() != null ? dto.getStatus() : Party.GuestStatus.UNDECIDED;
-                    return new GuestStatusPair(guestUser, status);
-                })
-                .collect(Collectors.toList())
-        );
         party.setRooms(new ArrayList<>(partyDto.getRooms()));
-        party.setStatus(partyDto.getStatus());
+        party.setStatus(Party.PartyStatus.SCHEDULED); // Always start as SCHEDULED
         party.setType(partyDto.getType());
+
         Party saved = partyRepository.save(party);
+
+        // All guests start as UNDECIDED, ignore any status sent in DTO
+        List<GuestStatus> guestStatuses = partyDto.getGuests().stream()
+            .map(dto -> {
+                if (dto.getUser() == null || dto.getUser().getId() == null) {
+                    throw new BadRequestException("Each guest must have a valid user.");
+                }
+                User guestUser = userRepository.findById(dto.getUser().getId())
+                        .orElseThrow(() -> new BadRequestException("Guest user with ID " + dto.getUser().getId() + " not found."));
+                GuestStatus guestStatus = new GuestStatus();
+                guestStatus.setParty(saved);
+                guestStatus.setUser(guestUser);
+                guestStatus.setStatus(GuestStatus.Status.UNDECIDED);
+                return guestStatus;
+            })
+            .collect(Collectors.toList());
+
+        guestStatusRepository.saveAll(guestStatuses);
+        saved.setGuests(guestStatuses);
+
         return PartyDto.fromEntity(saved);
     }
 
@@ -130,6 +168,9 @@ public class PartyService {
             .orElseThrow(() -> new IllegalArgumentException("Party not found"));
 
         LocalDateTime now = LocalDateTime.now();
+        
+        // Update automatic status before returning
+        updateAutomaticStatus(party, now);
 
         switch (user.getType()) {
             case KNOWLEDGER:
@@ -154,5 +195,48 @@ public class PartyService {
         }
 
         return PartyDto.fromEntity(party);
+    }
+
+    @Transactional
+    public PartyDto updatePartyStatus(Long partyId, User requester, Party.PartyStatus newStatus) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new IllegalArgumentException("Party not found"));
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only the host or KNOWLEDGER can manually change party status
+        if (!isHost && !isKnowledger) {
+            throw new SecurityException("Only the host or a KNOWLEDGER can change the party status.");
+        }
+
+        party.setStatus(newStatus);
+        Party saved = partyRepository.save(party);
+        
+        return PartyDto.fromEntity(saved);
+    }
+
+    @Transactional
+    public void updateGuestStatus(Long partyId, User requester, Long targetUserId, GuestStatus.Status newStatus) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new IllegalArgumentException("Party not found"));
+
+        Long effectiveUserId = (targetUserId != null) ? targetUserId : requester.getId();
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isSelf = requester.getId().equals(effectiveUserId);
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only the host, KNOWLEDGER, or the guest themselves can change their status
+        if (!isSelf && !isHost && !isKnowledger) {
+            throw new SecurityException("You do not have permission to change this guest's status.");
+        }
+
+        GuestStatus guestStatus = guestStatusRepository.findByPartyIdAndUserId(partyId, effectiveUserId)
+            .orElseThrow(() -> new BadRequestException("User is not a guest of this party."));
+        
+        guestStatus.setStatus(newStatus);
+        guestStatus.setUpdatedAt(LocalDateTime.now());
+        guestStatusRepository.save(guestStatus);
     }
 }

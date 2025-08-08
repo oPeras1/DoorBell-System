@@ -4,8 +4,6 @@ import com.operas.model.Party;
 import com.operas.model.Party.Room;
 import com.operas.model.Party.PartyStatus;
 import com.operas.model.Party.PartyType;
-import com.operas.model.User;
-import com.operas.model.Party.GuestStatus;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -31,7 +29,7 @@ public class PartyDto {
     private LocalDateTime endDateTime;
 
     @NotEmpty(message = "A party must have at least one guest")
-    private List<GuestStatusPairDto> guests;
+    private List<GuestStatusDto> guests;
 
     @NotEmpty(message = "A party must have at least one room")
     private List<Room> rooms = new ArrayList<>();
@@ -52,27 +50,11 @@ public class PartyDto {
         dto.dateTime = party.getDateTime();
         dto.endDateTime = party.getEndDateTime();
         dto.guests = party.getGuests().stream()
-            .map(GuestStatusPairDto::fromEntity)
+            .map(GuestStatusDto::fromEntity)
             .toList();
         dto.rooms = new ArrayList<>(party.getRooms());
         dto.status = party.getStatus();
         dto.type = party.getType();
         return dto;
-    }
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class GuestStatusPairDto {
-        private UserDto user;
-        private GuestStatus status;
-
-        public static GuestStatusPairDto fromEntity(Party.GuestStatusPair pair) {
-            return new GuestStatusPairDto(
-                UserDto.fromEntity(pair.getUser()),
-                pair.getStatus()
-            );
-        }
     }
 }

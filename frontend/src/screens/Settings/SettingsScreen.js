@@ -14,6 +14,7 @@ import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import TopField from '../../components/TopField';
+import { getMe } from '../../services/userService';
 
 const SettingsScreen = ({ navigation }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
@@ -33,6 +34,17 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await getMe();
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          await logout();
+        }
+      }
+    };
+    checkAuth();
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,

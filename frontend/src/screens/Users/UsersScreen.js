@@ -19,6 +19,7 @@ import { getAllUsers } from '../../services/userService';
 import Message from '../../components/Message';
 import TopField from '../../components/TopField';
 import { LinearGradient } from 'expo-linear-gradient';
+import InputField from '../../components/InputField';
 
 const USER_TYPE_INFO = {
   KNOWLEDGER: {
@@ -67,6 +68,7 @@ const UsersScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [userSearch, setUserSearch] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -140,6 +142,7 @@ const UsersScreen = ({ navigation }) => {
   const renderUserCard = (user, index, arr) => {
     const userInfo = getUserTypeInfo(user.type);
     const isCurrentUser = user.username === currentUser?.username;
+    const isKnowledger = currentUser?.type === 'KNOWLEDGER';
 
     return (
       <AnimatedTouchable
@@ -189,7 +192,7 @@ const UsersScreen = ({ navigation }) => {
               </View>
             </View>
             <View style={styles.userRightSection}>
-              {!isCurrentUser && (
+              {isKnowledger && !isCurrentUser && (
                 <TouchableOpacity 
                   style={[styles.userActionButton, { borderColor: `${userInfo.color}80`, backgroundColor: `${userInfo.color}15` }]}
                   onPress={() => {
@@ -207,20 +210,31 @@ const UsersScreen = ({ navigation }) => {
     );
   };
 
+  const normalizeString = (str) => {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove accents
+      .replace(/\s+/g, '') // remove spaces
+      .toLowerCase();
+  };
+
   const getUsersByRole = () => {
     const usersByRole = {
       KNOWLEDGER: [],
       HOUSER: [],
       GUEST: []
     };
-    
-    users.forEach(user => {
-      const role = user.type || 'GUEST';
-      if (usersByRole[role]) {
-        usersByRole[role].push(user);
-      }
-    });
-    
+    users
+      .filter(user => {
+        if (!userSearch) return true;
+        return normalizeString(user.username).includes(normalizeString(userSearch));
+      })
+      .forEach(user => {
+        const role = user.type || 'GUEST';
+        if (usersByRole[role]) {
+          usersByRole[role].push(user);
+        }
+      });
     return usersByRole;
   };
 
@@ -247,7 +261,8 @@ const UsersScreen = ({ navigation }) => {
       >
         <View style={[
           styles.roleSectionCard,
-          { borderLeftColor: roleInfo.color, borderLeftWidth: 4 }
+          { borderLeftColor: roleInfo.color, borderLeftWidth: 4 },
+          styles.roleSectionShadow // Adiciona shadow
         ]}>
           <View style={styles.roleSectionHeader}>
             <View style={styles.roleHeaderLeft}>
@@ -372,6 +387,23 @@ const UsersScreen = ({ navigation }) => {
           }
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.searchContainer}>
+            <InputField
+              placeholder="Search user name..."
+              value={userSearch}
+              onChangeText={setUserSearch}
+              icon={<Ionicons name="search-outline" size={20} color={colors.primary} />}
+              editable={true}
+            />
+            {userSearch.length > 0 && (
+              <TouchableOpacity
+                style={{ position: 'absolute', right: 30, top: 18, zIndex: 2 }}
+                onPress={() => setUserSearch('')}
+              >
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.rolesContainer}>
             {Object.entries(getUsersByRole()).map(([roleType, roleUsers], index) => 
               renderRoleSection(roleType, roleUsers, index)
@@ -579,6 +611,22 @@ const styles = StyleSheet.create({
     padding: spacing.large,
     overflow: 'hidden', 
   },
+  roleSectionShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.08)',
+      },
+    }),
+  },
   roleSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -741,6 +789,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     color: colors.textSecondary,
+  },
+  searchContainer: {
+    marginBottom: spacing.small, 
+    marginTop: spacing.large,
+    paddingHorizontal: spacing.large,
   },
 });
 

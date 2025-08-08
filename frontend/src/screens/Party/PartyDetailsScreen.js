@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -10,14 +10,18 @@ import {
   StatusBar,
   ActivityIndicator,
   KeyboardAvoidingView,
+  RefreshControl,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { getPartyById } from '../../services/partyService';
+import { getPartyById, updateGuestStatus, updatePartyStatus } from '../../services/partyService';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PARTY_TYPE_CONFIG, STATUS_CONFIG, GUEST_STATUS_CONFIG } from '../../constants/party';
+import { AuthContext } from '../../context/AuthContext';
+import Message from '../../components/Message';
+import { Picker } from '@react-native-picker/picker';
 
 const GradientBackground = Platform.OS === 'web'
   ? ({ children, colors: gradientColors, style }) => (
@@ -33,28 +37,29 @@ const GradientBackground = Platform.OS === 'web'
 
 const PartyDetailsScreen = ({ navigation, route }) => {
   const { partyId } = route.params;
+  const { user: currentUser } = useContext(AuthContext);
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
-  
   const [party, setParty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [message, setMessage] = useState('');
+  const [guestStatusLoading, setGuestStatusLoading] = useState({});
+  const [guestStatusError, setGuestStatusError] = useState({});
+  const [editingGuestId, setEditingGuestId] = useState(null);
+  const [guestStatusPicker, setGuestStatusPicker] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [partyStatusLoading, setPartyStatusLoading] = useState(false);
+  const [partyStatusError, setPartyStatusError] = useState('');
+  const [editingPartyStatus, setEditingPartyStatus] = useState(false);
+  const [partyStatusPicker, setPartyStatusPicker] = useState('');
 
   useEffect(() => {
     fetchPartyDetails();
-    
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: false,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: false,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: false }),
+      Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 50, useNativeDriver: false }),
     ]).start();
   }, [partyId]);
 
@@ -68,6 +73,39 @@ const PartyDetailsScreen = ({ navigation, route }) => {
       setErrorMessage('Failed to load party details');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPartyDetails();
+  }, [partyId]);
+
+  // Update guest status locally, do not refetch
+  const handleChangeGuestStatus = async (guestUserId, newStatus) => {
+    setGuestStatusLoading(prev => ({ ...prev, [guestUserId]: true }));
+    setGuestStatusError(prev => ({ ...prev, [guestUserId]: null }));
+    try {
+      await updateGuestStatus(party.id, guestUserId, newStatus);
+      setParty(currentParty => {
+        if (!currentParty) return null;
+        const updatedGuests = currentParty.guests.map(guest => {
+          if (guest.user.id === guestUserId) {
+            return { ...guest, status: newStatus, updatedAt: new Date().toISOString() };
+          }
+          return guest;
+        });
+        return { ...currentParty, guests: updatedGuests };
+      });
+      setMessage('Guest status updated successfully!');
+      setEditingGuestId(null);
+    } catch (err) {
+      setGuestStatusError(prev => ({ ...prev, [guestUserId]: 'Error updating status.' }));
+      setMessage('Error updating guest status.');
+    } finally {
+      setGuestStatusLoading(prev => ({ ...prev, [guestUserId]: false }));
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -109,17 +147,297 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     return party.rooms.map(room => roomNames[room] || room).join(', ');
   };
 
+  const canEditGuestStatus = (guestUserId) => {
+    if (!party || !currentUser) return false;
+    const isHost = party.host?.id === currentUser.id;
+    const isKnowledger = currentUser.type === 'KNOWLEDGER';
+    const isSelf = currentUser.id === guestUserId;
+    return isHost || isKnowledger || isSelf;
+  };
+
+  const canEditPartyStatus = () => {
+    if (!party || !currentUser) return false;
+    const isHost = party.host?.id === currentUser.id;
+    const isKnowledger = currentUser.type === 'KNOWLEDGER';
+    return isHost || isKnowledger;
+  };
+
+  const handleChangePartyStatus = async (newStatus) => {
+    setPartyStatusLoading(true);
+    setPartyStatusError('');
+    try {
+      const updatedParty = await updatePartyStatus(party.id, newStatus);
+      setParty(updatedParty);
+      setMessage('Party status updated successfully!');
+      setEditingPartyStatus(false);
+    } catch (err) {
+      setPartyStatusError('Error updating party status.');
+      setMessage('Error updating party status.');
+    } finally {
+      setPartyStatusLoading(false);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const renderGuestsSection = () => {
+    if (!party || !currentUser) return null;
+    const hostAsAttendee = {
+      isHost: true,
+      user: party.host,
+      status: 'HOST',
+    };
+    const allAttendees = [hostAsAttendee, ...(party.guests || [])];
+    const totalAttendees = allAttendees.length;
+
+    return (
+      <View style={styles.attendeesSection}>
+        <View style={styles.attendeesHeader}>
+          <View style={styles.attendeesHeaderLeft}>
+            <Ionicons name="people-circle" size={32} color={colors.primary} />
+            <View>
+              <Text style={styles.attendeesTitle}>Attendees</Text>
+              <Text style={styles.attendeesSubtitle}>{totalAttendees} person(s) at the party</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.attendeesGridMobile}>
+          {allAttendees.map((attendee) => {
+            const isHost = attendee.isHost;
+            const guest = isHost ? hostAsAttendee : attendee;
+            const guestStatus = isHost ? null : (GUEST_STATUS_CONFIG[guest.status] || GUEST_STATUS_CONFIG.UNDECIDED);
+            const isSelf = currentUser?.id === guest.user?.id;
+            const editableGuest = !isHost && canEditGuestStatus(guest.user?.id);
+            const isEditingGuest = editingGuestId === guest.user?.id;
+
+            let hostInfoText = '';
+            if (isHost && isSelf) {
+              hostInfoText = "You cannot be absent because you created this party.";
+            } else if (isHost) {
+              hostInfoText = "This user cannot be absent because they created this party.";
+            }
+
+            if (isHost) {
+              const editableParty = canEditPartyStatus();
+              const isEditingParty = editingPartyStatus;
+              const statusConfigLocal = STATUS_CONFIG[party.status] || STATUS_CONFIG.SCHEDULED;
+              return (
+                <View 
+                  key={guest.user.id} 
+                  style={[
+                    styles.attendeeCardMobile,
+                    styles.hostCardHighlight,
+                    { borderColor: colors.primary }
+                  ]}
+                >
+                  {(partyStatusLoading || partyStatusError) && (
+                    <View style={styles.attendeeCardOverlay}>
+                      {partyStatusLoading && <ActivityIndicator size="large" color={colors.primary} />}
+                      {partyStatusError && <Ionicons name="alert-circle" size={48} color={colors.danger} />}
+                    </View>
+                  )}
+                  <View style={styles.hostBanner}>
+                    <Ionicons name="star" size={12} color="#fff" />
+                    <Text style={styles.hostBannerText}>HOST</Text>
+                  </View>
+                  <View style={styles.attendeeAvatarContainer}>
+                    <GradientBackground
+                      colors={[colors.primary, colors.primary]}
+                      style={styles.attendeeAvatar}
+                    >
+                      <Text style={styles.attendeeAvatarText}>
+                        {guest.user?.username?.charAt(0).toUpperCase() || '?'}
+                      </Text>
+                    </GradientBackground>
+                    <View style={[styles.attendeeStatusIcon, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="star" size={12} color="white" />
+                    </View>
+                  </View>
+                  <Text style={styles.attendeeName} numberOfLines={1}>
+                    {guest.user?.username} {isSelf && '(You)'}
+                  </Text>
+                  {hostInfoText !== '' && (
+                    <Text style={styles.hostAutoAttendText}>
+                      {hostInfoText}
+                    </Text>
+                  )}
+                  <View style={styles.attendeeInteraction}>
+                    {editableParty && isEditingParty ? (
+                      <View style={styles.editModeContainerMobile}>
+                        <View style={styles.pickerContainerMobile}>
+                          <Picker
+                            selectedValue={partyStatusPicker || party.status}
+                            style={styles.statusPickerMobile}
+                            onValueChange={(itemValue) => setPartyStatusPicker(itemValue)}
+                            dropdownIconColor={colors.primary}
+                          >
+                            {Object.entries(STATUS_CONFIG).map(([statusKey, statusCfg]) => (
+                              <Picker.Item key={statusKey} label={statusCfg.name} value={statusKey} color={statusCfg.color} />
+                            ))}
+                          </Picker>
+                        </View>
+                        <View style={styles.editActions}>
+                          <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingPartyStatus(false)}>
+                            <Ionicons name="close" size={20} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.updateButton} 
+                            onPress={() => handleChangePartyStatus(partyStatusPicker || party.status)}
+                          >
+                            <Ionicons name="checkmark-done" size={20} color="white" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <>
+                        {editableParty && (
+                          <View style={[styles.statusDisplayChip, { backgroundColor: `${statusConfigLocal.color}20` }]}>
+                            <Text style={[styles.statusDisplayText, { color: statusConfigLocal.color }]}>{statusConfigLocal.name}</Text>
+                          </View>
+                        )}
+                        {editableParty && (
+                          <TouchableOpacity 
+                            style={styles.changeStatusButton} 
+                            onPress={() => {
+                              setPartyStatusPicker(party.status);
+                              setEditingPartyStatus(true);
+                            }}
+                          >
+                            <Text style={styles.changeStatusButtonText}>Change Status</Text>
+                            <Ionicons name="create-outline" size={16} color={colors.primary} />
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                  </View>
+                  {party.updatedAt && (
+                    <Text style={styles.lastUpdatedText}>
+                      Updated at: {new Date(party.updatedAt).toLocaleString()}
+                    </Text>
+                  )}
+                </View>
+              );
+            }
+
+            return (
+              <View 
+                key={guest.user.id} 
+                style={[
+                  styles.attendeeCardMobile,
+                  isHost && styles.hostCardHighlight,
+                  { borderColor: isHost ? colors.primary : guestStatus.color }
+                ]}
+              >
+                {(guestStatusLoading[guest.user?.id] || guestStatusError[guest.user?.id]) && (
+                  <View style={styles.attendeeCardOverlay}>
+                    {guestStatusLoading[guest.user?.id] && <ActivityIndicator size="large" color={colors.primary} />}
+                    {guestStatusError[guest.user?.id] && <Ionicons name="alert-circle" size={48} color={colors.danger} />}
+                  </View>
+                )}
+                {isHost && (
+                  <View style={styles.hostBanner}>
+                    <Ionicons name="star" size={12} color="#fff" />
+                    <Text style={styles.hostBannerText}>HOST</Text>
+                  </View>
+                )}
+                <View style={styles.attendeeAvatarContainer}>
+                  <GradientBackground
+                    colors={isHost ? [colors.primary, colors.primary] : (guestStatus.gradient || [guestStatus.color, guestStatus.color])}
+                    style={styles.attendeeAvatar}
+                  >
+                    <Text style={styles.attendeeAvatarText}>
+                      {guest.user?.username?.charAt(0).toUpperCase() || '?'}
+                    </Text>
+                  </GradientBackground>
+                  <View style={[styles.attendeeStatusIcon, { backgroundColor: isHost ? colors.primary : guestStatus.color }]}>
+                    <Ionicons name={isHost ? 'star' : guestStatus.icon} size={12} color="white" />
+                  </View>
+                </View>
+                <Text style={styles.attendeeName} numberOfLines={1}>
+                  {guest.user?.username} {isSelf && !isHost && '(You)'}
+                </Text>
+                {hostInfoText !== '' && (
+                  <Text style={styles.hostAutoAttendText}>
+                    {hostInfoText}
+                  </Text>
+                )}
+                <View style={styles.attendeeInteraction}>
+                  {editableGuest && isEditingGuest ? (
+                    <View style={styles.editModeContainerMobile}>
+                      <View style={styles.pickerContainerMobile}>
+                        <Picker
+                          selectedValue={guestStatusPicker[guest.user?.id] || guest.status}
+                          style={styles.statusPickerMobile}
+                          onValueChange={(itemValue) => setGuestStatusPicker(prev => ({...prev, [guest.user?.id]: itemValue}))}
+                          dropdownIconColor={colors.primary}
+                        >
+                          {Object.entries(GUEST_STATUS_CONFIG).map(([statusKey, statusCfg]) => (
+                            <Picker.Item key={statusKey} label={statusCfg.name} value={statusKey} color={statusCfg.color} />
+                          ))}
+                        </Picker>
+                      </View>
+                      <View style={styles.editActions}>
+                        <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingGuestId(null)}>
+                          <Ionicons name="close" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.updateButton} 
+                          onPress={() => handleChangeGuestStatus(guest.user?.id, guestStatusPicker[guest.user?.id] || guest.status)}
+                        >
+                          <Ionicons name="checkmark-done" size={20} color="white" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <>
+                      {!isHost && (
+                        <View style={[styles.statusDisplayChip, { backgroundColor: `${guestStatus.color}20` }]}>
+                          <Text style={[styles.statusDisplayText, { color: guestStatus.color }]}>{guestStatus.name}</Text>
+                        </View>
+                      )}
+                      {editableGuest && !isHost && (
+                        <TouchableOpacity 
+                          style={styles.changeStatusButton} 
+                          onPress={() => {
+                            setGuestStatusPicker(prev => ({...prev, [guest.user.id]: guest.status}));
+                            setEditingGuestId(guest.user.id);
+                          }}
+                        >
+                          <Text style={styles.changeStatusButtonText}>Change Status</Text>
+                          <Ionicons name="create-outline" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
+                {guest.updatedAt && (
+                  <Text style={styles.lastUpdatedText}>
+                    Updated at: {new Date(guest.updatedAt).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+        {!party.guests || party.guests.length === 0 && (
+          <View style={styles.noGuestsContainer}>
+            <Ionicons name="person-add-outline" size={48} color={colors.textSecondary} />
+            <Text style={styles.noGuestsTitle}>No guests yet</Text>
+            <Text style={styles.noGuestsSubtitle}>Be the first to be invited!</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const typeConfig = party ? (PARTY_TYPE_CONFIG[party.type] || PARTY_TYPE_CONFIG.HOUSE_PARTY) : PARTY_TYPE_CONFIG.HOUSE_PARTY;
+  const statusConfig = party ? (STATUS_CONFIG[party.status] || STATUS_CONFIG.SCHEDULED) : STATUS_CONFIG.SCHEDULED;
+
   if (loading) {
     return (
-      <View style={{
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: spacing.xxLarge,
-        paddingHorizontal: spacing.large,
-        minHeight: 200,
-      }}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.centeredContainer}>
+        <View style={styles.loadingIndicatorWrapper}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
         <Text style={styles.loadingText}>Loading party details...</Text>
       </View>
     );
@@ -128,35 +446,25 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   if (!party) {
     return (
       <View style={styles.centeredContainer}>
-        <View style={styles.errorCard}>
-          <View style={styles.errorIconContainer}>
-            <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
-          </View>
-          <Text style={styles.errorTitle}>Party Not Found</Text>
-          <Text style={styles.errorSubtitle}>The party you're looking for doesn't exist.</Text>
-          <TouchableOpacity style={styles.errorButton} onPress={handleBack}>
-            <Text style={styles.errorButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
+        <Ionicons name="alert-circle" size={64} color={colors.danger} style={{ marginBottom: spacing.large }} />
+        <Text style={styles.errorTitle}>Failed to load party</Text>
+        <Text style={styles.errorSubtitle}>{errorMessage || 'Could not load details for this party.'}</Text>
+        <TouchableOpacity style={styles.errorButton} onPress={handleBack}>
+          <Text style={styles.errorButtonText}>Go Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+          <Text style={styles.refreshButtonText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
     );
   }
-  
-  const typeConfig = PARTY_TYPE_CONFIG[party.type] || PARTY_TYPE_CONFIG.HOUSE_PARTY;
-  const statusConfig = STATUS_CONFIG[party.status] || STATUS_CONFIG.SCHEDULED;
 
   return (
     <>
+      <Message message={message} onDismiss={() => setMessage('')} type={message.includes('Erro') ? 'error' : 'success'} />
       <View style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-        
-        <Animated.View style={[
-          styles.header,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
-        ]}>
+        <Animated.View style={[ styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] } ]}>
           <View style={styles.headerBackground} />
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.headerBackButton} onPress={handleBack}>
@@ -177,24 +485,22 @@ const PartyDetailsScreen = ({ navigation, route }) => {
             </View>
           </View>
         </Animated.View>
-
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                progressViewOffset={Platform.OS === 'android' ? 120 : 140}
+              />
+            }
           >
-            <Animated.View style={{ 
-              opacity: fadeAnim, 
-              transform: [{ translateY: slideAnim }], 
-              gap: spacing.large 
-            }}>
-            
-              {/* Hero Card */}
-              <GradientBackground
-                colors={typeConfig.gradient}
-                style={styles.heroCard}
-              >
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], gap: spacing.large }}>
+              <GradientBackground colors={typeConfig.gradient} style={styles.heroCard}>
                 <View style={styles.heroContent}>
                   <View style={styles.heroHeader}>
                     <View style={styles.heroIconContainer}>
@@ -264,68 +570,7 @@ const PartyDetailsScreen = ({ navigation, route }) => {
               </View>
 
               {/* People card */}
-              <View style={styles.peopleCard}>
-                <View style={styles.peopleHeader}>
-                  <View style={styles.peopleHeaderLeft}>
-                    <Ionicons name="people" size={24} color={colors.primary} />
-                    <Text style={styles.peopleTitle}>Attendees</Text>
-                  </View>
-                  <View style={styles.attendeeBadge}>
-                    <Text style={styles.attendeeCount}>{1 + (party.guests?.length || 0)}</Text>
-                  </View>
-                </View>
-
-                {/* Host Card */}
-                <View style={styles.hostContainer}>
-                  <View style={styles.hostCard}>
-                    <GradientBackground
-                      colors={[colors.primary, '#7C3AED']}
-                      style={styles.hostAvatar}
-                    >
-                      <Text style={styles.hostAvatarText}>
-                        {party.host?.username?.charAt(0).toUpperCase() || 'H'}
-                      </Text>
-                    </GradientBackground>
-                    <View style={styles.hostInfo}>
-                      <Text style={styles.hostName}>{party.host?.username}</Text>
-                      <Text style={styles.hostLabel}>Party Host</Text>
-                    </View>
-                    <View style={styles.crownContainer}>
-                      <Ionicons name="star" size={20} color="#F59E0B" />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Guests Grid */}
-                {party.guests && party.guests.length > 0 ? (
-                  <View style={styles.guestsGrid}>
-                    {party.guests.map((guest, index) => {
-                      const guestStatus = GUEST_STATUS_CONFIG[guest.status] || GUEST_STATUS_CONFIG.UNDECIDED;
-                      return (
-                        <View key={index} style={styles.guestCard}>
-                          <GradientBackground
-                            colors={guestStatus.gradient || [guestStatus.color, guestStatus.color]}
-                            style={styles.guestAvatar}
-                          >
-                            <Ionicons name={guestStatus.icon} size={16} color="white" />
-                          </GradientBackground>
-                          <View style={styles.guestInfo}>
-                            <Text style={styles.guestName} numberOfLines={1}>
-                              {guest.user?.username || 'Unknown'}
-                            </Text>
-                            <Text style={styles.guestStatus}>{guestStatus.name}</Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <View style={styles.noGuestsContainer}>
-                    <Ionicons name="person-add-outline" size={32} color={colors.textSecondary} />
-                    <Text style={styles.noGuestsText}>No guests invited yet</Text>
-                  </View>
-                )}
-              </View>
+              {renderGuestsSection()}
 
               {/* Location Card */}
               <View style={styles.locationCard}>
@@ -650,50 +895,113 @@ const styles = StyleSheet.create({
   peopleHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
+  },
+  peopleIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   peopleTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.textPrimary,
   },
+  peopleSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   attendeeBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 16,
+    alignItems: 'center',
+    minWidth: 60,
   },
   attendeeCount: {
-    color: 'white',
-    fontSize: 14,
+    color: colors.primary,
+    fontSize: 20,
     fontWeight: 'bold',
   },
-  hostContainer: {
-    marginBottom: spacing.small,
+  attendeeLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  // Host Spotlight
+  hostSpotlight: {
+    backgroundColor: `${colors.primary}08`,
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    borderWidth: 1,
+    borderColor: `${colors.primary}20`,
+  },
+  hostSpotlightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.medium,
+    gap: spacing.small,
+  },
+  crownIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hostSpotlightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   hostCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.card,
     padding: spacing.medium,
     borderRadius: borderRadius.medium,
     gap: spacing.medium,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+      },
+    }),
   },
   hostAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   hostAvatarText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 22,
   },
-  hostInfo: { flex: 1 },
+  hostInfo: { 
+    flex: 1,
+    marginLeft: spacing.small,
+  },
   hostName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
@@ -702,49 +1010,284 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  crownContainer: {
-    backgroundColor: '#FFFBEB',
-    padding: 8,
-    borderRadius: 20,
+  hostBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  guestsGrid: {
+  hostBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+
+  // Guest Status Overview
+  guestStatusOverview: {
+    backgroundColor: `${colors.background}80`,
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+  },
+  guestStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.medium,
+  },
+  statusPills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.small,
   },
-  guestCard: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: spacing.small,
-    borderRadius: borderRadius.medium,
-    width: '48%',
-    gap: spacing.small,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
   },
-  guestAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestInfo: { flex: 1 },
-  guestName: {
-    fontSize: 14,
+  statusPillText: {
+    fontSize: 12,
     fontWeight: '600',
+  },
+
+  // Guests Section
+  attendeesSection: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    gap: spacing.large,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+      android: { elevation: 4 },
+      web: { border: `1px solid ${colors.border}`, boxShadow: '0 4px 20px rgba(67,97,238,0.08)' },
+    }),
+  },
+  attendeesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  attendeesHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+  },
+  attendeesTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
     color: colors.textPrimary,
   },
-  guestStatus: {
-    fontSize: 12,
+  attendeesSubtitle: {
+    fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 2,
+  },
+  attendeesGridMobile: {
+    flexDirection: 'column',
+    gap: spacing.medium,
+    justifyContent: 'flex-start',
+    width: '100%',
+  },
+  attendeeCard: {
+    width: Platform.OS === 'web' ? 'calc(50% - 8px)' : '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    gap: spacing.small,
+    position: 'relative',
+  },
+  attendeeCardMobile: {
+    width: '100%', 
+    backgroundColor: '#F8FAFC',
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    gap: spacing.small,
+    position: 'relative',
+    maxWidth: 520,
+    alignSelf: 'center',
+  },
+  hostCardHighlight: {
+    backgroundColor: `${colors.primary}0D`,
+    width: '100%',
+  },
+  hostBanner: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: borderRadius.small,
+  },
+  hostBannerText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  attendeeCardOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    zIndex: 10,
+    borderRadius: borderRadius.medium,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attendeeAvatarContainer: {
+    position: 'relative',
+    marginTop: spacing.small,
+  },
+  attendeeAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attendeeAvatarText: {
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  attendeeStatusIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#F8FAFC',
+  },
+  attendeeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: spacing.small,
+  },
+  attendeeInteraction: {
+    width: '100%',
+    minHeight: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusDisplayChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  statusDisplayText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  changeStatusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.small,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.small,
+  },
+  changeStatusButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  editModeContainer: {
+    width: '100%',
+    gap: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editModeContainerMobile: {
+    width: '100%',
+    gap: spacing.medium,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  pickerContainer: {
+    borderRadius: borderRadius.small,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+    flex: 1,
+  },
+  pickerContainerMobile: {
+    borderRadius: borderRadius.small,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+    marginBottom: spacing.small,
+    minHeight: 48,
+    justifyContent: 'center',
+    width: '100%',
+    maxHeight: 180,
+  },
+  statusPicker: {
+    height: 40,
+    width: '100%',
+  },
+  statusPickerMobile: {
+    height: 60,
+    width: '100%',
+    fontSize: 18,
+    minHeight: 60,
+    maxHeight: 180, 
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.medium,
+  },
+  cancelButton: {
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+  },
+  updateButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: colors.success,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lastUpdatedText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.small,
   },
   noGuestsContainer: {
     alignItems: 'center',
-    padding: spacing.large,
-    gap: spacing.small,
+    paddingVertical: spacing.xxLarge,
+    gap: spacing.medium,
   },
-  noGuestsText: {
+  noGuestsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  noGuestsSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
@@ -855,8 +1398,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
     borderRadius: borderRadius.medium,
+    marginTop: spacing.xxlarge,
   },
   errorButtonText: {
+    color: colors.card,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  updateStatusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${colors.primary}10`,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  updateStatusButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  hostAutoAttendText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginBottom: 8,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  loadingIndicatorWrapper: {
+    marginTop: 120,
+    marginBottom: spacing.large,
+  },
+  refreshButton: {
+    marginTop: spacing.large,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.large,
+    paddingVertical: spacing.medium,
+    borderRadius: borderRadius.medium,
+    alignSelf: 'center',
+  },
+  refreshButtonText: {
     color: colors.card,
     fontWeight: '600',
     fontSize: 16,

@@ -20,6 +20,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import TopField from '../../components/TopField';
 import { getParties, deleteParty } from '../../services/partyService';
+import { getMe } from '../../services/userService';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
@@ -254,7 +255,21 @@ const PartyScreen = ({ navigation, route }) => {
     }
   };
 
+  const checkAuth = async () => {
+    try {
+      await getMe();
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        await logout();
+        return false;
+      }
+    }
+    return true;
+  };
+
   const fetchParties = async () => {
+    const isLogged = await checkAuth();
+    if (!isLogged) return;
     try {
       const data = await getParties();
       setParties(data || []);
@@ -828,6 +843,10 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 4,
+      },
+      web: {
+        border: `1.5px solid ${colors.border}`,
+        boxShadow: '0 2px 12px rgba(67,97,238,0.08), 0 1.5px 0px rgba(67,97,238,0.08)',
       },
     }),
   },
