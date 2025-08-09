@@ -25,6 +25,8 @@ import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
 import { PARTY_TYPE_CONFIG, ROOM_CONFIG, STATUS_CONFIG } from '../../constants/party';
+import { getTimeBasedGreeting } from '../../constants/functions';
+import BottomNavBar from '../../components/BottomNavBar';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -242,18 +244,6 @@ const PartyScreen = ({ navigation, route }) => {
   const [dateTo, setDateTo] = useState('');
   const [showDateFromPicker, setShowDateFromPicker] = useState(false);
   const [showDateToPicker, setShowDateToPicker] = useState(false);
-
-  const getTimeBasedGreeting = () => {
-    const hour = new Date().getHours();
-    
-    if (hour >= 6 && hour < 12) {
-      return 'Good Morning';
-    } else if (hour >= 12 && hour < 18) {
-      return 'Good Afternoon';
-    } else {
-      return 'Good Evening';
-    }
-  };
 
   const checkAuth = async () => {
     try {
@@ -641,36 +631,7 @@ const PartyScreen = ({ navigation, route }) => {
           </ScrollView>
         </Animated.View>
         
-        <View style={styles.bottomNav}>
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Home</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Users')}
-          >
-            <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Users</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="calendar" size={24} color={colors.primary} />
-            <Text style={[styles.navText, { color: colors.primary }]}>Party</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Settings</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNavBar navigation={navigation} active="Party" />
 
         <PopUp
           visible={popUpVisible}

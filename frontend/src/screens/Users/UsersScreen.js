@@ -21,6 +21,8 @@ import Message from '../../components/Message';
 import TopField from '../../components/TopField';
 import { LinearGradient } from 'expo-linear-gradient';
 import InputField from '../../components/InputField';
+import { getTimeBasedGreeting } from '../../constants/functions';
+import BottomNavBar from '../../components/BottomNavBar';
 
 const USER_TYPE_INFO = {
   KNOWLEDGER: {
@@ -72,18 +74,6 @@ const UsersScreen = ({ navigation }) => {
   const [userSearch, setUserSearch] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-
-  const getTimeBasedGreeting = () => {
-    const hour = new Date().getHours();
-    
-    if (hour >= 6 && hour < 12) {
-      return 'Good Morning';
-    } else if (hour >= 12 && hour < 18) {
-      return 'Good Afternoon';
-    } else {
-      return 'Good Evening';
-    }
-  };
 
   useEffect(() => {
     fetchUsers();
@@ -324,36 +314,7 @@ const UsersScreen = ({ navigation }) => {
           <Text style={styles.loadingText}>Loading users...</Text>
         </View>
         
-        <View style={styles.bottomNav}>
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Home</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="people" size={24} color={colors.primary} />
-            <Text style={[styles.navText, { color: colors.primary }]}>Users</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Party')}
-          >
-            <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Party</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.navItem}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Settings</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNavBar navigation={navigation} active="Users" />
       </View>
     );
   }
@@ -474,36 +435,7 @@ const UsersScreen = ({ navigation }) => {
         </ScrollView>
       </Animated.View>
       
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Ionicons name="home-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="people" size={24} color={colors.primary} />
-          <Text style={[styles.navText, { color: colors.primary }]}>Users</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Party')}
-        >
-          <Ionicons name="calendar-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Party</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavBar navigation={navigation} active="Users" />
     </View>
   );
 };
