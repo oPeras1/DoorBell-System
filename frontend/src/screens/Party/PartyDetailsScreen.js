@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
@@ -179,6 +180,16 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const getAvatarSource = (userType) => {
+    if (userType === 'KNOWLEDGER') {
+      return require('../../../assets/avatarknowledger.jpg');
+    }
+    if (userType === 'HOUSER') {
+      return require('../../../assets/avatarhouser.png');
+    }
+    return require('../../../assets/avatarguest.jpeg');
+  };
+
   const renderGuestsSection = () => {
     if (!party || !currentUser) return null;
     const hostAsAttendee = {
@@ -240,14 +251,16 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                     <Text style={styles.hostBannerText}>HOST</Text>
                   </View>
                   <View style={styles.attendeeAvatarContainer}>
-                    <GradientBackground
-                      colors={[colors.primary, colors.primary]}
-                      style={styles.attendeeAvatar}
-                    >
-                      <Text style={styles.attendeeAvatarText}>
-                        {guest.user?.username?.charAt(0).toUpperCase() || '?'}
-                      </Text>
-                    </GradientBackground>
+                    <Image
+                      source={getAvatarSource(guest.user?.type)}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        backgroundColor: colors.primary,
+                      }}
+                      resizeMode="cover"
+                    />
                     <View style={[styles.attendeeStatusIcon, { backgroundColor: colors.primary }]}>
                       <Ionicons name="star" size={12} color="white" />
                     </View>
@@ -340,14 +353,16 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                   </View>
                 )}
                 <View style={styles.attendeeAvatarContainer}>
-                  <GradientBackground
-                    colors={isHost ? [colors.primary, colors.primary] : (guestStatus.gradient || [guestStatus.color, guestStatus.color])}
-                    style={styles.attendeeAvatar}
-                  >
-                    <Text style={styles.attendeeAvatarText}>
-                      {guest.user?.username?.charAt(0).toUpperCase() || '?'}
-                    </Text>
-                  </GradientBackground>
+                  <Image
+                    source={getAvatarSource(guest.user?.type)}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: guestStatus.color,
+                    }}
+                    resizeMode="cover"
+                  />
                   <View style={[styles.attendeeStatusIcon, { backgroundColor: isHost ? colors.primary : guestStatus.color }]}>
                     <Ionicons name={isHost ? 'star' : guestStatus.icon} size={12} color="white" />
                   </View>

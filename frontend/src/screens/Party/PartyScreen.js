@@ -412,7 +412,6 @@ const PartyScreen = ({ navigation, route }) => {
         <TopField 
           greeting={getTimeBasedGreeting()}
           userName={currentUser?.username}
-          userAvatar={require('../../../assets/avatar.png')}
           userType={currentUser?.type}
           isOnline={true}
           onProfilePress={() => {}}

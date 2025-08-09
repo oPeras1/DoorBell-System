@@ -9,7 +9,8 @@ import {
   Animated,
   StatusBar,
   KeyboardAvoidingView,
-  TextInput
+  TextInput,
+  Image
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
@@ -245,6 +246,16 @@ const PartyCreateScreen = ({ navigation, route }) => {
         normalizeString(user.username).includes(normalizeString(guestSearch))
       )
     : availableUsers;
+
+  const getAvatarSource = (userType) => {
+    if (userType === 'KNOWLEDGER') {
+      return require('../../../assets/avatarknowledger.jpg');
+    }
+    if (userType === 'HOUSER') {
+      return require('../../../assets/avatarhouser.png');
+    }
+    return require('../../../assets/avatarguest.jpeg');
+  };
 
   return (
     <>
@@ -512,9 +523,16 @@ const PartyCreateScreen = ({ navigation, route }) => {
                         onPress={() => toggleGuest(user)}
                       >
                         <View style={styles.guestAvatar}>
-                          <Text style={styles.guestAvatarText}>
-                            {user.username.charAt(0).toUpperCase()}
-                          </Text>
+                          <Image
+                            source={getAvatarSource(user.type)}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              backgroundColor: colors.primary,
+                            }}
+                            resizeMode="cover"
+                          />
                         </View>
                         <View style={styles.guestInfo}>
                           <Text style={[

@@ -413,7 +413,7 @@ const HomeScreen = ({ navigation }) => {
                 <TouchableOpacity style={styles.avatarContainer}>
                   <View style={styles.avatarGlow} />
                   <Image 
-                    source={require('../../../assets/avatar.png')} 
+                    source={require('../../../assets/avatarhouser.png')} 
                     style={styles.avatarImage} 
                   />
                   <View style={styles.avatarBorder} />

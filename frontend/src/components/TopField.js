@@ -57,6 +57,16 @@ const CONNECTION_MODES = {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
 
+const getAvatarSource = (userType) => {
+  if (userType === 'KNOWLEDGER') {
+    return require('../../assets/avatarknowledger.jpg');
+  }
+  if (userType === 'HOUSER') {
+    return require('../../assets/avatarhouser.png');
+  }
+  return require('../../assets/avatarguest.jpeg');
+};
+
 const TopField = ({ 
   greeting, 
   userName, 
@@ -254,7 +264,7 @@ const TopField = ({
                 </TouchableOpacity>
               )}
               
-              {/* User Profile - Now clickable for dropdown */}
+              {/* User Profile */}
               <TouchableOpacity 
                 style={styles.profileContainer} 
                 onPress={toggleDropdown}
@@ -262,7 +272,7 @@ const TopField = ({
               >
                 <View style={styles.profileAvatarGlow} />
                 <Image 
-                  source={userAvatar || require('../../assets/avatar.png')} 
+                  source={getAvatarSource(userType)}
                   style={[
                     styles.profileImage,
                     isSmallScreen && styles.profileImageSmall

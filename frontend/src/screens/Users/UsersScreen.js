@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   StatusBar,
+  Image,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
@@ -139,6 +140,16 @@ const UsersScreen = ({ navigation }) => {
 
   const getUserTypeInfo = (type) => USER_TYPE_INFO[type] || USER_TYPE_INFO.GUEST;
 
+  const getAvatarSource = (userType) => {
+    if (userType === 'KNOWLEDGER') {
+      return require('../../../assets/avatarknowledger.jpg');
+    }
+    if (userType === 'HOUSER') {
+      return require('../../../assets/avatarhouser.png');
+    }
+    return require('../../../assets/avatarguest.jpeg');
+  };
+
   const renderUserCard = (user, index, arr) => {
     const userInfo = getUserTypeInfo(user.type);
     const isCurrentUser = user.username === currentUser?.username;
@@ -173,11 +184,18 @@ const UsersScreen = ({ navigation }) => {
           <View style={styles.userCardContent}>
             <View style={styles.userLeftSection}>
               <View style={styles.userAvatar}>
-                <View style={[styles.userAvatarInner, { backgroundColor: userInfo.bgColor }]}>
-                  <Text style={[styles.userInitial, { color: userInfo.color }]}>
-                    {user.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Image
+                  source={getAvatarSource(user.type)}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    borderWidth: 2,
+                    borderColor: userInfo.color,
+                    backgroundColor: userInfo.bgColor,
+                  }}
+                  resizeMode="cover"
+                />
                 <View style={[styles.userGlow, { backgroundColor: `${userInfo.color}20` }]} />
               </View>
               <View style={styles.userInfo}>
@@ -295,7 +313,6 @@ const UsersScreen = ({ navigation }) => {
         <TopField 
           greeting={getTimeBasedGreeting()}
           userName={currentUser?.username}
-          userAvatar={require('../../../assets/avatar.png')}
           userType={currentUser?.type}
           isOnline={true}
           onProfilePress={() => {}}
@@ -352,7 +369,6 @@ const UsersScreen = ({ navigation }) => {
       <TopField 
         greeting={getTimeBasedGreeting()}
         userName={currentUser?.username}
-        userAvatar={require('../../../assets/avatar.png')}
         userType={currentUser?.type}
         isOnline={true}
         onProfilePress={() => {}}
@@ -703,13 +719,6 @@ const styles = StyleSheet.create({
   userAvatar: {
     position: 'relative',
     marginRight: spacing.large,
-  },
-  userAvatarInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   userInitial: {
     fontSize: 22,
