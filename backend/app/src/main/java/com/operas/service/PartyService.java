@@ -116,6 +116,10 @@ public class PartyService {
         if (partyDto.getRooms() == null || partyDto.getRooms().isEmpty()) {
             throw new BadRequestException("A party must have at least one room.");
         }
+        List<Party> conflictingParties = partyRepository.findConflictingParties(dateTime, endDateTime, partyDto.getRooms());
+        if (!conflictingParties.isEmpty()) {
+            throw new BadRequestException("There are conflicting parties in the selected rooms during the specified time.");
+        }
 
         Party party = new Party();
         party.setHost(user);
