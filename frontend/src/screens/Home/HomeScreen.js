@@ -1,20 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, StyleSheet, Platform, StatusBar, TouchableOpacity, Text, Animated, ScrollView } from 'react-native';
+import { View, StyleSheet, Platform, StatusBar, Animated } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import TopField from '../../components/TopField';
 import BottomNavBar from '../../components/BottomNavBar';
 import { getMe } from '../../services/userService';
-import { getParties } from '../../services/partyService';
 import { getTimeBasedGreeting } from '../../constants/functions';
+import HomeDashboard from '../../components/HomeDashboard';
 
 const HomeScreen = ({ navigation }) => {
   const { user: currentUser, logout, setUser } = useContext(AuthContext);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
-  const [parties, setParties] = useState([]);
-  const [isLoadingParties, setIsLoadingParties] = useState(true);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   const fetchUserData = async () => {
@@ -23,10 +21,8 @@ const HomeScreen = ({ navigation }) => {
       const userData = await getMe();
       setUser(userData);
     } catch (error) {
-      // Check if it's a 404 error (user not authenticated)
       if (error.response && error.response.status === 404) {
         console.log('User not authenticated, redirecting to login...');
-        // Force logout to clear any invalid tokens
         await logout();
         return;
       }
@@ -35,40 +31,22 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const fetchParties = async () => {
-    try {
-      setIsLoadingParties(true);
-      const partiesData = await getParties();
-      setParties(partiesData || []);
-    } catch (error) {
-      setParties([]);
-    } finally {
-      setIsLoadingParties(false);
-    }
-  };
-
   useEffect(() => {
     fetchUserData();
-    fetchParties();
-
-    // Refresh parties every 30 seconds to catch status changes
-    const interval = setInterval(fetchParties, 30000);
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
         friction: 8,
         tension: 50,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
     ]).start();
-
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -96,13 +74,9 @@ const HomeScreen = ({ navigation }) => {
           transform: [{ translateY: slideAnim }]
         }
       ]}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-        
-        </ScrollView>
+        <View style={styles.dashboardContainer}>
+          <HomeDashboard notificationsPollingInterval={30000} navigation={navigation} />
+        </View>
       </Animated.View>
 
       <BottomNavBar navigation={navigation} active="Home" />
@@ -119,12 +93,11 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
   },
-  scrollView: {
+  dashboardContainer: {
     flex: 1,
-  },
-  scrollContent: {
     paddingTop: Platform.OS === 'android' ? 80 : 95,
     paddingBottom: 100,
+    paddingHorizontal: spacing.medium,
   },
 });
 

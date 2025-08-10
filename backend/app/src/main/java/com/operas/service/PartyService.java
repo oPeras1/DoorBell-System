@@ -12,17 +12,22 @@ import org.springframework.transaction.annotation.Transactional;
 import com.operas.model.Party;
 import com.operas.model.User;
 import com.operas.model.GuestStatus;
+import com.operas.model.Notification;
 import com.operas.repository.PartyRepository;
 import com.operas.repository.UserRepository;
 import com.operas.repository.GuestStatusRepository;
 import com.operas.exceptions.BadRequestException;
 import com.operas.dto.PartyDto;
+import com.operas.dto.NotificationDto;
 
 @Service
 public class PartyService {
     private final PartyRepository partyRepository;
     private final UserRepository userRepository;
     private final GuestStatusRepository guestStatusRepository;
+
+    @Autowired
+    private DashboardNotificationService dashboardNotificationService;
 
     @Autowired
     public PartyService(PartyRepository partyRepository, UserRepository userRepository, GuestStatusRepository guestStatusRepository) {
@@ -152,6 +157,23 @@ public class PartyService {
 
         guestStatusRepository.saveAll(guestStatuses);
         saved.setGuests(guestStatuses);
+
+        // Notify guests about the new party
+        List<Long> guestUserIds = guestStatuses.stream()
+            .map(gs -> gs.getUser().getId())
+            .toList();
+        String notificationTitle = "New party: " + saved.getName();
+        String notificationMessage = "You have been invited to the party '" + saved.getName() + "' on " +
+            saved.getDateTime() + ". Check the details in the app.";
+
+        NotificationDto notificationDto = new NotificationDto(
+            notificationTitle,
+            notificationMessage,
+            guestUserIds,
+            Notification.NotificationType.PARTY,
+            saved.getId()
+        );
+        dashboardNotificationService.sendNotification(notificationDto);
 
         return PartyDto.fromEntity(saved);
     }
