@@ -10,6 +10,7 @@ import PartyScreen from '../screens/Party/PartyScreen';
 import PartyCreateScreen from '../screens/Party/PartyCreateScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
+import Notifications from '../screens/Notifications/Notifications';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -44,6 +45,7 @@ const AppStack = () => (
     <Stack.Screen name="PartyCreate" component={PartyCreateScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} />
+    <Stack.Screen name="Notifications" component={Notifications} />
   </Stack.Navigator>
 );
 

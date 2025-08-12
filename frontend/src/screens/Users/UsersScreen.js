@@ -308,6 +308,7 @@ const UsersScreen = ({ navigation }) => {
           onProfilePress={() => {}}
           showDarkModeToggle={true}
           onLogout={logout}
+          navigation={navigation}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -335,6 +336,7 @@ const UsersScreen = ({ navigation }) => {
         onProfilePress={() => {}}
         showDarkModeToggle={true}
         onLogout={logout}
+        navigation={navigation}
       />
 
       <Message 

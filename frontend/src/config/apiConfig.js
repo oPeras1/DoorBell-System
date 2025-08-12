@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://192.168.87.56:8080';
+export const API_BASE_URL = 'http://192.168.3.224:8080';
 export const API_TIMEOUT = 10000;
 
 export const API_ENDPOINTS = {

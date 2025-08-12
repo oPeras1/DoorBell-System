@@ -75,7 +75,8 @@ const TopField = ({
   isOnline = true, 
   onProfilePress, 
   showDarkModeToggle = true,
-  onLogout
+  onLogout,
+  navigation
 }) => {
   const [pulseAnim] = useState(new Animated.Value(1));
   const [glowOpacity] = useState(new Animated.Value(0));
@@ -154,6 +155,12 @@ const TopField = ({
     toggleDropdown();
     if (onLogout) {
       onLogout();
+    }
+  };
+
+  const handleNotificationsPress = () => {
+    if (navigation) {
+      navigation.navigate('Notifications');
     }
   };
 
@@ -256,13 +263,26 @@ const TopField = ({
               
               {/* Dark Mode Toggle */}
               {showDarkModeToggle && (
-                <TouchableOpacity style={[
+                  <TouchableOpacity style={[
+                    styles.actionButton,
+                    isSmallScreen && styles.actionButtonSmall
+                  ]} activeOpacity={0.7}>
+                    <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  
+              )}
+
+              {/* Notification Bell Icon */}
+              <TouchableOpacity
+                style={[
                   styles.actionButton,
                   isSmallScreen && styles.actionButtonSmall
-                ]} activeOpacity={0.7}>
-                  <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+                ]}
+                activeOpacity={0.7}
+                onPress={handleNotificationsPress}
+              >
+                <Ionicons name="notifications-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
+              </TouchableOpacity>
               
               {/* User Profile */}
               <TouchableOpacity 

@@ -407,6 +407,7 @@ const PartyScreen = ({ navigation, route }) => {
           onProfilePress={() => {}}
           showDarkModeToggle={true}
           onLogout={logout}
+          navigation={navigation}
         />
         
         <Animated.View style={[

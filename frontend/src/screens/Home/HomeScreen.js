@@ -7,7 +7,6 @@ import TopField from '../../components/TopField';
 import BottomNavBar from '../../components/BottomNavBar';
 import { getMe } from '../../services/userService';
 import { getTimeBasedGreeting } from '../../constants/functions';
-import HomeDashboard from '../../components/HomeDashboard';
 
 const HomeScreen = ({ navigation }) => {
   const { user: currentUser, logout, setUser } = useContext(AuthContext);
@@ -65,6 +64,7 @@ const HomeScreen = ({ navigation }) => {
         onProfilePress={() => {}}
         showDarkModeToggle={true}
         onLogout={logout}
+        navigation={navigation}
       />
 
       <Animated.View style={[
@@ -75,7 +75,6 @@ const HomeScreen = ({ navigation }) => {
         }
       ]}>
         <View style={styles.dashboardContainer}>
-          <HomeDashboard notificationsPollingInterval={30000} navigation={navigation} />
         </View>
       </Animated.View>
 
