@@ -41,52 +41,9 @@ const TopField = ({
   onLogout,
   navigation
 }) => {
-  const [pulseAnim] = useState(new Animated.Value(1));
-  const [glowOpacity] = useState(new Animated.Value(0));
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [selectedMode, setSelectedMode] = useState('ONLINE');
   const [dropdownAnimation] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    // Suave animação de brilho para online indicator
-    if (isOnline) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(pulseAnim, {
-              toValue: 1.2,
-              duration: 900,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: false,
-            }),
-            Animated.timing(glowOpacity, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: false,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.timing(pulseAnim, {
-              toValue: 1,
-              duration: 900,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: false,
-            }),
-            Animated.timing(glowOpacity, {
-              toValue: 0,
-              duration: 400,
-              useNativeDriver: false,
-            }),
-          ]),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    } else {
-      pulseAnim.setValue(1);
-      glowOpacity.setValue(0);
-    }
-  }, [isOnline]);
 
   const toggleDropdown = () => {
     if (dropdownVisible) {
@@ -200,30 +157,6 @@ const TopField = ({
               styles.controlsCapsule,
               isSmallScreen && styles.controlsCapsuleSmall
             ]}>
-              {/* Door System Status - Non-clickable */}
-              <View 
-                style={[
-                  styles.actionButton,
-                  isSmallScreen && styles.actionButtonSmall
-                ]}
-              >
-                <Ionicons 
-                  name="lock-closed"
-                  size={isSmallScreen ? 18 : 24}
-                  color={isOnline ? '#22C55E' : '#6B7280'} 
-                />
-                {isOnline && (
-                  <Animated.View style={[
-                    styles.onlineGlow,
-                    isSmallScreen && styles.onlineGlowSmall,
-                    { 
-                      transform: [{ scale: pulseAnim }],
-                      opacity: glowOpacity
-                    }
-                  ]} />
-                )}
-              </View>
-              
               {/* Dark Mode Toggle */}
               {showDarkModeToggle && (
                   <TouchableOpacity style={[
@@ -232,7 +165,6 @@ const TopField = ({
                   ]} activeOpacity={0.7}>
                     <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
                   </TouchableOpacity>
-                  
               )}
 
               {/* Notification Bell Icon */}
@@ -506,17 +438,6 @@ const styles = StyleSheet.create({
   actionButtonSmall: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-  },
-  onlineGlow: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
-    backgroundColor: 'rgba(34, 197, 94, 0.25)',
-    zIndex: -1,
-  },
-  onlineGlowSmall: {
     borderRadius: 14,
   },
   profileContainer: {
