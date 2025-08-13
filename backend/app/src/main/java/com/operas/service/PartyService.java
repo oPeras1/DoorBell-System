@@ -162,9 +162,9 @@ public class PartyService {
         List<Long> guestUserIds = guestStatuses.stream()
             .map(gs -> gs.getUser().getId())
             .toList();
-        String notificationTitle = "New party: " + saved.getName();
-        String notificationMessage = "You have been invited to the party '" + saved.getName() + "' on " +
-            saved.getDateTime() + ". Check the details in the app.";
+        String notificationTitle = "You got an invitation!";
+        String formattedDateTime = saved.getDateTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String notificationMessage = "Invite to '" + saved.getName() + "' at " + formattedDateTime + "." + " Check details.";
 
         NotificationDto notificationDto = new NotificationDto(
             notificationTitle,

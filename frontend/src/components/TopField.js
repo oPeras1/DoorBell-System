@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../constants/users';
+import { hasUnreadNotifications } from '../services/notificationService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
@@ -33,10 +34,7 @@ const getAvatarSource = (userType) => {
 const TopField = ({ 
   greeting, 
   userName, 
-  userAvatar, 
   userType = 'GUEST',
-  isOnline = true, 
-  onProfilePress, 
   showDarkModeToggle = true,
   onLogout,
   navigation
@@ -44,6 +42,41 @@ const TopField = ({
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [selectedMode, setSelectedMode] = useState('ONLINE');
   const [dropdownAnimation] = useState(new Animated.Value(0));
+  const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
+  const notificationDotScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    let intervalId;
+    const fetchUnread = () => {
+      hasUnreadNotifications()
+        .then(setHasUnreadNotificationsState)
+        .catch(() => setHasUnreadNotificationsState(false));
+    };
+    fetchUnread();
+    intervalId = setInterval(fetchUnread, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (hasUnreadNotificationsState) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(notificationDotScale, {
+            toValue: 1.2,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(notificationDotScale, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      notificationDotScale.setValue(1);
+    }
+  }, [hasUnreadNotificationsState]);
 
   const toggleDropdown = () => {
     if (dropdownVisible) {
@@ -80,7 +113,7 @@ const TopField = ({
 
   const handleNotificationsPress = () => {
     if (navigation) {
-      navigation.navigate('Notifications');
+      navigation.navigate('Notifications', { notificationsPollingInterval: 30000 });
     }
   };
 
@@ -177,6 +210,14 @@ const TopField = ({
                 onPress={handleNotificationsPress}
               >
                 <Ionicons name="notifications-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
+                {hasUnreadNotificationsState && (
+                  <Animated.View
+                    style={[
+                      styles.notificationDot,
+                      { transform: [{ scale: notificationDotScale }] }
+                    ]}
+                  />
+                )}
               </TouchableOpacity>
               
               {/* User Profile */}
@@ -603,6 +644,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.danger,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: colors.card,
+    shadowColor: colors.danger,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
   },
 });
 

@@ -15,4 +15,5 @@ export const API_ENDPOINTS = {
   NOTIFICATIONS_UNREAD: '/notifications/unread',
   NOTIFICATIONS_ALL: '/notifications',
   NOTIFICATIONS_MARK_READ: '/notifications',
+  NOTIFICATIONS_HAS_UNREAD: '/notifications/has-unread',
 };

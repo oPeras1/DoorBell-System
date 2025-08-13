@@ -29,3 +29,13 @@ export const markNotificationAsRead = async (notificationId) => {
     throw error;
   }
 };
+
+export const hasUnreadNotifications = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.NOTIFICATIONS_HAS_UNREAD);
+    return Boolean(response.data);
+  } catch (error) {
+    console.error('Error checking unread notifications:', error);
+    return false;
+  }
+};

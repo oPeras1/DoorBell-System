@@ -49,4 +49,12 @@ public class NotificationController {
         List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return ResponseEntity.ok(notifications);
     }
+
+    @GetMapping("/has-unread")
+    public ResponseEntity<Boolean> hasUnreadNotifications(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        boolean hasUnread = notificationRepository.existsUnreadByUserId(userId);
+        return ResponseEntity.ok(hasUnread);
+    }
 }
