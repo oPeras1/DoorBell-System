@@ -15,44 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
-
-const USER_TYPE_INFO = {
-  KNOWLEDGER: {
-    icon: 'shield-checkmark',
-    color: '#7C3AED',
-    bgColor: '#F3E8FF',
-    title: 'Knowledger',
-  },
-  HOUSER: {
-    icon: 'home',
-    color: '#059669',
-    bgColor: '#ECFDF5',
-    title: 'Houser',
-  },
-  GUEST: {
-    icon: 'person-outline',
-    color: '#6B7280',
-    bgColor: '#F3F4F6',
-    title: 'Guest',
-  }
-};
-
-const CONNECTION_MODES = {
-  ONLINE: {
-    icon: 'wifi',
-    color: '#22C55E',
-    bgColor: '#DCFCE7',
-    title: 'Online',
-    subtitle: 'Available for all interactions'
-  },
-  DO_NOT_DISTURB: {
-    icon: 'moon',
-    color: '#EF4444',
-    bgColor: '#FEE2E2',
-    title: 'Do Not Disturb',
-    subtitle: 'Only urgent notifications'
-  }
-};
+import { USER_TYPE_INFO, CONNECTION_MODES } from '../constants/users';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
