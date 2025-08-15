@@ -1,732 +1,752 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Platform,
-  Animated
-} from 'react-native';
+import React, { useContext, useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, Platform, StatusBar, Animated, Image, Text, TouchableOpacity, Modal, Pressable, ScrollView, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
-import { getCurrentUser } from '../../services/auth';
-import { Ionicons } from '@expo/vector-icons';
-import Button from '../../components/Button';
+import BottomNavBar from '../../components/BottomNavBar';
+import EventsSection from '../../components/PartyEventsCarousel';
+import { hasUnreadNotifications } from '../../services/notificationService';
+import { openDoor, getDoorPing, getDoorEnvironment } from '../../services/doorService';
+import { getParties } from '../../services/partyService';
+import { USER_TYPE_INFO, CONNECTION_MODES } from '../../constants/users';
+import { BlurView } from 'expo-blur';
+import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
-import api from '../../services/api';
-import { API_ENDPOINTS } from '../../config/apiConfig';
 
-const DUMMY_ACTIVITIES = [
-  { id: 1, time: '10:30 AM', date: 'Today', action: 'Door Bell Ring', user: 'Guest' },
-  { id: 2, time: '03:15 PM', date: 'Yesterday', action: 'Door Opened', user: 'John Doe' },
-  { id: 3, time: '09:45 AM', date: 'Yesterday', action: 'Door Bell Ring', user: 'Delivery' },
-  { id: 4, time: '06:20 PM', date: '22/03/2025', action: 'Door Bell Ring', user: 'Unknown' },
-];
+import {
+  getTimeOfDayImage,
+  getTimeBasedGreeting,
+  getAvatarSource,
+} from '../../constants/functions';
 
-const getUserTypeInfo = (type) => {
-  switch (type) {
-    case 'GUEST':
-      return {
-        icon: 'person-outline',
-        color: '#6B7280',
-        bgColor: '#F3F4F6',
-        title: 'Guest',
-        subtitle: 'Limited Access'
-      };
-    case 'HOUSER':
-      return {
-        icon: 'home',
-        color: '#059669',
-        bgColor: '#ECFDF5',
-        title: 'Houser',
-        subtitle: 'Resident Access'
-      };
-    case 'KNOWLEDGER':
-      return {
-        icon: 'shield-checkmark',
-        color: '#7C3AED',
-        bgColor: '#F3E8FF',
-        title: 'Knowledger',
-        subtitle: 'Full Access'
-      };
-    default:
-      return {
-        icon: 'person',
-        color: '#6B7280',
-        bgColor: '#f3f4f6f8',
-        title: 'User',
-        subtitle: 'Standard Access'
-      };
-  }
-};
+const SCREEN_WIDTH = Platform.OS === 'web'
+  ? window.innerWidth
+  : require('react-native').Dimensions.get('window').width;
+const isSmallScreen = SCREEN_WIDTH < 370;
 
 const HomeScreen = ({ navigation }) => {
-  const { logout, user, setUser } = useContext(AuthContext);
-  const [isRinging, setIsRinging] = useState(false);
-  const [isOpeningDoor, setIsOpeningDoor] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(false);
-  const [randomFact, setRandomFact] = useState('');
-  const [isLoadingFact, setIsLoadingFact] = useState(false);
-  const [refreshAnimation] = useState(new Animated.Value(0));
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
-  const [factOpacity] = useState(new Animated.Value(1));
-  const [pulseAnimation] = useState(new Animated.Value(1));
+  const { user: currentUser, logout, setUser } = useContext(AuthContext);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+
+  // Dropdown/profile logic
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [selectedMode, setSelectedMode] = useState('ONLINE');
+  const [dropdownAnimation] = useState(new Animated.Value(0));
+
+  const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
+  const notificationDotScale = useRef(new Animated.Value(1)).current;
+
+  // Door functionality states
+  const [isDoorLoading, setIsDoorLoading] = useState(false);
+  const [doorPing, setDoorPing] = useState(null);
+  const [doorEnvironment, setDoorEnvironment] = useState(null);
+
+  // Random facts state
+  const [currentFact, setCurrentFact] = useState('Did you know the QR Code was invented in Japan?');
+  const [isFactLoading, setIsFactLoading] = useState(false);
+  const factOpacity = useRef(new Animated.Value(1)).current;
+
+  // New Party data states
+  const [allParties, setAllParties] = useState([]);
+  const [occupiedRooms, setOccupiedRooms] = useState([]);
+  const [isPartiesLoading, setIsPartiesLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
-  // Anti-spam protection states
-  const [refreshClickCount, setRefreshClickCount] = useState(0);
-  const [showSpamMessage, setShowSpamMessage] = useState(false);
-  const [isRefreshDisabled, setIsRefreshDisabled] = useState(false);
-  
-  // Refs for intervals and timeouts
-  const factIntervalRef = useRef(null);
-  const spamTimeoutRef = useRef(null);
-  const refreshCooldownRef = useRef(null);
+  // Animation ref for house plan
+  const housePlanAnimation = useRef(new Animated.Value(0)).current;
+
+  // Message state
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
+
+  // Check if user is a guest
+  const isGuest = currentUser?.type === 'GUEST';
+
+  // Check if guest can open door (invited to an active party)
+  const canGuestOpenDoor = () => {
+    if (!isGuest) return true;
+    
+    const now = new Date();
+    return allParties.some(party => {
+      if (party.status !== 'IN_PROGRESS') return false;
+      
+      const partyStart = new Date(party.dateTime);
+      const partyEnd = new Date(party.endDateTime || party.dateTime);
+      
+      // Add 3 hours buffer if no endDateTime is specified
+      if (!party.endDateTime) {
+        partyEnd.setHours(partyEnd.getHours() + 3);
+      }
+      
+      // Check if party is currently active and user is invited
+      const isPartyActive = now >= partyStart && now <= partyEnd;
+      const isUserInvited = party.guests && party.guests.some(guest => 
+        guest.id === currentUser?.id || guest.userId === currentUser?.id
+      );
+      
+      return isPartyActive && isUserInvited;
+    });
+  };
 
   useEffect(() => {
-    fetchUserData();
+    if (!isGuest) {
+      fetchDoorData();
+    }
     fetchRandomFact();
+    fetchPartyData();
     
-    // Enhanced entrance animation with fade and slide
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: false,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: false,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
     ]).start();
+
+    // Set up fact refresh interval (15 seconds)
+    const factInterval = setInterval(fetchRandomFact, 15000);
     
-    // Pulse animation for connection status
-    const createPulseAnimation = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnimation, {
-            toValue: 1.3,
-            duration: 1500,
-            useNativeDriver: false,
-          }),
-          Animated.timing(pulseAnimation, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: false,
-          }),
-        ])
-      ).start();
-    };
-    
-    createPulseAnimation();
-    
-    // Update current time every minute for accurate greeting
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
+    // Set up door data refresh interval (30 seconds) - only for non-guests
+    let doorInterval;
+    if (!isGuest) {
+      doorInterval = setInterval(fetchDoorData, 30000);
+    }
+
+    // Set up party data refresh interval (30 seconds)
+    const partiesInterval = setInterval(fetchPartyData, 30000);
 
     return () => {
-      clearInterval(timeInterval);
-      // Clean up all refs on unmount
-      if (factIntervalRef.current) clearInterval(factIntervalRef.current);
-      if (spamTimeoutRef.current) clearTimeout(spamTimeoutRef.current);
-      if (refreshCooldownRef.current) clearTimeout(refreshCooldownRef.current);
+      clearInterval(factInterval);
+      if (doorInterval) clearInterval(doorInterval);
+      clearInterval(partiesInterval);
     };
-  }, []);
+  }, [isGuest]);
 
   useEffect(() => {
-    // Clear existing interval
-    if (factIntervalRef.current) {
-      clearInterval(factIntervalRef.current);
+    if (!isGuest) {
+      Animated.timing(housePlanAnimation, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true
+      }).start();
     }
-    
-    if (autoRefresh) {
-      factIntervalRef.current = setInterval(fetchRandomFact, 15000);
-    }
+  }, [isGuest, allParties]);
 
-    return () => {
-      if (factIntervalRef.current) clearInterval(factIntervalRef.current);
-    };
-  }, [autoRefresh]);
-
-  const getTimeBasedGreeting = () => {
-    const hour = currentTime.getHours();
+  const fetchDoorData = async () => {
+    // Only fetch door data if user is not a guest
+    if (isGuest) return;
     
-    // Sunrise typically around 6-7 AM, sunset around 6-8 PM (approximation)
-    if (hour >= 6 && hour < 12) {
-      return '🌅 Good Morning';
-    } else if (hour >= 12 && hour < 18) {
-      return '☀️ Good Afternoon';
-    } else {
-      return '🌙 Good Evening';
+    try {
+      const [pingData, envData] = await Promise.all([
+        getDoorPing().catch(() => null),
+        getDoorEnvironment().catch(() => null)
+      ]);
+      
+      setDoorPing(pingData);
+      setDoorEnvironment(envData);
+    } catch (error) {
+      console.log('Error fetching door data:', error);
     }
   };
 
-  const fetchUserData = async () => {
+  const fetchPartyData = async () => {
     try {
-      setIsLoadingUser(true);
-      const userData = await getCurrentUser();
-      setUser(userData);
+      setIsPartiesLoading(true);
+      const data = await getParties();
+      setAllParties(data || []);
+      
+      const now = new Date();
+      const occupiedRoomIds = [];
+      
+      (data || []).forEach(party => {
+        if (party.status === 'IN_PROGRESS') {
+          const partyStart = new Date(party.dateTime);
+          const partyEnd = new Date(party.endDateTime || party.dateTime);
+          
+          // Add 3 hours buffer if no endDateTime is specified
+          if (!party.endDateTime) {
+            partyEnd.setHours(partyEnd.getHours() + 3);
+          }
+          
+          if (now >= partyStart && now <= partyEnd && Array.isArray(party.rooms)) {
+            occupiedRoomIds.push(...party.rooms);
+          }
+        }
+      });
+      
+      // Remove duplicates
+      setOccupiedRooms([...new Set(occupiedRoomIds)]);
     } catch (error) {
-      // Check if it's a 404 error (user not authenticated)
-      if (error.response && error.response.status === 404) {
-        console.log('User not authenticated, redirecting to login...');
-        // Force logout to clear any invalid tokens
-        await logout();
-        return;
-      }
+      console.log('Error fetching party data:', error);
     } finally {
-      setIsLoadingUser(false);
+      setIsPartiesLoading(false);
+      setRefreshing(false);
     }
   };
 
   const fetchRandomFact = async () => {
-    try {
-      setIsLoadingFact(true);
-      
-      // Start rotation animation
-      Animated.loop(
-        Animated.timing(refreshAnimation, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: false,
-        })
-      ).start();
+    setIsFactLoading(true);
 
-      // Fade out current text if not first load
-      if (!isFirstLoad) {
-        Animated.timing(factOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
+    Animated.timing(factOpacity, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(async () => {
+      let factText = 'Did you know the QR Code was invented in Japan?';
+
+      try {
+        const response = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random');
+        const data = await response.json();
+        factText = data.text.trim();
+      } catch (fetchError) {
+        console.log('Fetch failed:', fetchError);
       }
 
-      let factText = '';
-      let attempts = 0;
-      
-      // Keep fetching until we get a fact with 150 characters or less
-      do {
-        attempts++;
-        try {
-          const response = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random');
-          const data = await response.json();
-          factText = data.text.trim();
-        } catch (fetchError) {
-          // If API fails, break and use fallback
-          console.log(`Fetch attempt ${attempts} failed:`, fetchError);
-          factText = 'Você sabia que o QR Code foi inventado no Japão em 1994?';
-          break;
-        }
-      } while (factText.length > 150);
+      setCurrentFact(factText);
+      setIsFactLoading(false);
 
-      setTimeout(() => {
-        setRandomFact(factText);
-        if (!isFirstLoad) {
-          // Fade in new text
-          Animated.timing(factOpacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: false,
-          }).start();
-        }
-        if (isFirstLoad) setIsFirstLoad(false);
-      }, isFirstLoad ? 0 : 200);
-      
-    } catch (error) {
-      setTimeout(() => {
-        setRandomFact('Você sabia que o QR Code foi inventado no Japão em 1994?');
-        if (!isFirstLoad) {
-          Animated.timing(factOpacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: false,
-          }).start();
-        }
-        if (isFirstLoad) setIsFirstLoad(false);
-      }, isFirstLoad ? 0 : 200);
-    } finally {
-      setIsLoadingFact(false);
-      refreshAnimation.stopAnimation();
-      refreshAnimation.setValue(0);
-    }
-  };
-
-  const handleManualRefresh = () => {
-    // Check if refresh is disabled due to spam protection
-    if (isRefreshDisabled) {
-      return;
-    }
-
-    // Increment click count for spam detection
-    setRefreshClickCount(prev => {
-      const newCount = prev + 1;
-      
-      // Check for spam (more than 10 clicks)
-      if (newCount >= 10) {
-        setShowSpamMessage(true);
-        setIsRefreshDisabled(true);
-        
-        // Reset spam protection after 5 seconds
-        refreshCooldownRef.current = setTimeout(() => {
-          setIsRefreshDisabled(false);
-          setRefreshClickCount(0);
-        }, 5000);
-        
-        return newCount;
-      }
-      
-      return newCount;
+      Animated.timing(factOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     });
-
-    // Reset click count after 2 seconds of no clicks
-    if (spamTimeoutRef.current) {
-      clearTimeout(spamTimeoutRef.current);
-    }
-    
-    spamTimeoutRef.current = setTimeout(() => {
-      setRefreshClickCount(0);
-    }, 2000);
-
-    // Reset the auto-refresh timer by clearing and restarting the interval
-    if (autoRefresh && factIntervalRef.current) {
-      clearInterval(factIntervalRef.current);
-      factIntervalRef.current = setInterval(fetchRandomFact, 15000);
-    }
-
-    // Fetch new fact
-    fetchRandomFact();
-  };
-
-  const dismissSpamMessage = () => {
-    setShowSpamMessage(false);
-  };
-
-  const handleRingDoorbell = () => {
-    setIsRinging(true);
-    
-    setTimeout(() => {
-      setIsRinging(false);
-    }, 3000);
   };
 
   const handleOpenDoor = async () => {
     try {
-      setIsOpeningDoor(true);
-      
-      // Make request to the DOOR endpoint
-      const response = await api.post(API_ENDPOINTS.DOOR);
-      
-      // Handle successful response
-      console.log('Door opened successfully:', response.data);
-      
-      // You can add a success message here if needed
-      // For example: show a toast or temporary message
-      
-    } catch (error) {
-      console.error('Failed to open door:', error);
-      
-      // Handle error - you might want to show an error message to the user
-      if (error.response) {
-        console.error('Error response:', error.response.data);
+      setIsDoorLoading(true);
+      await openDoor();
+      setMessage('Door opened successfully!');
+      setMessageType('success');
+      if (!isGuest) {
+        setTimeout(fetchDoorData, 1000);
       }
+    } catch (error) {
+      setMessage('Failed to open door');
+      setMessageType('error');
+      console.log('Error opening door:', error);
     } finally {
-      setIsOpeningDoor(false);
+      setIsDoorLoading(false);
     }
   };
 
-  const toggleAutoRefresh = () => {
-    setAutoRefresh(!autoRefresh);
+  useEffect(() => {
+    let intervalId;
+    const fetchUnread = () => {
+      hasUnreadNotifications()
+        .then(setHasUnreadNotificationsState)
+        .catch(() => setHasUnreadNotificationsState(false));
+    };
+    fetchUnread();
+    intervalId = setInterval(fetchUnread, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (hasUnreadNotificationsState) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(notificationDotScale, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+          Animated.timing(notificationDotScale, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      notificationDotScale.setValue(1);
+    }
+  }, [hasUnreadNotificationsState]);
+
+  // Dropdown animation handlers
+  const toggleDropdown = () => {
+    if (dropdownVisible) {
+      Animated.timing(dropdownAnimation, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start(() => setDropdownVisible(false));
+    } else {
+      setDropdownVisible(true);
+      Animated.timing(dropdownAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
   };
 
-  const renderActivityItem = (item) => (
-    <View key={item.id} style={styles.activityItem}>
-      <View style={styles.activityIconContainer}>
-        <Ionicons 
-          name={item.action.includes('Ring') ? 'notifications' : 'lock-open'} 
-          size={22} 
-          color={colors.primary} 
-        />
-      </View>
-      <View style={styles.activityContent}>
-        <Text style={styles.activityAction}>{item.action}</Text>
-        <Text style={styles.activityUser}>{item.user}</Text>
-      </View>
-      <View style={styles.activityTime}>
-        <Text style={styles.activityTimeText}>{item.time}</Text>
-        <Text style={styles.activityDateText}>{item.date}</Text>
-      </View>
-    </View>
-  );
+  const handleModeSelect = (mode) => {
+    setSelectedMode(mode);
+    toggleDropdown();
+  };
+
+  const handleLogout = () => {
+    toggleDropdown();
+    logout && logout();
+  };
+
+  const handleNotificationsPress = () => {
+    navigation?.navigate('Notifications', { notificationsPollingInterval: 30000 });
+  };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    
+    // Refresh all data
+    const promises = [
+      fetchRandomFact(),
+      fetchPartyData()
+    ];
+
+    // Only fetch door data if not a guest
+    if (!isGuest) {
+      promises.push(fetchDoorData());
+    }
+
+    Promise.all(promises).finally(() => {
+      setRefreshing(false);
+    });
+  }, [isGuest]);
+
+  const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
+
+  const getDoorStatusColor = () => {
+    if (doorPing?.status === 'online') return colors.success;
+    if (doorPing?.status === 'offline') return colors.danger;
+    return colors.warning;
+  };
+
+  const getDoorStatusText = () => {
+    if (!doorPing) return 'Unknown';
+    return doorPing.status === 'online' ? 'Online' : 'Offline';
+  };
+
+  const getFormattedPing = (ping) => {
+    if (typeof ping === 'number') {
+      return ping.toFixed(3);
+    }
+    if (typeof ping === 'string' && !isNaN(Number(ping))) {
+      return Number(ping).toFixed(3);
+    }
+    return 'N/A';
+  };
+
+  const getFormattedHumidity = (humidity) => {
+    if (typeof humidity === 'number') {
+      return (humidity * 100).toFixed(1);
+    }
+    if (typeof humidity === 'string' && !isNaN(Number(humidity))) {
+      return (Number(humidity) * 100).toFixed(1);
+    }
+    return 'N/A';
+  };
+
+  // Helper to split long usernames
+  const getFormattedUserName = (username) => {
+    if (!username) return '';
+    if (username.length <= 8) return username;
+    const chunks = [];
+    for (let i = 0; i < username.length; i += 8) {
+      chunks.push(username.slice(i, i + 8));
+    }
+    return chunks.join('\n');
+  };
+
+  const isDoorOnline = doorPing && doorPing.status === 'online';
+  const canOpenDoor = !isGuest ? isDoorOnline : canGuestOpenDoor();
 
   return (
-    <View style={styles.root}>
-      {/* Spam protection message */}
-      <Message 
-        message={showSpamMessage ? "Slow down! You are going too fast!" : null}
-        onDismiss={dismissSpamMessage}
-        type="error"
-      />
-      
-      <Animated.View style={[
-        styles.container,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+      {/* Torna o conteúdo scrollable com refresh */}
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
-      ]}>
-        <Animated.View style={[
-          styles.header,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
-        ]}>
-          <View style={styles.headerGradient}>
-            {/* Decorative elements */}
-            <View style={styles.decorativeCircle1} />
-            <View style={styles.decorativeCircle2} />
-            <View style={styles.decorativePattern} />
-            
-            <View style={styles.headerContent}>
-              <View style={styles.mainSection}>
-                <View style={styles.greetingContainer}>
-                  <View style={styles.greetingRow}>
-                    <Text style={styles.timeGreeting}>
-                      {getTimeBasedGreeting()}
-                    </Text>
-                    <View style={styles.greetingAccent} />
-                  </View>
-                  <Text style={styles.usernameDisplay}>{user?.username || 'User'}</Text>
-                </View>
-                
-                {user?.type && (
-                  <View style={[styles.accessBadge, { backgroundColor: getUserTypeInfo(user.type).bgColor }]}>
-                    <View style={[styles.accessIconContainer, { backgroundColor: getUserTypeInfo(user.type).color }]}>
-                      <Ionicons 
-                        name={getUserTypeInfo(user.type).icon} 
-                        size={14} 
-                        color="white" 
-                      />
-                    </View>
-                    <View style={styles.accessText}>
-                      <Text style={[styles.accessTitle, { color: getUserTypeInfo(user.type).color }]}>
-                        {getUserTypeInfo(user.type).title}
-                      </Text>
-                      <Text style={[styles.accessSubtitle, { color: getUserTypeInfo(user.type).color }]}>
-                        {getUserTypeInfo(user.type).subtitle}
-                      </Text>
-                    </View>
-                  </View>
+      >
+        <View style={styles.imageContainer}>
+          <Image source={getTimeOfDayImage()} style={styles.timeImage} resizeMode="cover" />
+          <LinearGradient colors={['transparent', colors.background]} style={styles.imageFade} start={{ x: 0.5, y: 0.6 }} end={{ x: 0.5, y: 1 }} />
+
+          {/* Glass Controls (notifications, profile, etc.) */}
+          <View style={styles.glassControlsContainer}>
+            {/* Dark Mode Button */}
+            <View style={styles.glassItem}>
+              <TouchableOpacity style={styles.glassButton} activeOpacity={0.7}>
+                <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.card} />
+              </TouchableOpacity>
+            </View>
+            {/* Notification Button */}
+            <View style={styles.glassItem}>
+              <TouchableOpacity style={styles.glassButton} activeOpacity={0.7} onPress={handleNotificationsPress}>
+                <Ionicons name="notifications-outline" size={isSmallScreen ? 16 : 22} color={colors.card} />
+                {hasUnreadNotificationsState && (
+                  <Animated.View style={[
+                    styles.notificationDot,
+                    { transform: [{ scale: notificationDotScale }] }
+                  ]} />
                 )}
-              </View>
-              
-              <View style={styles.profileSection}>
-                <View style={styles.connectionStatus}>
-                  <Animated.View style={[styles.statusIndicator, {
-                    transform: [{ scale: pulseAnimation }]
-                  }]}>
-                    <View style={styles.statusPulse} />
+              </TouchableOpacity>
+            </View>
+            {/* Profile Button */}
+            <View style={styles.glassItem}>
+              <TouchableOpacity style={styles.profileContainer} onPress={toggleDropdown} activeOpacity={0.8}>
+                <View style={styles.profileAvatarGlow} />
+                <Image
+                  source={getAvatarSource(currentUser?.type)}
+                  style={[
+                    styles.profileImage,
+                    isSmallScreen && styles.profileImageSmall
+                  ]}
+                  resizeMode="cover"
+                />
+                <View style={styles.profileAvatarBorder} />
+                <View style={[
+                  styles.profileStatusDot,
+                  isSmallScreen && styles.profileStatusDotSmall,
+                  { backgroundColor: getCurrentModeInfo().color }
+                ]} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Door Control Section - Separate from glass controls */}
+          <View style={styles.doorControlSection}>
+            {/* Open Door Button */}
+            <TouchableOpacity 
+              style={[
+                styles.openDoorButton, 
+                (isDoorLoading || !canOpenDoor) && styles.openDoorButtonLoading
+              ]}
+              onPress={handleOpenDoor}
+              disabled={isDoorLoading || !canOpenDoor}
+              activeOpacity={0.8}
+            >
+              <View style={styles.doorButtonContent}>
+                {isDoorLoading ? (
+                  <Animated.View style={styles.loadingSpinner}>
+                    <Ionicons name="sync" size={28} color={colors.card} />
                   </Animated.View>
-                  <Text style={styles.connectionText}>Connected</Text>
+                ) : (
+                  <Ionicons name="key" size={28} color={colors.card} />
+                )}
+                <Text style={styles.doorButtonText}>
+                  {isDoorLoading
+                    ? 'Opening...'
+                    : isGuest
+                      ? canGuestOpenDoor()
+                        ? 'Open Door'
+                        : 'Open Door (Not Available)'
+                      : !isDoorOnline
+                        ? 'Open Door (Offline)'
+                        : 'Open Door'
+                  }
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Door Status Card */}
+            <BlurView intensity={90} tint="dark" style={styles.doorStatusCard}>
+              {isGuest ? (
+                <View style={styles.guestMessageContainer}>
+                  <View style={styles.guestMessageHeader}>
+                    <Ionicons name="information-circle" size={24} color={colors.warning} />
+                    <Text style={styles.guestMessageTitle}>Guest Access</Text>
+                  </View>
+                  <Text style={styles.guestMessageText}>
+                    As a guest, you can only open the door when you're invited to an active party. 
+                    Once the party ends, door access will be restricted until you're invited to another event.
+                  </Text>
+                  {canGuestOpenDoor() && (
+                    <View style={styles.guestActivePartyIndicator}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={styles.guestActivePartyText}>
+                        You have access - Active party invitation
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                <TouchableOpacity style={styles.avatarContainer}>
-                  <View style={styles.avatarGlow} />
-                  <Image 
-                    source={require('../../../assets/avatar.png')} 
-                    style={styles.avatarImage} 
-                  />
-                  <View style={styles.avatarBorder} />
+              ) : (
+                <>
+                  <View style={styles.doorStatusHeader}>
+                    <View style={styles.doorStatusIndicator}>
+                      <View style={[styles.doorStatusDot, { backgroundColor: getDoorStatusColor() }]} />
+                      <Text style={styles.doorStatusText}>
+                        {doorPing ? getDoorStatusText() : 'Offline'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.doorStatusContent}>
+                    {/* Always show labels, show values only if loaded */}
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Ping:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorPing ? getFormattedPing(doorPing.ping) + 'ms' : '--'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Temperature:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Humidity:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </BlurView>
+          </View>
+
+          {/* Greeting overlay */}
+          <View style={styles.greetingOverlay}>
+            <Text style={styles.greetingText}>{getTimeBasedGreeting()},</Text>
+            <Text style={styles.userNameText}>
+              {getFormattedUserName(currentUser?.username)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Dropdown Modal */}
+        <Modal
+          visible={dropdownVisible}
+          transparent
+          animationType="none"
+          onRequestClose={toggleDropdown}
+        >
+          <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
+            <Animated.View style={[
+              styles.dropdownContainer,
+              Platform.OS === 'web' && styles.dropdownContainerWeb,
+              {
+                opacity: dropdownAnimation,
+                transform: [
+                  { translateY: dropdownAnimation.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) },
+                  { scale: dropdownAnimation.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }
+                ]
+              }
+            ]}>
+              {/* Header */}
+              <View style={styles.dropdownHeader}>
+                <Text style={styles.dropdownTitle}>User Status</Text>
+                <TouchableOpacity onPress={toggleDropdown} style={styles.closeButton}>
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-            </View>
-            
-            {/* Enhanced Random Fact Section */}
-            <View style={styles.factSection}>
-              <View style={styles.factBackground} />
-              <View style={styles.factHeader}>
-                <View style={styles.factIconContainer}>
-                  <Ionicons name="bulb" size={16} color={colors.primary} />
+              {/* Connection Modes */}
+              <View style={styles.modesContainer}>
+                {Object.entries(CONNECTION_MODES).map(([key, mode]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.modeItem,
+                      selectedMode === key && styles.selectedModeItem
+                    ]}
+                    onPress={() => handleModeSelect(key)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.modeIconContainer, { backgroundColor: mode.bgColor }]}>
+                      <Ionicons name={mode.icon} size={18} color={mode.color} />
+                    </View>
+                    <View style={styles.modeContent}>
+                      <Text style={[styles.modeTitle, { color: mode.color }]}>{mode.title}</Text>
+                      <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
+                    </View>
+                    {selectedMode === key && (
+                      <Ionicons name="checkmark-circle" size={20} color={mode.color} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.dropdownDivider} />
+              {/* Logout Button */}
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+                <View style={styles.logoutIconContainer}>
+                  <Ionicons name="log-out-outline" size={18} color={colors.danger} />
                 </View>
-                <Text style={styles.factTitle}>Did You Know?</Text>
-                <View style={styles.factControls}>
-                  <TouchableOpacity onPress={toggleAutoRefresh} style={styles.autoRefreshIndicator}>
-                    <View style={[styles.autoRefreshDot, { 
-                      backgroundColor: autoRefresh ? colors.secondary : colors.textSecondary 
-                    }]} />
-                    <Text style={[styles.autoRefreshText, { 
-                      color: autoRefresh ? colors.secondary : colors.textSecondary 
-                    }]}>
-                      {autoRefresh ? '15s' : 'OFF'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleManualRefresh} style={[
-                    styles.refreshButton,
-                    isRefreshDisabled && styles.refreshButtonDisabled
-                  ]} disabled={isLoadingFact || isRefreshDisabled}>
-                    <Animated.View style={{
-                      transform: [{
-                        rotate: refreshAnimation.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg']
-                        })
-                      }]
-                    }}>
-                      <Ionicons 
-                        name="refresh" 
-                        size={14} 
-                        color={isLoadingFact || isRefreshDisabled ? colors.textSecondary : colors.primary}
-                      />
-                    </Animated.View>
-                  </TouchableOpacity>
+                <Text style={styles.logoutText}>Logout</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.danger} />
+              </TouchableOpacity>
+            </Animated.View>
+          </Pressable>
+        </Modal>
+
+        <Animated.View style={[
+          styles.contentContainer,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+        ]}>
+          <View style={styles.dashboardContainer}>
+            {/* Events Section - Pass parties data */}
+            <EventsSection 
+              navigation={navigation} 
+              parties={allParties} 
+              isLoading={isPartiesLoading}
+            />
+            
+            {/* House Plan Section showing occupied rooms */}
+            {!isGuest && (
+              <Animated.View style={[
+                styles.housePlanSection,
+                { 
+                  opacity: housePlanAnimation, 
+                  transform: [{ 
+                    translateY: housePlanAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0]
+                    }) 
+                  }] 
+                }
+              ]}>
+                <View style={styles.housePlanHeader}>
+                  <View style={styles.housePlanHeaderLeft}>
+                    <Ionicons name="home" size={24} color={colors.primary} />
+                    <View style={styles.housePlanHeaderTextGroup}>
+                      <Text style={styles.housePlanHeaderTitle}>House Status</Text>
+                      <Text style={styles.housePlanHeaderSubtitle}>
+                        {occupiedRooms.length > 0 
+                          ? `${occupiedRooms.length} room${occupiedRooms.length > 1 ? 's' : ''} occupied`
+                          : 'All rooms available'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Room color legend */}
+                  <View style={styles.legendContainer}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                      <Text style={styles.legendText}>Occupied</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#f8f9fa' }]} />
+                      <Text style={styles.legendText}>Available</Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <View style={styles.housePlanContainer}>
+                  <HousePlanSelector 
+                    viewOnly={true}
+                    selectedRooms={occupiedRooms}
+                    multiSelect={true}
+                  />
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Random Facts Card */}
+            <View style={styles.factsCard}>
+              <View style={styles.factsHeader}>
+                <View style={styles.factsIconContainer}>
+                  <Ionicons name="bulb-outline" size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.factsTitle}>Did You Know?</Text>
+                <View style={styles.factsRefreshIndicator}>
+                  {isFactLoading && (
+                    <Ionicons name="sync" size={16} color={colors.textSecondary} />
+                  )}
                 </View>
               </View>
-              <Animated.View style={{ opacity: factOpacity }}>
-                <Text style={styles.factText} numberOfLines={3}>
-                  {isFirstLoad && isLoadingFact ? 'Loading interesting fact...' : randomFact}
-                </Text>
+              <Animated.View style={[styles.factsContent, { opacity: factOpacity }]}>
+                <Text style={styles.factsText}>{currentFact}</Text>
               </Animated.View>
+              <View style={styles.factsFooter}>
+                <Text style={styles.factsFooterText}>Updates every 15 seconds</Text>
+              </View>
             </View>
           </View>
         </Animated.View>
-        
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.doorbellContainer}>
-            <Button 
-              title={isRinging ? "Ringing..." : "Ring Doorbell"} 
-              onPress={handleRingDoorbell}
-              loading={isRinging}
-              disabled={isRinging}
-              iconLeft={!isRinging && <Ionicons name="notifications" size={22} color="white" />}
-            />
-            
-            <View style={styles.buttonSpacing} />
-            
-            <Button 
-              title={isOpeningDoor ? "Opening..." : "Open Door"} 
-              onPress={handleOpenDoor}
-              loading={isOpeningDoor}
-              disabled={isOpeningDoor}
-              iconLeft={!isOpeningDoor && <Ionicons name="lock-open" size={22} color="white" />}
-              style={styles.openDoorButton}
-            />
-          </View>
-          
-          <View style={styles.activityContainer}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <View style={styles.activityList}>
-              {DUMMY_ACTIVITIES.map(renderActivityItem)}
-            </View>
-            
-            <TouchableOpacity style={styles.viewAllButton}>
-              <Text style={styles.viewAllText}>View All Activity</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-        
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home" size={24} color={colors.primary} />
-            <Text style={[styles.navText, { color: colors.primary }]}>Home</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.navItem} 
-            onPress={() => navigation.navigate('Users')}
-          >
-            <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Users</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Settings</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem} onPress={logout}>
-            <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-            <Text style={styles.navText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+      </ScrollView>
+
+      {/* Show message at the top */}
+      <Message
+        message={message}
+        type={messageType}
+        onDismiss={() => setMessage('')}
+      />
+
+      <BottomNavBar navigation={navigation} active="Home" />
     </View>
   );
 };
 
+const glassBackground = Platform.OS === 'ios'
+  ? { backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(60px)' }  
+  : Platform.OS === 'web'
+    ? { backgroundColor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(14px)' }
+    : { backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(60px)' };
+
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  container: {
-    flex: 1,
-  },
-  header: {
-    marginHorizontal: spacing.large,
-    marginTop: spacing.medium,
-    marginBottom: spacing.medium,
-  },
-  headerGradient: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.xlarge || 24,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  decorativeCircle1: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: `${colors.primary}08`,
-  },
-  decorativeCircle2: {
-    position: 'absolute',
-    bottom: -20,
-    left: -20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: `${colors.secondary}06`,
-  },
-  decorativePattern: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
+  imageContainer: {
     width: '100%',
-    height: 4,
-    background: `linear-gradient(90deg, ${colors.primary}20, ${colors.secondary}20)`,
-    backgroundColor: `${colors.primary}15`,
+    height: 600,
+    position: 'relative',
+    justifyContent: 'center',
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: spacing.large,
+  timeImage: {
+    width: '100%',
+    height: 600,
   },
-  mainSection: {
-    flex: 1,
-    marginRight: spacing.medium,
+  imageFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 160,
   },
-  greetingContainer: {
-    marginBottom: spacing.medium,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  greetingAccent: {
-    width: 20,
-    height: 3,
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-    marginLeft: 8,
-    opacity: 0.7,
-  },
-  timeGreeting: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  usernameDisplay: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.8,
-  },
-  accessBadge: {
+  
+  glassControlsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
+    position: 'absolute',
+    top: 32,
+    right: 24,
+    zIndex: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 30,
+    paddingHorizontal: spacing.small,
+    paddingVertical: 5,
+    gap: spacing.small,
+    ...glassBackground,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    ...Platform.select({
+      web: { backdropFilter: 'blur(10px)', border: `1.5px solid ${colors.border}` },
+    }),
   },
-  accessIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  glassItem: {
+    marginHorizontal: 2,
+  },
+  glassButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-  },
-  accessText: {
-    marginLeft: 8,
-  },
-  accessTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  accessSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    opacity: 0.8,
-    marginTop: 1,
-  },
-  profileSection: {
-    alignItems: 'flex-end',
-  },
-  connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${colors.success}15`,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: `${colors.success}25`,
-  },
-  statusIndicator: {
     position: 'relative',
-    marginRight: 6,
+    backgroundColor: 'rgba(20,20,20,0.15)',
   },
-  statusPulse: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#22C55E',
-    shadowColor: '#22C55E',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-  },
-  connectionText: {
-    fontSize: 12,
-    color: '#22C55E',
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  avatarContainer: {
+  profileContainer: {
     position: 'relative',
   },
-  avatarGlow: {
+  profileAvatarGlow: {
     position: 'absolute',
     top: -2,
     left: -2,
@@ -738,142 +758,229 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    zIndex: 0,
   },
-  avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
+  profileImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
     borderColor: colors.card,
+    zIndex: 1,
   },
-  avatarBorder: {
+  profileImageSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  profileAvatarBorder: {
     position: 'absolute',
     top: -1,
     left: -1,
     right: -1,
     bottom: -1,
-    borderRadius: 29,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: colors.primary,
     opacity: 0.6,
+    zIndex: 2,
   },
-  factSection: {
-    marginTop: spacing.medium,
-    paddingTop: spacing.large,
-    paddingHorizontal: spacing.large,
-    paddingBottom: spacing.large,
-    borderTopWidth: 1,
-    borderTopColor: `${colors.border}50`,
-    position: 'relative',
-    minHeight: 120, // Fixed height to prevent layout shifts
-  },
-  factBackground: {
+  profileStatusDot: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
-    backgroundColor: `${colors.primary}03`,
-    borderBottomLeftRadius: borderRadius.xlarge || 24,
-    borderBottomRightRadius: borderRadius.xlarge || 24,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.card,
+    zIndex: 3,
   },
-  factHeader: {
-    flexDirection: 'row',
+  profileStatusDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: colors.card,
+    shadowColor: colors.danger,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+
+  doorControlSection: {
+    position: 'absolute',
+    bottom: 130,
+    left: 24,
+    right: 24,
     alignItems: 'center',
-    marginBottom: spacing.medium,
-    zIndex: 1,
+    zIndex: 10,
   },
-  factIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: `${colors.primary}15`,
+  
+  openDoorButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.large,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    minWidth: 200,
+  },
+  openDoorButtonLoading: {
+    backgroundColor: colors.textSecondary,
+  },
+  doorButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    gap: spacing.small,
   },
-  factTitle: {
-    fontSize: 15,
+  doorButtonText: {
+    color: colors.card,
+    fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.4,
-    flex: 1,
+    fontFamily: 'Montserrat, System',
   },
-  factControls: {
+
+  doorStatusCard: {
+    borderRadius: borderRadius.medium,
+    marginTop: spacing.xxlarge,
+    padding: spacing.medium,
+    width: '100%',
+    maxWidth: 350,
+    backgroundColor: 'rgba(20,20,20,0.07)',
+    borderWidth: Platform.OS === 'ios' ? 1 : 0.5,
+    borderColor: 'rgba(255,255,255,0.10)',
+    shadowColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.3)' : colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: Platform.OS === 'ios' ? 0.25 : 0.2,
+    shadowRadius: Platform.OS === 'ios' ? 20 : 16,
+    elevation: Platform.OS === 'android' ? 12 : 8,
+  },
+  doorStatusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.small,
   },
-  autoRefreshIndicator: {
+  doorStatusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${colors.secondary}15`,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
+    gap: spacing.small,
   },
-  autoRefreshDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.secondary,
-    marginRight: 4,
+  doorStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  autoRefreshText: {
-    fontSize: 10,
+  doorStatusText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: colors.secondary,
+    color: '#fff',
   },
-  refreshButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: colors.card,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: `${colors.primary}15`,
+  doorStatusContent: {
+    gap: spacing.small,
   },
-  refreshButtonDisabled: {
-    backgroundColor: colors.background,
-    borderColor: `${colors.textSecondary}15`,
-    opacity: 0.5,
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  factText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'left',
-    zIndex: 1,
-    height: 60, // Fixed height for exactly 3 lines (20 * 3)
+  statusLabel: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
   },
-  scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 80 : 95,
-    paddingHorizontal: spacing.large,
-    paddingBottom: 90,
-  },
-  doorbellContainer: {
-    marginVertical: spacing.large,
-  },
-  buttonSpacing: {
-    height: spacing.medium,
-  },
-  openDoorButton: {
-    backgroundColor: colors.secondary,
-  },
-  sectionTitle: {
-    fontSize: 20,
+  statusValue: {
+    fontSize: 14,
+    color: '#fff',
     fontWeight: '600',
-    color: colors.textPrimary,
+  },
+
+  // Guest message styles
+  guestMessageContainer: {
+    alignItems: 'center',
+  },
+  guestMessageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
     marginBottom: spacing.medium,
   },
-  activityContainer: {
-    marginTop: spacing.medium,
+  guestMessageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
-  activityList: {
+  guestMessageText: {
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.9,
+  },
+  guestActivePartyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginTop: spacing.medium,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    borderRadius: borderRadius.small,
+  },
+  guestActivePartyText: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: '600',
+  },
+
+  greetingOverlay: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    paddingHorizontal: spacing.medium,
+  },
+  greetingText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'light',
+    fontFamily: 'Montserrat, System',
+  },
+  userNameText: {
+    fontSize: 48,
+    color: '#fff',
+    fontWeight: '900',
+    fontFamily: 'Montserrat, System',
+    flexWrap: 'wrap',
+    lineHeight: 54,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  dashboardContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? 20 : 30, 
+    paddingBottom: 100,
+  },
+
+  housePlanSection: {
+    marginHorizontal: spacing.large,
     backgroundColor: colors.card,
     borderRadius: borderRadius.large,
     overflow: 'hidden',
@@ -881,87 +988,223 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+    }),
   },
-  activityItem: {
+  housePlanHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.medium,
+    justifyContent: 'space-between',
+    padding: spacing.large,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  activityIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background,
+  housePlanHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+  },
+  housePlanHeaderTextGroup: {
+    marginLeft: spacing.small,
+  },
+  housePlanHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  housePlanHeaderSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  legendText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  housePlanContainer: {
+    height: 280,
+    backgroundColor: '#f1f3f5',
+    overflow: 'hidden',
+  },
+
+  factsCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    marginHorizontal: spacing.large,
+    marginTop: spacing.xlarge,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  factsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.small,
+  },
+  factsIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.small,
+  },
+  factsTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  factsRefreshIndicator: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  factsContent: {
+    marginBottom: spacing.small,
+  },
+  factsText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  factsFooter: {
+    alignItems: 'center',
+  },
+  factsFooterText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-end',
+    paddingTop: Platform.OS === 'android' ? 80 : 95,
+    paddingRight: spacing.large,
+  },
+  dropdownContainer: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    minWidth: 280,
+    maxWidth: 320,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  dropdownContainerWeb: {
+    position: 'absolute',
+    top: 100, 
+    right: 520, 
+    zIndex: 1001,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.large,
+    paddingVertical: spacing.medium,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: `${colors.primary}05`,
+  },
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modesContainer: {
+    paddingVertical: spacing.small,
+  },
+  modeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.large,
+    paddingVertical: spacing.medium,
+    borderRadius: 0,
+  },
+  selectedModeItem: {
+    backgroundColor: `${colors.primary}08`,
+  },
+  modeIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.medium,
   },
-  activityContent: {
+  modeContent: {
     flex: 1,
   },
-  activityAction: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.textPrimary,
+  modeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  activityUser: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  activityTime: {
-    alignItems: 'flex-end',
-  },
-  activityTimeText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  activityDateText: {
+  modeSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 2,
   },
-  viewAllButton: {
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  logoutButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.large,
+    paddingVertical: spacing.medium,
+    backgroundColor: `${colors.danger}08`,
+  },
+  logoutIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${colors.danger}15`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.medium,
-    padding: spacing.medium,
+    marginRight: spacing.medium,
   },
-  viewAllText: {
-    color: colors.primary,
+  logoutText: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '600',
-    marginRight: spacing.small,
+    color: colors.danger,
   },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.medium,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 10,
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    fontSize: 12,
-    marginTop: 4,
-    color: colors.textSecondary,
-  }
 });
 
 export default HomeScreen;

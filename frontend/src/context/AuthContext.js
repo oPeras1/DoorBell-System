@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, checkAuthStatus } from '../services/auth';
+import { getMe } from '../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthContext = createContext();
@@ -9,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
 
+  // Bootstrap: Verifica token/user salvo ao iniciar
   useEffect(() => {
     const bootstrapAsync = async () => {
       try {
@@ -30,6 +32,31 @@ export const AuthProvider = ({ children }) => {
     bootstrapAsync();
   }, []);
 
+  useEffect(() => {
+    const validateUser = async () => {
+      if (!userToken) {
+        setUser(null);
+        return;
+      }
+      try {
+        const userData = await getMe();
+        setUser(userData);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+      } catch (error) {
+        if (
+          error.response &&
+          [401, 403, 404].includes(error.response.status)
+        ) {
+          await authContext.logout();
+        } else {
+          console.error('Erro ao validar usuário logado:', error);
+        }
+      }
+    };
+
+    validateUser();
+  }, [userToken]);
+
   const authContext = {
     login: async (credentials) => {
       try {
@@ -37,13 +64,14 @@ export const AuthProvider = ({ children }) => {
         setUserToken(response.token);
         if (response.user) {
           setUser(response.user);
+          await AsyncStorage.setItem('user', JSON.stringify(response.user));
         }
         return response;
       } catch (error) {
         throw error;
       }
     },
-    
+
     register: async (userData) => {
       try {
         const response = await apiRegister(userData);
@@ -52,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         throw error;
       }
     },
-    
+
     logout: async () => {
       try {
         setIsLoading(true);
@@ -60,19 +88,21 @@ export const AuthProvider = ({ children }) => {
         setUserToken(null);
         setUser(null);
         await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('userToken');
       } catch (error) {
         setUserToken(null);
         setUser(null);
         await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('userToken');
       } finally {
         setIsLoading(false);
       }
     },
-    
+
     user,
     userToken,
     isLoading,
-    setUser
+    setUser,
   };
 
   return (

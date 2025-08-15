@@ -32,6 +32,7 @@ const RegisterScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const buttonScaleAnim = useRef(new Animated.Value(0.95)).current;
+  const timeoutRef = useRef(null);
 
   const usernameValid = username.length >= 4;
   const passwordValid = password.length >= 6;
@@ -91,7 +92,8 @@ const RegisterScreen = ({ navigation }) => {
       setLoading(true);
       await register({ username, password });
       setSuccessMessage('Account created successfully! You can now sign in.');
-      setTimeout(() => {
+      // Salva o timeout para poder limpar depois
+      timeoutRef.current = setTimeout(() => {
         setSuccessMessage('');
         navigation.navigate('Login');
       }, 10000);
@@ -102,6 +104,15 @@ const RegisterScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const dismissError = () => setErrorMessage('');
   const dismissSuccess = () => setSuccessMessage('');

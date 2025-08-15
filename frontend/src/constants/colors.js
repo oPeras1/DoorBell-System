@@ -15,4 +15,12 @@ export const colors = {
   border: '#E2E8F0',
   backdrop: 'rgba(0, 0, 0, 0.5)',
   disabled: '#9CA3AF',
+  gradientStart: '#667eea',
+  gradientEnd: '#764ba2',
+  accentLight: '#E0E7FF',
+  cardShadow: 'rgba(0, 0, 0, 0.08)',
+  overlayLight: 'rgba(255, 255, 255, 0.9)',
+  surfaceElevated: '#FAFBFC',
+  online: '#22C55E',
+  offline: '#94A3B8',
 };

@@ -1,0 +1,110 @@
+import React, { useState, useContext, useEffect, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  Animated,
+  StatusBar
+} from 'react-native';
+import { colors } from '../../constants/colors';
+import { spacing } from '../../constants/styles';
+import { AuthContext } from '../../context/AuthContext';
+import TopField from '../../components/TopField';
+import { getTimeBasedGreeting } from '../../constants/functions';
+import BottomNavBar from '../../components/BottomNavBar';
+
+const SettingsScreen = ({ navigation }) => {
+  const { user: currentUser, logout } = useContext(AuthContext);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(30));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: false,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 50,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
+      
+      <TopField 
+        greeting={getTimeBasedGreeting()}
+        userName={currentUser?.username}
+        userType={currentUser?.type}
+        isOnline={true}
+        onProfilePress={() => {}}
+        showDarkModeToggle={true}
+        onLogout={logout}
+        navigation={navigation}
+      />
+      
+      <Animated.View style={[
+        styles.contentContainer, 
+        { 
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.pageTitle}>Settings</Text>
+          <Text style={styles.pageSubtitle}>Configure your preferences</Text>
+        </ScrollView>
+      </Animated.View>
+      
+      <BottomNavBar navigation={navigation} active="Settings" />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: Platform.OS === 'android' ? 80 : 95,
+    paddingHorizontal: spacing.large,
+    paddingBottom: 100,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.small,
+  },
+  pageSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+});
+
+export default SettingsScreen;

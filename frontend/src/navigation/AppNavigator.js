@@ -1,11 +1,16 @@
 import React, { useContext } from 'react';
-import { createStackNavigator, CardStyleInterpolators, TransitionPresets } from '@react-navigation/stack';
-import { ActivityIndicator, View, StyleSheet, StatusBar, Platform, Dimensions, Easing } from 'react-native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { View, StyleSheet, StatusBar, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import UsersScreen from '../screens/Users/UsersScreen';
+import PartyScreen from '../screens/Party/PartyScreen';
+import PartyCreateScreen from '../screens/Party/PartyCreateScreen';
+import SettingsScreen from '../screens/Settings/SettingsScreen';
+import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
+import Notifications from '../screens/Notifications/Notifications';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -15,64 +20,11 @@ const Stack = createStackNavigator();
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// Custom transition configuration with smooth animations
-const transitionConfig = {
-  gestureEnabled: true,
-  gestureDirection: 'horizontal',
-  transitionSpec: {
-    open: {
-      animation: 'timing',
-      config: {
-        duration: 400,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-      },
-    },
-    close: {
-      animation: 'timing',
-      config: {
-        duration: 350,
-        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-      },
-    },
-  },
-  cardStyleInterpolator: ({ current, next, layouts }) => {
-    return {
-      cardStyle: {
-        transform: [
-          {
-            translateX: current.progress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [layouts.screen.width, 0],
-            }),
-          },
-          {
-            scale: current.progress.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [0.92, 0.96, 1],
-            }),
-          },
-        ],
-        opacity: current.progress.interpolate({
-          inputRange: [0, 0.4, 1],
-          outputRange: [0, 0.7, 1],
-        }),
-      },
-      overlayStyle: {
-        opacity: current.progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 0.15],
-        }),
-      },
-    };
-  },
-};
-
 const AuthStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerShown: false,
       cardStyle: { backgroundColor: colors.background },
-      ...transitionConfig,
     }}
   >
     <Stack.Screen name="Login" component={LoginScreen} />
@@ -85,30 +37,20 @@ const AppStack = () => (
     screenOptions={{
       headerShown: false,
       cardStyle: { backgroundColor: colors.background },
-      ...transitionConfig,
     }}
   >
     <Stack.Screen name="Home" component={HomeScreen} />
     <Stack.Screen name="Users" component={UsersScreen} />
+    <Stack.Screen name="Party" component={PartyScreen} />
+    <Stack.Screen name="PartyCreate" component={PartyCreateScreen} />
+    <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} />
+    <Stack.Screen name="Notifications" component={Notifications} />
   </Stack.Navigator>
 );
 
-const LoadingScreen = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={colors.primary} />
-  </View>
-);
-
 const AppNavigator = () => {
-  const { userToken, isLoading } = useContext(AuthContext);
-
-  if (isLoading) {
-    return (
-      <View style={[styles.container, isWeb && styles.webContainer]}>
-        <LoadingScreen />
-      </View>
-    );
-  }
+  const { userToken } = useContext(AuthContext);
 
   // For web, wrap in a container with proper centering
   if (isWeb) {
@@ -166,12 +108,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.primary, // Status bar background color
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
   },
   // Web-specific styles
   webContainer: {
