@@ -22,7 +22,6 @@ public class DoorController {
     private String jwtSecret;
 
     private static final String DOORBELL_API_BASE_URL = "https://doorbell-real.houseofknowledge.pt";
-
     private final RestTemplate restTemplate = new RestTemplate();
 
     @PostMapping

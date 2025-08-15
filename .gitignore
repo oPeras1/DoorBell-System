@@ -3,4 +3,3 @@
 **/apiConfig.js
 docker-compose.yml
 **/Dockerfile
-**/application.properties
