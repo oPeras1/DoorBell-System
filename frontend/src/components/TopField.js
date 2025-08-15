@@ -23,12 +23,12 @@ const isSmallScreen = SCREEN_WIDTH < 370;
 
 const getAvatarSource = (userType) => {
   if (userType === 'KNOWLEDGER') {
-    return require('../../assets/avatarknowledger.jpg');
+    return require('../../assets/Avatar/avatarknowledger.jpg');
   }
   if (userType === 'HOUSER') {
-    return require('../../assets/avatarhouser.png');
+    return require('../../assets/Avatar/avatarhouser.png');
   }
-  return require('../../assets/avatarguest.jpeg');
+  return require('../../assets/Avatar/avatarguest.jpeg');
 };
 
 const TopField = ({ 

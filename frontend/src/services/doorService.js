@@ -9,3 +9,21 @@ export const openDoor = async () => {
     throw error;
   }
 };
+
+export const getDoorPing = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.DOOR_PING);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getDoorEnvironment = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.DOOR_ENVIRONMENT);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
