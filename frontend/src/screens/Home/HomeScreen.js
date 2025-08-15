@@ -14,6 +14,7 @@ import { getParties } from '../../services/partyService';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../../constants/users';
 import { BlurView } from 'expo-blur';
 import HousePlanSelector from '../../components/HousePlanSelector';
+import Message from '../../components/Message';
 
 import {
   getTimeOfDayImage,
@@ -42,7 +43,6 @@ const HomeScreen = ({ navigation }) => {
 
   // Door functionality states
   const [isDoorLoading, setIsDoorLoading] = useState(false);
-  const [doorStatus, setDoorStatus] = useState(null);
   const [doorPing, setDoorPing] = useState(null);
   const [doorEnvironment, setDoorEnvironment] = useState(null);
 
@@ -60,9 +60,44 @@ const HomeScreen = ({ navigation }) => {
   // Animation ref for house plan
   const housePlanAnimation = useRef(new Animated.Value(0)).current;
 
+  // Message state
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
+
+  // Check if user is a guest
+  const isGuest = currentUser?.type === 'GUEST';
+
+  // Check if guest can open door (invited to an active party)
+  const canGuestOpenDoor = () => {
+    if (!isGuest) return true;
+    
+    const now = new Date();
+    return allParties.some(party => {
+      if (party.status !== 'IN_PROGRESS') return false;
+      
+      const partyStart = new Date(party.dateTime);
+      const partyEnd = new Date(party.endDateTime || party.dateTime);
+      
+      // Add 3 hours buffer if no endDateTime is specified
+      if (!party.endDateTime) {
+        partyEnd.setHours(partyEnd.getHours() + 3);
+      }
+      
+      // Check if party is currently active and user is invited
+      const isPartyActive = now >= partyStart && now <= partyEnd;
+      const isUserInvited = party.guests && party.guests.some(guest => 
+        guest.id === currentUser?.id || guest.userId === currentUser?.id
+      );
+      
+      return isPartyActive && isUserInvited;
+    });
+  };
+
   useEffect(() => {
     fetchUserData();
-    fetchDoorData();
+    if (!isGuest) {
+      fetchDoorData();
+    }
     fetchRandomFact();
     fetchPartyData();
     
@@ -74,28 +109,31 @@ const HomeScreen = ({ navigation }) => {
     // Set up fact refresh interval (15 seconds)
     const factInterval = setInterval(fetchRandomFact, 15000);
     
-    // Set up door data refresh interval (30 seconds)
-    const doorInterval = setInterval(fetchDoorData, 30000);
+    // Set up door data refresh interval (30 seconds) - only for non-guests
+    let doorInterval;
+    if (!isGuest) {
+      doorInterval = setInterval(fetchDoorData, 30000);
+    }
 
     // Set up party data refresh interval (30 seconds)
     const partiesInterval = setInterval(fetchPartyData, 30000);
 
     return () => {
       clearInterval(factInterval);
-      clearInterval(doorInterval);
+      if (doorInterval) clearInterval(doorInterval);
       clearInterval(partiesInterval);
     };
-  }, []);
+  }, [isGuest]);
 
   useEffect(() => {
-    if (allParties.length > 0) {
+    if (!isGuest) {
       Animated.timing(housePlanAnimation, {
         toValue: 1,
         duration: 500,
         useNativeDriver: true
       }).start();
     }
-  }, [allParties]);
+  }, [isGuest, allParties]);
 
   const fetchUserData = async () => {
     try {
@@ -113,6 +151,9 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const fetchDoorData = async () => {
+    // Only fetch door data if user is not a guest
+    if (isGuest) return;
+    
     try {
       const [pingData, envData] = await Promise.all([
         getDoorPing().catch(() => null),
@@ -193,14 +234,16 @@ const HomeScreen = ({ navigation }) => {
   const handleOpenDoor = async () => {
     try {
       setIsDoorLoading(true);
-      const result = await openDoor();
-      setDoorStatus(result);
-      
-      setTimeout(fetchDoorData, 1000);
-      
+      await openDoor();
+      setMessage('Door opened successfully!');
+      setMessageType('success');
+      if (!isGuest) {
+        setTimeout(fetchDoorData, 1000);
+      }
     } catch (error) {
+      setMessage('Failed to open door');
+      setMessageType('error');
       console.log('Error opening door:', error);
-      setDoorStatus({ error: 'Failed to open door' });
     } finally {
       setIsDoorLoading(false);
     }
@@ -267,15 +310,21 @@ const HomeScreen = ({ navigation }) => {
     setRefreshing(true);
     
     // Refresh all data
-    Promise.all([
+    const promises = [
       fetchUserData(),
-      fetchDoorData(),
       fetchRandomFact(),
       fetchPartyData()
-    ]).finally(() => {
+    ];
+
+    // Only fetch door data if not a guest
+    if (!isGuest) {
+      promises.push(fetchDoorData());
+    }
+
+    Promise.all(promises).finally(() => {
       setRefreshing(false);
     });
-  }, []);
+  }, [isGuest]);
 
   const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
 
@@ -322,6 +371,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const isDoorOnline = doorPing && doorPing.status === 'online';
+  const canOpenDoor = !isGuest ? isDoorOnline : canGuestOpenDoor();
 
   return (
     <View style={styles.container}>
@@ -368,7 +418,7 @@ const HomeScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.profileContainer} onPress={toggleDropdown} activeOpacity={0.8}>
                 <View style={styles.profileAvatarGlow} />
                 <Image
-                  source={getAvatarSource(currentUser?.userType)}
+                  source={getAvatarSource(currentUser?.type)}
                   style={[
                     styles.profileImage,
                     isSmallScreen && styles.profileImageSmall
@@ -391,11 +441,10 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity 
               style={[
                 styles.openDoorButton, 
-                isDoorLoading && styles.openDoorButtonLoading,
-                !isDoorOnline && styles.openDoorButtonLoading
+                (isDoorLoading || !canOpenDoor) && styles.openDoorButtonLoading
               ]}
               onPress={handleOpenDoor}
-              disabled={isDoorLoading || !isDoorOnline}
+              disabled={isDoorLoading || !canOpenDoor}
               activeOpacity={0.8}
             >
               <View style={styles.doorButtonContent}>
@@ -409,9 +458,13 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.doorButtonText}>
                   {isDoorLoading
                     ? 'Opening...'
-                    : !isDoorOnline
-                      ? 'Open Door (Offline)'
-                      : 'Open Door'
+                    : isGuest
+                      ? canGuestOpenDoor()
+                        ? 'Open Door'
+                        : 'Open Door (Not Available)'
+                      : !isDoorOnline
+                        ? 'Open Door (Offline)'
+                        : 'Open Door'
                   }
                 </Text>
               </View>
@@ -419,45 +472,59 @@ const HomeScreen = ({ navigation }) => {
 
             {/* Door Status Card */}
             <BlurView intensity={90} tint="dark" style={styles.doorStatusCard}>
-              <View style={styles.doorStatusHeader}>
-                <View style={styles.doorStatusIndicator}>
-                  <View style={[styles.doorStatusDot, { backgroundColor: getDoorStatusColor() }]} />
-                  <Text style={styles.doorStatusText}>
-                    {doorPing ? getDoorStatusText() : 'Offline'}
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.doorStatusContent}>
-                {/* Always show labels, show values only if loaded */}
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>Ping:</Text>
-                  <Text style={styles.statusValue}>
-                    {doorPing ? getFormattedPing(doorPing.ping) + 'ms' : '--'}
-                  </Text>
-                </View>
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>Temperature:</Text>
-                  <Text style={styles.statusValue}>
-                    {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
-                  </Text>
-                </View>
-                <View style={styles.statusRow}>
-                  <Text style={styles.statusLabel}>Humidity:</Text>
-                  <Text style={styles.statusValue}>
-                    {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
-                  </Text>
-                </View>
-                {/* Last Action only if doorStatus exists */}
-                {doorStatus && (
-                  <View style={styles.statusRow}>
-                    <Text style={styles.statusLabel}>Last Action:</Text>
-                    <Text style={[styles.statusValue, { color: doorStatus.error ? colors.danger : colors.success }]}>
-                      {doorStatus.error || 'Door opened successfully'}
-                    </Text>
+              {isGuest ? (
+                <View style={styles.guestMessageContainer}>
+                  <View style={styles.guestMessageHeader}>
+                    <Ionicons name="information-circle" size={24} color={colors.warning} />
+                    <Text style={styles.guestMessageTitle}>Guest Access</Text>
                   </View>
-                )}
-              </View>
+                  <Text style={styles.guestMessageText}>
+                    As a guest, you can only open the door when you're invited to an active party. 
+                    Once the party ends, door access will be restricted until you're invited to another event.
+                  </Text>
+                  {canGuestOpenDoor() && (
+                    <View style={styles.guestActivePartyIndicator}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={styles.guestActivePartyText}>
+                        You have access - Active party invitation
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <>
+                  <View style={styles.doorStatusHeader}>
+                    <View style={styles.doorStatusIndicator}>
+                      <View style={[styles.doorStatusDot, { backgroundColor: getDoorStatusColor() }]} />
+                      <Text style={styles.doorStatusText}>
+                        {doorPing ? getDoorStatusText() : 'Offline'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.doorStatusContent}>
+                    {/* Always show labels, show values only if loaded */}
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Ping:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorPing ? getFormattedPing(doorPing.ping) + 'ms' : '--'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Temperature:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Humidity:</Text>
+                      <Text style={styles.statusValue}>
+                        {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </BlurView>
           </View>
 
@@ -547,53 +614,54 @@ const HomeScreen = ({ navigation }) => {
             />
             
             {/* House Plan Section showing occupied rooms */}
-            <Animated.View style={[
-              styles.housePlanSection,
-              { 
-                opacity: housePlanAnimation, 
-                transform: [{ 
-                  translateY: housePlanAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0]
-                  }) 
-                }] 
-              }
-            ]}>
-              <View style={styles.housePlanHeader}>
-                <View style={styles.housePlanHeaderLeft}>
-                  <Ionicons name="home" size={24} color={colors.primary} />
-                  <View style={styles.housePlanHeaderTextGroup}>
-                    <Text style={styles.housePlanHeaderTitle}>House Status</Text>
-                    <Text style={styles.housePlanHeaderSubtitle}>
-                      {occupiedRooms.length > 0 
-                        ? `${occupiedRooms.length} room${occupiedRooms.length > 1 ? 's' : ''} occupied`
-                        : 'All rooms available'}
-                    </Text>
+            {!isGuest && (
+              <Animated.View style={[
+                styles.housePlanSection,
+                { 
+                  opacity: housePlanAnimation, 
+                  transform: [{ 
+                    translateY: housePlanAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0]
+                    }) 
+                  }] 
+                }
+              ]}>
+                <View style={styles.housePlanHeader}>
+                  <View style={styles.housePlanHeaderLeft}>
+                    <Ionicons name="home" size={24} color={colors.primary} />
+                    <View style={styles.housePlanHeaderTextGroup}>
+                      <Text style={styles.housePlanHeaderTitle}>House Status</Text>
+                      <Text style={styles.housePlanHeaderSubtitle}>
+                        {occupiedRooms.length > 0 
+                          ? `${occupiedRooms.length} room${occupiedRooms.length > 1 ? 's' : ''} occupied`
+                          : 'All rooms available'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Room color legend */}
+                  <View style={styles.legendContainer}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                      <Text style={styles.legendText}>Occupied</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#f8f9fa' }]} />
+                      <Text style={styles.legendText}>Available</Text>
+                    </View>
                   </View>
                 </View>
                 
-                {/* Room color legend */}
-                <View style={styles.legendContainer}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                    <Text style={styles.legendText}>Occupied</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#f8f9fa' }]} />
-                    <Text style={styles.legendText}>Available</Text>
-                  </View>
+                <View style={styles.housePlanContainer}>
+                  <HousePlanSelector 
+                    viewOnly={true}
+                    selectedRooms={occupiedRooms}
+                    multiSelect={true}
+                  />
                 </View>
-              </View>
-              
-              <View style={styles.housePlanContainer}>
-               <HousePlanSelector 
-                viewOnly={true}
-                selectedRooms={occupiedRooms}
-                multiSelect={true}
-              />
-
-              </View>
-            </Animated.View>
+              </Animated.View>
+            )}
 
             {/* Random Facts Card */}
             <View style={styles.factsCard}>
@@ -618,6 +686,13 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Show message at the top */}
+      <Message
+        message={message}
+        type={messageType}
+        onDismiss={() => setMessage('')}
+      />
 
       <BottomNavBar navigation={navigation} active="Home" />
     </View>
@@ -852,6 +927,44 @@ const styles = StyleSheet.create({
   statusValue: {
     fontSize: 14,
     color: '#fff',
+    fontWeight: '600',
+  },
+
+  // Guest message styles
+  guestMessageContainer: {
+    alignItems: 'center',
+  },
+  guestMessageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginBottom: spacing.medium,
+  },
+  guestMessageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  guestMessageText: {
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.9,
+  },
+  guestActivePartyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginTop: spacing.medium,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    borderRadius: borderRadius.small,
+  },
+  guestActivePartyText: {
+    fontSize: 12,
+    color: colors.success,
     fontWeight: '600',
   },
 

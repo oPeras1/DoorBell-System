@@ -45,12 +45,10 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
   const [statusUpdating, setStatusUpdating] = useState({});
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Animation values - Inicializar com valores finais para móveis
   const slideAnim = useRef(new Animated.Value(isWeb ? 30 : 0)).current;
   const fadeAnim = useRef(new Animated.Value(isWeb ? 0 : 1)).current;
 
   useEffect(() => {
-    // Só animar na web, em móveis manter valores estáticos
     if (isWeb && !isInitialized) {
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
@@ -61,11 +59,8 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
     }
   }, [isWeb, isInitialized]);
 
-  // Process parties when they change - Evitar re-renderizações desnecessárias
   useEffect(() => {
     if (Array.isArray(parties) && currentUser?.id) {
-      // Exclude completed or cancelled events, then filter to only include parties
-      // where the user is involved (host or guest)
       const filteredParties = parties
         .filter(p => p && p.status !== 'COMPLETED' && p.status !== 'CANCELLED')
         .filter(party => {
@@ -77,17 +72,8 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
           return Array.isArray(party.guests) && party.guests.some(guest => guest.user && guest.user.id === currentUser.id);
         });
 
-      // Só atualizar se realmente mudou
-      setUserParties(prevParties => {
-        const prevIds = prevParties.map(p => p.id).sort();
-        const newIds = filteredParties.map(p => p.id).sort();
-        
-        if (JSON.stringify(prevIds) !== JSON.stringify(newIds)) {
-          setTotalCards(filteredParties.length);
-          return filteredParties;
-        }
-        return prevParties;
-      });
+      setUserParties(filteredParties);
+      setTotalCards(filteredParties.length);
     }
   }, [parties, currentUser?.id]);
 
@@ -96,7 +82,6 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
       setStatusUpdating(prev => ({ ...prev, [partyId]: true }));
       await updateGuestStatus(partyId, currentUser.id, status);
 
-      // Update local state
       setUserParties(currentParties =>
         currentParties.map(party => {
           if (party.id === partyId) {
@@ -179,7 +164,6 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
     return userGuest && (!userGuest.updatedAt || userGuest.status === 'UNDECIDED');
   };
 
-  // Get the user's current status for a party
   const getUserStatus = (party) => {
     if (!party) return 'UNDECIDED';
     if (party.host && party.host.id === currentUser.id) return 'HOST';
@@ -188,7 +172,6 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
     return userGuest ? userGuest.status : 'UNDECIDED';
   };
 
-  // Show loading only on initial load
   if (isLoading && userParties.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -208,7 +191,6 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
 
   const noParties = userParties.length === 0;
 
-  // Container principal sem animação em móveis
   const containerStyle = isWeb 
     ? [styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]
     : styles.container;
@@ -426,14 +408,13 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.large,
-    // Garantir opacidade total em móveis
     ...(Platform.OS !== 'web' && { opacity: 1 }),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.largec,
+    marginBottom: spacing.large,
     paddingHorizontal: spacing.large,
   },
   headerLeft: {
@@ -482,7 +463,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     overflow: 'hidden',
     alignSelf: 'flex-start',
-    // Garantir que os cards são sempre visíveis
     opacity: 1,
     ...Platform.select({
       ios: {
