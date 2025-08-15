@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://192.168.3.224:8080';
+export const API_BASE_URL = 'https://doorbell-backend.houseofknowledge.pt';
 export const API_TIMEOUT = 10000;
 
 export const API_ENDPOINTS = {
@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
   USER_ME: '/users/me',
   USERS: '/users/',
   DOOR: '/door',
+  DOOR_PING: '/door/ping',
+  DOOR_ENVIRONMENT: '/door/environment',
   PARTIES: '/party/',
   CREATE_PARTY: '/party',
   DELETE_PARTY: '/party',
