@@ -7,7 +7,6 @@ import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import BottomNavBar from '../../components/BottomNavBar';
 import EventsSection from '../../components/PartyEventsCarousel';
-import { getMe } from '../../services/userService';
 import { hasUnreadNotifications } from '../../services/notificationService';
 import { openDoor, getDoorPing, getDoorEnvironment } from '../../services/doorService';
 import { getParties } from '../../services/partyService';
@@ -94,7 +93,6 @@ const HomeScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchUserData();
     if (!isGuest) {
       fetchDoorData();
     }
@@ -134,21 +132,6 @@ const HomeScreen = ({ navigation }) => {
       }).start();
     }
   }, [isGuest, allParties]);
-
-  const fetchUserData = async () => {
-    try {
-      setIsLoadingUser(true);
-      const userData = await getMe();
-      setUser(userData);
-    } catch (error) {
-      if (error.response && error.response.status === 404) {
-        await logout();
-        return;
-      }
-    } finally {
-      setIsLoadingUser(false);
-    }
-  };
 
   const fetchDoorData = async () => {
     // Only fetch door data if user is not a guest
@@ -311,7 +294,6 @@ const HomeScreen = ({ navigation }) => {
     
     // Refresh all data
     const promises = [
-      fetchUserData(),
       fetchRandomFact(),
       fetchPartyData()
     ];

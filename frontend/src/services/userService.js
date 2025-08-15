@@ -9,3 +9,12 @@ export const getAllUsers = async () => {
     throw error;
   }
 };
+
+export const getMe = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.USER_ME);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

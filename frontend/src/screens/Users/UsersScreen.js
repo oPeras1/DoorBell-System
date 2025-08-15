@@ -70,12 +70,6 @@ const UsersScreen = ({ navigation }) => {
       
       setUsers(sortedUsers);
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        console.log('User not authenticated, redirecting to login...');
-        await logout();
-        return;
-      }
-      
       setError('Failed to load users. Please try again.');
     } finally {
       setLoading(false);

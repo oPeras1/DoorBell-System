@@ -10,11 +10,9 @@ import {
   StatusBar
 } from 'react-native';
 import { colors } from '../../constants/colors';
-import { spacing, borderRadius } from '../../constants/styles';
+import { spacing } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
 import TopField from '../../components/TopField';
-import { getMe } from '../../services/userService';
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 
@@ -24,17 +22,6 @@ const SettingsScreen = ({ navigation }) => {
   const [slideAnim] = useState(new Animated.Value(30));
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await getMe();
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          await logout();
-        }
-      }
-    };
-    checkAuth();
-
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
