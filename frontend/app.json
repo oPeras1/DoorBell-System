@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "DoorBell",
+    "name": "House DoorBell",
     "slug": "DoorBell",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/doorbell-logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -14,8 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "statusBarStyle": "dark",
-      "bundleIdentifier": "com.anonymous.DoorBell"
+      "bundleIdentifier": "com.houseofknowledge.DoorBell"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,17 +24,13 @@
       "permissions": [
         "READ_PHONE_STATE"
       ],
-      "statusBar": {
-        "translucent": true,
-        "barStyle": "light-content"
-      },
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.anonymous.DoorBell"
+      "package": "com.houseofknowledge.DoorBell"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "sdkVersion": "53.0.0"
+    "sdkVersion": "53.0.0",
   }
 }
