@@ -184,7 +184,7 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
       backgroundColor: colors.primary,
     },
     selectedDayText: {
-      color: colors.card,
+      color: '#fff',
       fontWeight: 'bold',
     },
     disabledDayText: {
@@ -237,7 +237,7 @@ const Calendar = ({ visible, onClose, onDateSelect, selectedDate, minimumDate, t
       alignItems: 'center',
     },
     confirmButtonText: {
-      color: colors.card,
+      color: '#fff',
       fontSize: 16,
       fontWeight: '600',
     },

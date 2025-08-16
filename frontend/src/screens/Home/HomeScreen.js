@@ -82,24 +82,20 @@ const HomeScreen = ({ navigation }) => {
       const partyStart = new Date(party.dateTime);
       const partyEnd = new Date(party.endDateTime || party.dateTime);
       
-      // Add 3 hours buffer if no endDateTime is specified
-      if (!party.endDateTime) {
-        partyEnd.setHours(partyEnd.getHours() + 3);
-      }
-      
       // Check if party is currently active and user is invited
       const isPartyActive = now >= partyStart && now <= partyEnd;
       const isUserInvited = party.guests && party.guests.some(guest => 
-        guest.id === currentUser?.id || guest.userId === currentUser?.id
+        guest.user.id === currentUser?.id
       );
       
+      console.log(`Party ${party.id} active: ${isPartyActive}, invited: ${isUserInvited}`);
       return isPartyActive && isUserInvited;
     });
   };
 
   useFocusEffect(
     React.useCallback(() => {
-      if (!isGuest) {
+      if (!isGuest || (isGuest && canGuestOpenDoor())) {
         fetchDoorData();
       }
       fetchRandomFact();
@@ -113,9 +109,9 @@ const HomeScreen = ({ navigation }) => {
       // Set up fact refresh interval (15 seconds)
       const factInterval = setInterval(fetchRandomFact, 15000);
       
-      // Set up door data refresh interval (30 seconds) - only for non-guests
+      // Set up door data refresh interval (30 seconds)
       let doorInterval;
-      if (!isGuest) {
+      if (!isGuest || (isGuest && canGuestOpenDoor())) {
         doorInterval = setInterval(fetchDoorData, 30000);
       }
 
@@ -127,7 +123,7 @@ const HomeScreen = ({ navigation }) => {
         if (doorInterval) clearInterval(doorInterval);
         clearInterval(partiesInterval);
       };
-    }, [isGuest])
+    }, [isGuest, canGuestOpenDoor()])
   );
 
   useEffect(() => {
@@ -141,15 +137,13 @@ const HomeScreen = ({ navigation }) => {
   }, [isGuest, allParties]);
 
   const fetchDoorData = async () => {
-    // Only fetch door data if user is not a guest
-    if (isGuest) return;
-    
+    // Só não faz requests se for guest sem acesso
+    if (isGuest && !canGuestOpenDoor()) return;
     try {
       const [pingData, envData] = await Promise.all([
         getDoorPing().catch(() => null),
         getDoorEnvironment().catch(() => null)
       ]);
-      
       setDoorPing(pingData);
       setDoorEnvironment(envData);
     } catch (error) {
@@ -300,22 +294,19 @@ const HomeScreen = ({ navigation }) => {
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    
     // Refresh all data
     const promises = [
       fetchRandomFact(),
       fetchPartyData()
     ];
-
-    // Only fetch door data if not a guest
-    if (!isGuest) {
+  
+    if (!isGuest || (isGuest && canGuestOpenDoor())) {
       promises.push(fetchDoorData());
     }
-
     Promise.all(promises).finally(() => {
       setRefreshing(false);
     });
-  }, [isGuest]);
+  }, [isGuest, canGuestOpenDoor]);
 
   const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
 
@@ -387,7 +378,7 @@ const HomeScreen = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-      {/* Torna o conteúdo scrollable com refresh */}
+      {/* Scrollable with refresh */}
       <ScrollView 
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
@@ -516,7 +507,7 @@ const HomeScreen = ({ navigation }) => {
               tint={isDarkMode ? "dark" : "dark"} 
               style={styles.doorStatusCard}
             >
-              {isGuest ? (
+              {(isGuest && !canGuestOpenDoor()) ? (
                 <View style={styles.guestMessageContainer}>
                   <View style={styles.guestMessageHeader}>
                     <Ionicons name="information-circle" size={24} color={colors.warning} />
@@ -526,14 +517,6 @@ const HomeScreen = ({ navigation }) => {
                     As a guest, you can only open the door when you're invited to an active party. 
                     Once the party ends, door access will be restricted until you're invited to another event.
                   </Text>
-                  {canGuestOpenDoor() && (
-                    <View style={styles.guestActivePartyIndicator}>
-                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                      <Text style={[styles.guestActivePartyText, { color: colors.success }]}>
-                        You have access - Active party invitation
-                      </Text>
-                    </View>
-                  )}
                 </View>
               ) : (
                 <>
@@ -1022,7 +1005,7 @@ const styles = StyleSheet.create({
   greetingOverlay: {
     position: 'absolute',
     top: 40,
-    left: 20,
+    left: 15,
     paddingHorizontal: spacing.medium,
   },
   greetingText: {
