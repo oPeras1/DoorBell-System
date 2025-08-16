@@ -17,6 +17,8 @@ import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../constants/users';
 import { hasUnreadNotifications } from '../services/notificationService';
+import { useTheme } from '../context/ThemeContext';
+import { useColors } from '../hooks/useColors';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
@@ -39,6 +41,9 @@ const TopField = ({
   onLogout,
   navigation
 }) => {
+  const { isDarkMode, toggleTheme } = useTheme();
+  const colors = useColors();
+  
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [selectedMode, setSelectedMode] = useState('ONLINE');
   const [dropdownAnimation] = useState(new Animated.Value(0));
@@ -134,6 +139,8 @@ const TopField = ({
   const getUserTypeInfo = () => USER_TYPE_INFO[userType] || USER_TYPE_INFO.GUEST;
   const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
 
+  const styles = createStyles(colors, isDarkMode);
+
   return (
     <>
       <View style={[
@@ -192,11 +199,19 @@ const TopField = ({
             ]}>
               {/* Dark Mode Toggle */}
               {showDarkModeToggle && (
-                  <TouchableOpacity style={[
-                    styles.actionButton,
-                    isSmallScreen && styles.actionButtonSmall
-                  ]} activeOpacity={0.7}>
-                    <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.textSecondary} />
+                  <TouchableOpacity 
+                    style={[
+                      styles.actionButton,
+                      isSmallScreen && styles.actionButtonSmall
+                    ]} 
+                    activeOpacity={0.7}
+                    onPress={toggleTheme}
+                  >
+                    <Ionicons 
+                      name={isDarkMode ? "sunny-outline" : "moon-outline"} 
+                      size={isSmallScreen ? 16 : 22} 
+                      color={colors.textSecondary} 
+                    />
                   </TouchableOpacity>
               )}
 
@@ -324,7 +339,7 @@ const TopField = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors, isDarkMode) => StyleSheet.create({
   topField: {
     position: 'absolute',
     top: 0,
@@ -338,11 +353,14 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'ios' ? {
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
+      shadowOpacity: isDarkMode ? 0.3 : 0.15,
       shadowRadius: 12,
     } : Platform.OS === 'web' ? {
-      boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-      borderBottom: `2px solid ${colors.border}`,
+      boxShadow: isDarkMode 
+        ? '0 4px 12px rgba(0,0,0,0.4)' 
+        : '0 4px 12px rgba(0,0,0,0.10)',
+      borderBottomWidth: 2,
+      borderBottomColor: colors.border,
     } : {
       elevation: 8,
     }),
@@ -456,7 +474,9 @@ const styles = StyleSheet.create({
   controlsCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${colors.textSecondary}10`,
+    backgroundColor: isDarkMode 
+      ? `${colors.textSecondary}20` 
+      : `${colors.textSecondary}10`,
     borderRadius: 30,
     paddingHorizontal: spacing.small,
     paddingVertical: 5,
@@ -543,7 +563,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'flex-start',
     alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-end',
     paddingTop: Platform.OS === 'android' ? 80 : 95,
@@ -556,7 +576,7 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowOpacity: isDarkMode ? 0.5 : 0.25,
     shadowRadius: 16,
     elevation: 12,
     overflow: 'hidden',
@@ -566,7 +586,9 @@ const styles = StyleSheet.create({
     top: 100, 
     right: 520, 
     zIndex: 1001,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+    boxShadow: isDarkMode 
+      ? '0 8px 32px rgba(0,0,0,0.5)' 
+      : '0 8px 32px rgba(0,0,0,0.18)',
   },
   dropdownHeader: {
     flexDirection: 'row',

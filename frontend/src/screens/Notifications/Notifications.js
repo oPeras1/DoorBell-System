@@ -18,6 +18,7 @@ import { spacing, borderRadius, shadows } from '../../constants/styles';
 import { getUnreadNotifications, markNotificationAsRead } from '../../services/notificationService';
 import { notificationTypes } from '../../constants/notifications';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useColors } from '../../hooks/useColors';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
 
   const notificationType = notificationTypes[notification.type] || notificationTypes.system;
   const timeAgo = getTimeAgo(notification.createdAt);
+  const colors = useColors();
 
   useEffect(() => {
     Animated.parallel([
@@ -86,7 +88,7 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
       {...panResponder.panHandlers}
     >
       <TouchableOpacity
-        style={styles.cardContent}
+        style={[styles.cardContent, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={async () => {
           try {
             await markNotificationAsRead(notification.id);
@@ -98,19 +100,19 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
         activeOpacity={0.8}
       >
         {notification.priority === 'high' && (
-          <View style={styles.priorityIndicator} />
+          <View style={[styles.priorityIndicator, { backgroundColor: colors.danger }]} />
         )}
         <View style={[styles.iconContainer, { backgroundColor: notificationType.bgColor }]}>
           <Text style={styles.iconText}>{notificationType.icon}</Text>
         </View>
         <View style={styles.cardTextContent}>
           <View style={styles.cardHeader}>
-            <Text style={styles.notificationTypeText}>{notificationType.title}</Text>
+            <Text style={[styles.notificationTypeText, { color: colors.primary }]}>{notificationType.title}</Text>
           </View>
-          <Text style={styles.notificationTitle} numberOfLines={2}>
+          <Text style={[styles.notificationTitle, { color: colors.textPrimary }]} numberOfLines={2}>
             {notification.title}
           </Text>
-          <Text style={styles.notificationMessage} numberOfLines={2}>
+          <Text style={[styles.notificationMessage, { color: colors.textSecondary }]} numberOfLines={2}>
             {notification.message}
           </Text>
         </View>
@@ -119,7 +121,7 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
             styles.statusDot,
             { backgroundColor: notification.read ? colors.textSecondary : notificationType.color }
           ]} />
-          <Text style={styles.timeAgoText}>{timeAgo}</Text>
+          <Text style={[styles.timeAgoText, { color: colors.textSecondary }]}>{timeAgo}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -135,6 +137,7 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current; 
+  const colors = useColors();
 
   const loadSeenNotifications = async () => {
     try {
@@ -254,41 +257,43 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
 
   if (isLoading) {
     return (
-      <View style={styles.skeletonContainer}>
-        <View style={[styles.skeleton, { height: 80, marginTop: 100 }]} />
-        <View style={[styles.skeleton, { height: 120, marginTop: spacing.medium }]} />
-        <View style={[styles.skeleton, { height: 100, marginTop: spacing.medium }]} />
+      <View style={[styles.skeletonContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.skeleton, { height: 80, marginTop: 100, backgroundColor: colors.border }]} />
+        <View style={[styles.skeleton, { height: 120, marginTop: spacing.medium, backgroundColor: colors.border }]} />
+        <View style={[styles.skeleton, { height: 100, marginTop: spacing.medium, backgroundColor: colors.border }]} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle={colors.background === '#23283A' ? "light-content" : "dark-content"} />
       {/* Header redesenhado */}
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-        <View style={styles.headerBackground} />
+        <View style={[styles.headerBackground, { backgroundColor: colors.card, borderBottomColor: colors.border, shadowColor: colors.shadow }]} />
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.headerBackButton} onPress={handleBack}>
             <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Notifications</Text>
-            <Text style={styles.headerSubtitle}>Your recent activity</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Your recent activity</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
               onPress={handleClearAll}
               style={[
                 styles.clearAllButton,
-                notifications.length === 0 && styles.clearAllButtonDisabled
+                { backgroundColor: `${colors.primary}15` },
+                notifications.length === 0 && { backgroundColor: colors.border }
               ]}
               disabled={notifications.length === 0}
             >
               <Text
                 style={[
                   styles.clearAllText,
-                  notifications.length === 0 && styles.clearAllTextDisabled
+                  { color: colors.primary },
+                  notifications.length === 0 && { color: colors.textSecondary }
                 ]}
               >
                 Clear All
@@ -338,20 +343,20 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
               />
             }
           >
-            <View style={styles.emptyState}>
-              <EmptyStateIcon />
-              <Text style={styles.emptyStateTitle}>All clear!</Text>
-              <Text style={styles.emptyStateMessage}>
+            <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+              <EmptyStateIcon colors={colors} />
+              <Text style={[styles.emptyStateTitle, { color: colors.textPrimary }]}>All clear!</Text>
+              <Text style={[styles.emptyStateMessage, { color: colors.textSecondary }]}>
                 You have no new notifications.
               </Text>
               <View style={styles.emptyStateStats}>
-                <View style={styles.emptyStateBadge}>
-                  <Text style={styles.emptyStateBadgeLabel}>Seen today</Text>
-                  <Text style={styles.emptyStateBadgeNumber}>{todaySeenCount}</Text>
+                <View style={[styles.emptyStateBadge, { backgroundColor: `${colors.primary}10`, borderColor: colors.border }]}>
+                  <Text style={[styles.emptyStateBadgeLabel, { color: colors.textSecondary }]}>Seen today</Text>
+                  <Text style={[styles.emptyStateBadgeNumber, { color: colors.primary }]}>{todaySeenCount}</Text>
                 </View>
-                <View style={styles.emptyStateBadge}>
-                  <Text style={styles.emptyStateBadgeLabel}>Total seen</Text>
-                  <Text style={styles.emptyStateBadgeNumber}>{lifetimeTotal}</Text>
+                <View style={[styles.emptyStateBadge, { backgroundColor: `${colors.primary}10`, borderColor: colors.border }]}>
+                  <Text style={[styles.emptyStateBadgeLabel, { color: colors.textSecondary }]}>Total seen</Text>
+                  <Text style={[styles.emptyStateBadgeNumber, { color: colors.primary }]}>{lifetimeTotal}</Text>
                 </View>
               </View>
             </View>
@@ -362,7 +367,7 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
   );
 };
 
-const EmptyStateIcon = () => {
+const EmptyStateIcon = ({ colors }) => {
   const wave1Scale = useRef(new Animated.Value(0)).current;
   const wave1Opacity = useRef(new Animated.Value(1)).current;
   const wave2Scale = useRef(new Animated.Value(0)).current;
@@ -412,6 +417,7 @@ const EmptyStateIcon = () => {
         style={[
           styles.wave,
           {
+            borderColor: `${colors.primary}40`,
             transform: [{ scale: wave1Scale }],
             opacity: wave1Opacity,
           },
@@ -421,6 +427,7 @@ const EmptyStateIcon = () => {
         style={[
           styles.wave,
           {
+            borderColor: `${colors.primary}40`,
             transform: [{ scale: wave2Scale }],
             opacity: wave2Opacity,
           },
@@ -430,6 +437,7 @@ const EmptyStateIcon = () => {
         style={[
           styles.wave,
           {
+            borderColor: `${colors.primary}40`,
             transform: [{ scale: wave3Scale }],
             opacity: wave3Opacity,
           },

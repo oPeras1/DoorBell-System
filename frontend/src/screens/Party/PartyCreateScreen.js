@@ -23,6 +23,7 @@ import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
 import { PARTY_TYPE_CONFIG, ROOMS } from '../../constants/party';
+import { useColors } from '../../hooks/useColors';
 
 
 const PARTY_TYPES = Object.entries(PARTY_TYPE_CONFIG).map(([key, value]) => ({
@@ -66,6 +67,9 @@ const PartyCreateScreen = ({ navigation, route }) => {
   const [showUnsavedPopup, setShowUnsavedPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [guestSearch, setGuestSearch] = useState('');
+
+  const colors = useColors();
+  const styles = getStyles(colors);
 
   useEffect(() => {
     fetchUsers();
@@ -604,7 +608,7 @@ const PartyCreateScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -688,9 +692,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: colors.card,
+    color: '#FFF',
     fontWeight: '600',
-fontSize: 14,
+    fontSize: 14,
   },
   saveButtonTextDisabled: {
     color: colors.background,

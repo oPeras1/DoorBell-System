@@ -24,6 +24,7 @@ import InputField from '../../components/InputField';
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 import { USER_TYPE_INFO } from '../../constants/users';
+import { useColors } from '../../hooks/useColors';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -36,6 +37,7 @@ const UsersScreen = ({ navigation }) => {
   const [userSearch, setUserSearch] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const colors = useColors();
 
   useEffect(() => {
     fetchUsers();
@@ -105,7 +107,7 @@ const UsersScreen = ({ navigation }) => {
       <AnimatedTouchable
         key={user.username}
         style={[
-          styles.userCard,
+          styles.userCard(colors),
           isCurrentUser && styles.currentUserCard,
           {
             opacity: fadeAnim,
@@ -145,14 +147,14 @@ const UsersScreen = ({ navigation }) => {
                 <View style={[styles.userGlow, { backgroundColor: `${userInfo.color}20` }]} />
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{user.username}</Text>
+                <Text style={styles.userName(colors)}>{user.username}</Text>
                 <View style={[styles.userTypeBadge, { backgroundColor: userInfo.bgColor }]}>
                   <Ionicons name={userInfo.icon} size={12} color={userInfo.color} />
                   <Text style={[styles.userTypeText, { color: userInfo.color }]}>
                     {userInfo.title}
                   </Text>
                 </View>
-                {isCurrentUser && <Text style={styles.userDescription}>(You)</Text>}
+                {isCurrentUser && <Text style={styles.userDescription(colors)}>(You)</Text>}
               </View>
             </View>
             <View style={styles.userRightSection}>
@@ -224,9 +226,9 @@ const UsersScreen = ({ navigation }) => {
         ]}
       >
         <View style={[
-          styles.roleSectionCard,
+          styles.roleSectionCard(colors),
           { borderLeftColor: roleInfo.color, borderLeftWidth: 4 },
-          styles.roleSectionShadow // Adiciona shadow
+          styles.roleSectionShadow
         ]}>
           <View style={styles.roleSectionHeader}>
             <View style={styles.roleHeaderLeft}>
@@ -235,7 +237,7 @@ const UsersScreen = ({ navigation }) => {
               </View>
               <View style={styles.roleTitleContainer}>
                 <Text style={[styles.roleTitle, { color: roleInfo.color }]}>{roleInfo.title}s</Text>
-                <Text style={styles.roleSubtitle}>{roleInfo.subtitle}</Text>
+                <Text style={styles.roleSubtitle(colors)}>{roleInfo.subtitle}</Text>
               </View>
             </View>
             
@@ -254,7 +256,7 @@ const UsersScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.container(colors)}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
         <TopField 
           greeting={getTimeBasedGreeting()}
@@ -266,9 +268,9 @@ const UsersScreen = ({ navigation }) => {
           onLogout={logout}
           navigation={navigation}
         />
-        <View style={styles.loadingContainer}>
+        <View style={styles.loadingContainer(colors)}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading users...</Text>
+          <Text style={styles.loadingText(colors)}>Loading users...</Text>
         </View>
         
         <BottomNavBar navigation={navigation} active="Users" />
@@ -277,7 +279,7 @@ const UsersScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container(colors)}>
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -340,7 +342,7 @@ const UsersScreen = ({ navigation }) => {
             )}
           </View>
           <View style={styles.rolesContainer}>
-            {Object.entries(getUsersByRole()).map(([roleType, roleUsers], index) => 
+            {Object.entries(getUsersByRole()).map(([roleType, roleUsers], index) =>
               renderRoleSection(roleType, roleUsers, index)
             )}
           </View>
@@ -358,17 +360,17 @@ const UsersScreen = ({ navigation }) => {
             >
               <LinearGradient
                 colors={[`${colors.primary}1A`, `${colors.primary}0A`]}
-                style={styles.totalOverviewCard}
+                style={styles.totalOverviewCard(colors)}
               >
                 <View style={styles.totalOverviewContent}>
                   <View style={styles.totalOverviewLeft}>
-                    <View style={[styles.totalIconContainer, { backgroundColor: colors.primary }]}>
+                    <View style={styles.totalIconContainer(colors)}>
                       <Ionicons name="people" size={32} color="white" />
                     </View>
                     <View style={styles.totalTextContainer}>
-                      <Text style={styles.totalCount}>{users.length}</Text>
-                      <Text style={styles.totalLabel}>Total Users</Text>
-                      <Text style={styles.totalSubtext}>Registered in the system</Text>
+                      <Text style={styles.totalCount(colors)}>{users.length}</Text>
+                      <Text style={styles.totalLabel(colors)}>Total Users</Text>
+                      <Text style={styles.totalSubtext(colors)}>Registered in the system</Text>
                     </View>
                   </View>
                   
@@ -380,7 +382,7 @@ const UsersScreen = ({ navigation }) => {
                         return (
                           <View key={roleType} style={styles.quickStatItem}>
                             <View style={[styles.quickStatDot, { backgroundColor: roleInfo.color }]} />
-                            <Text style={styles.quickStatText}>{roleUsers.length} {roleInfo.title}s</Text>
+                            <Text style={styles.quickStatText(colors)}>{roleUsers.length} {roleInfo.title}s</Text>
                           </View>
                         );
                       })}
@@ -399,27 +401,27 @@ const UsersScreen = ({ navigation }) => {
 };
 
 
-const styles = StyleSheet.create({
-  container: {
+const styles = {
+  container: (colors) => ({
     flex: 1,
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 25 : 0,
-  },
+  }),
   contentContainer: {
     flex: 1,
   },
-  loadingContainer: {
+  loadingContainer: (colors) => ({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 80 : 95,
-  },
-  loadingText: {
+  }),
+  loadingText: (colors) => ({
     marginTop: spacing.medium,
     fontSize: 16,
     color: colors.textSecondary,
-  },
+  }),
   scrollView: {
     flex: 1,
   },
@@ -435,15 +437,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: spacing.medium,
   },
-  totalOverviewCard: {
+  totalOverviewCard: (colors) => ({
     borderRadius: borderRadius.large,
     padding: spacing.large,
     borderWidth: 1,
     borderColor: `${colors.primary}30`,
-  },
+  }),
   totalOverviewContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -454,34 +455,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  totalIconContainer: {
+  totalIconContainer: (colors) => ({
     width: 64,
     height: 64,
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.large,
-  },
+    backgroundColor: colors.primary,
+  }),
   totalTextContainer: {
     flex: 1,
   },
-  totalCount: {
+  totalCount: (colors) => ({
     fontSize: 32,
     fontWeight: '800',
     color: colors.primary,
     marginBottom: 2,
-  },
-  totalLabel: {
+  }),
+  totalLabel: (colors) => ({
     fontSize: 18,
     fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: 2,
-  },
-  totalSubtext: {
+  }),
+  totalSubtext: (colors) => ({
     fontSize: 13,
     color: colors.textSecondary,
     fontStyle: 'italic',
-  },
+  }),
   totalOverviewRight: {
     alignItems: 'flex-end',
   },
@@ -499,11 +501,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 8,
   },
-  quickStatText: {
+  quickStatText: (colors) => ({
     fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '500',
-  },
+  }),
   rolesContainer: {
     paddingHorizontal: spacing.large,
     marginTop: spacing.large,
@@ -511,12 +513,12 @@ const styles = StyleSheet.create({
   roleSection: {
     marginBottom: spacing.xlarge,
   },
-  roleSectionCard: {
+  roleSectionCard: (colors) => ({
     backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.large,
     padding: spacing.large,
     overflow: 'hidden', 
-  },
+  }),
   roleSectionShadow: {
     ...Platform.select({
       ios: {
@@ -563,11 +565,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 2,
   },
-  roleSubtitle: {
+  roleSubtitle: (colors) => ({
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
-  },
+  }),
   roleCountBadge: {
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
@@ -582,12 +584,12 @@ const styles = StyleSheet.create({
   roleUsersList: { 
     gap: spacing.medium,
   },
-  userCard: {
+  userCard: (colors) => ({
     borderRadius: borderRadius.large,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
-  },
+  }),
   userCardGradient: {
     position: 'relative',
   },
@@ -627,11 +629,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  userName: {
+  userName: (colors) => ({
     fontSize: 17,
     fontWeight: '700',
     color: colors.textPrimary,
-  },
+  }),
   userTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -645,11 +647,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  userDescription: {
+  userDescription: (colors) => ({
     fontSize: 13,
     color: colors.textSecondary,
     fontStyle: 'italic',
-  },
+  }),
   userRightSection: {
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -690,10 +692,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   searchContainer: {
-    marginBottom: spacing.small, 
+    marginBottom: spacing.small,
     marginTop: spacing.large,
     paddingHorizontal: spacing.large,
   },
-});
+};
 
 export default UsersScreen;

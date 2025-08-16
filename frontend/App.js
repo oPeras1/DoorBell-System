@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { OneSignal } from 'react-native-onesignal';
 import Constants from 'expo-constants';
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 const ONESIGNAL_APP_ID = Constants.expoConfig?.extra?.ONESIGNAL_APP_ID;
@@ -33,17 +34,19 @@ export default function App() {
   }, []);
   return (
     <View style={styles.appContainer}>
-      <AuthProvider>
-        <ProtocolGate>
-          <NavigationContainer>
-            <StatusBar 
-              style={Platform.OS === 'web' ? 'auto' : 'light'} 
-              translucent={Platform.OS === 'android'}
-            />
-            <AppNavigator />
-          </NavigationContainer>
-        </ProtocolGate>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ProtocolGate>
+            <NavigationContainer>
+              <StatusBar 
+                style={Platform.OS === 'web' ? 'auto' : 'light'} 
+                translucent={Platform.OS === 'android'}
+              />
+              <AppNavigator />
+            </NavigationContainer>
+          </ProtocolGate>
+        </AuthProvider>
+      </ThemeProvider>
     </View>
   );
 }

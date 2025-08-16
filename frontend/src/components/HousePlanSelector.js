@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Rect, Text as SvgText, G } from 'react-native-svg';
 import { colors } from '../constants/colors';
+import { useColors } from '../hooks/useColors';
 import { spacing, borderRadius } from '../constants/styles';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -39,6 +40,7 @@ const ROOM_MAPPING = {
 };
 
 const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false, viewOnly = false }) => {
+  const colors = useColors();
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const positionX = useSharedValue(0);
@@ -75,8 +77,16 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
     ],
   }));
 
-  const Corridor = ({ x, y, width, height }) => (
-    <Rect x={x} y={y} width={width} height={height} fill="#e9ecef" stroke="#dee2e6" strokeWidth={1.5} />
+  const Corridor = ({ x, y, width, height, hasBorder = false }) => (
+    <Rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      fill={colors.border}
+      stroke={hasBorder ? colors.textSecondary : 'none'}
+      strokeWidth={hasBorder ? 1.5 : 0}
+    />
   );
   
   const ClickableRoom = ({ id, x, y, width, height, label, labelX, labelY, isBathroom = false }) => {
@@ -96,6 +106,9 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
       }
     };
 
+    // Contraste direto com primary: branco no dark mode
+    const getContrastColor = () => colors.textPrimary === '#F3F6FB' ? '#FFFFFF' : colors.card;
+
     const renderLabel = () => {
       if (id === 'VIC_B') {
         return (
@@ -106,7 +119,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
               fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
               fontSize="13"
               fontWeight="500"
-              fill={isSelected ? colors.card : '#495057'}
+              fill={isSelected ? getContrastColor() : colors.textPrimary}
               textAnchor="middle"
               dominantBaseline="central"
               pointerEvents="none"
@@ -120,7 +133,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
               fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
               fontSize="13"
               fontWeight="500"
-              fill={isSelected ? colors.card : '#495057'}
+              fill={isSelected ? getContrastColor() : colors.textPrimary}
               textAnchor="middle"
               dominantBaseline="central"
               pointerEvents="none"
@@ -138,7 +151,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
           fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
           fontSize="13"
           fontWeight="500"
-          fill={isSelected ? colors.card : '#495057'}
+          fill={isSelected ? getContrastColor() : colors.textPrimary}
           textAnchor="middle"
           dominantBaseline="central"
           pointerEvents="none"
@@ -166,12 +179,12 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
             isSelected
               ? colors.primary
               : (isHovered && Platform.OS === 'web' && !viewOnly)
-              ? '#e2e6ea'
+              ? colors.accentLight
               : isBathroom
-              ? '#e7f5ff'
-              : '#f8f9fa'
+              ? colors.info + '20'
+              : colors.card
           }
-          stroke={isSelected ? colors.primary : '#dee2e6'}
+          stroke={isSelected ? colors.primary : colors.border}
           strokeWidth={isSelected ? 3 : 1.5}
           style={{
             ...(Platform.OS === 'web' && !viewOnly && {
@@ -197,7 +210,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
               fontFamily="system-ui"
               fontSize="12"
               fontWeight="bold"
-              fill="white"
+              fill={getContrastColor()}
               textAnchor="middle"
               dominantBaseline="central"
             >
@@ -215,6 +228,7 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
       <Animated.View style={[styles.planSvgContainer, animatedStyle]}>
         <Svg width="752" height="430" viewBox="-0.5 -0.5 752 430">
           <G transform="translate(-15, -100)">
+            {/* Corredores principais sem contorno */}
             <Corridor x="120" y="220" width="40" height="60" />
             <ClickableRoom id="KITCHEN" x="30" y="160" width="90" height="120" label="Kitchen" labelX={75} labelY={220} />
             <ClickableRoom id="WC1" x="120" y="160" width="90" height="60" label="WC 1" labelX={165} labelY={190} isBathroom />
@@ -227,10 +241,11 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
             <ClickableRoom id="VIC_B" x="440" y="310" width="60" height="140" label="Vic's Room" labelX={470} labelY={380} />
             <ClickableRoom id="LIVING_ROOM" x="500" y="280" width="130" height="170" label="Living Room" labelX={565} labelY={365} />
             <ClickableRoom id="BALCONY" x="630" y="160" width="120" height="290" label="Balcony" labelX={690} labelY={305} />
-            <Corridor x="160" y="140" width="120" height="20" />
-            <Corridor x="500" y="160" width="130" height="120" />
-            <Corridor x="160" y="450" width="80" height="20" />
-            <Corridor x="330" y="450" width="80" height="20" />
+            {/* Pequenas varandas com contorno */}
+            <Corridor x="160" y="140" width="120" height="20" hasBorder />
+            <Corridor x="500" y="160" width="130" height="120" hasBorder />
+            <Corridor x="160" y="450" width="80" height="20" hasBorder />
+            <Corridor x="330" y="450" width="80" height="20" hasBorder />
           </G>
         </Svg>
       </Animated.View>
@@ -246,6 +261,7 @@ const HousePlanSelector = ({
   multiSelect = false,
   viewOnly = false
 }) => {
+  const colors = useColors();
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.9);
 
@@ -317,13 +333,13 @@ const HousePlanSelector = ({
 
   return (
     <Modal visible={visible} transparent={true} animationType="none" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Animated.View style={[styles.modalContainer, animatedModalStyle]}>
+      <Pressable style={[styles.modalOverlay, { backgroundColor: colors.backdrop }]} onPress={onClose}>
+        <Animated.View style={[styles.modalContainer, animatedModalStyle, { backgroundColor: colors.card }]}>
           <Pressable style={{ flex: 1 }} onPress={(e) => e.stopPropagation()}>
             <GestureHandlerRootView style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               {/* Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
                   {viewOnly 
                     ? 'Party Locations' 
                     : multiSelect 
@@ -331,7 +347,7 @@ const HousePlanSelector = ({
                       : 'Select a Room'
                   }
                   {!viewOnly && multiSelect && selectedRooms.length > 0 && (
-                    <Text style={styles.selectionCount}> ({selectedRooms.length} selected)</Text>
+                    <Text style={[styles.selectionCount, { color: colors.primary }]}> ({selectedRooms.length} selected)</Text>
                   )}
                 </Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -340,7 +356,7 @@ const HousePlanSelector = ({
               </View>
 
               {/* House Plan Container */}
-              <View style={styles.planContainer}>
+              <View style={[styles.planContainer, { backgroundColor: colors.background }]}>
                 <InteractiveHousePlan 
                   selectedRooms={selectedRooms} 
                   onRoomSelect={handleRoomToggle}
@@ -351,7 +367,7 @@ const HousePlanSelector = ({
 
               {/* Room Selection List - Hide in view-only mode */}
               {!viewOnly && (
-                <View style={styles.roomsList}>
+                <View style={[styles.roomsList, { borderTopColor: colors.border }]}>
                   <View style={styles.roomsListHeader}>
                     {Platform.OS === 'web'
                       ? (multiSelect && selectedRooms.length > 0 && (
@@ -359,18 +375,18 @@ const HousePlanSelector = ({
                             style={styles.clearButton}
                             onPress={() => onRoomsSelect([])}
                           >
-                            <Text style={styles.clearButtonText}>Clear All</Text>
+                            <Text style={[styles.clearButtonText, { color: colors.primary }]}>Clear All</Text>
                           </TouchableOpacity>
                         ))
                       : (
                         <>
-                          <Text style={styles.roomsListTitle}>Quick Selection:</Text>
+                          <Text style={[styles.roomsListTitle, { color: colors.textPrimary }]}>Quick Selection:</Text>
                           {multiSelect && selectedRooms.length > 0 && (
                             <TouchableOpacity 
                               style={styles.clearButton}
                               onPress={() => onRoomsSelect([])}
                             >
-                              <Text style={styles.clearButtonText}>Clear All</Text>
+                              <Text style={[styles.clearButtonText, { color: colors.primary }]}>Clear All</Text>
                             </TouchableOpacity>
                           )}
                         </>
@@ -385,14 +401,22 @@ const HousePlanSelector = ({
                           return (
                             <TouchableOpacity
                               key={roomId}
-                              style={[styles.roomChip, isSelected && styles.roomChipSelected]}
+                              style={[
+                                styles.roomChip, 
+                                { backgroundColor: colors.background, borderColor: colors.border },
+                                isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }
+                              ]}
                               onPress={() => handleQuickSelect(roomId)}
                             >
-                              <Text style={[styles.roomChipText, isSelected && styles.roomChipTextSelected]}>
+                              <Text style={[
+                                styles.roomChipText, 
+                                { color: colors.textPrimary },
+                                isSelected && { color: '#FFF' }
+                              ]}>
                                 {roomName}
                               </Text>
                               {multiSelect && isSelected && (
-                                <Ionicons name="checkmark" size={16} color={colors.card} style={styles.chipCheckmark} />
+                                <Ionicons name="checkmark" size={16} color={'#FFF'} style={styles.chipCheckmark} />
                               )}
                             </TouchableOpacity>
                           );
@@ -405,13 +429,21 @@ const HousePlanSelector = ({
 
               {/* Footer - Hide confirm button in view-only mode */}
               {!viewOnly && (
-                <View style={styles.modalFooter}>
+                <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
                   <TouchableOpacity 
-                    style={[styles.confirmButton, selectedRooms.length === 0 && styles.confirmButtonDisabled]} 
+                    style={[
+                      styles.confirmButton, 
+                      { backgroundColor: colors.primary },
+                      selectedRooms.length === 0 && { backgroundColor: colors.border }
+                    ]} 
                     onPress={handleConfirmAndClose}
                     disabled={selectedRooms.length === 0}
                   >
-                    <Text style={[styles.confirmButtonText, selectedRooms.length === 0 && styles.confirmButtonTextDisabled]}>
+                    <Text style={[
+                      styles.confirmButtonText,
+                      { color: '#FFF' },
+                      selectedRooms.length === 0 && { color: colors.textSecondary }
+                    ]}>
                       {formatSelectedCount()}
                     </Text>
                   </TouchableOpacity>
@@ -428,13 +460,11 @@ const HousePlanSelector = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Platform.OS === 'web' ? spacing.large : spacing.medium,
   },
   modalContainer: {
-    backgroundColor: colors.card,
     borderRadius: borderRadius.large,
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 800 : SCREEN_WIDTH - 20,
@@ -458,19 +488,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.large,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   closeButton: {
     padding: spacing.small,
   },
   planContainer: {
     flex: 1,
-    backgroundColor: '#f1f3f5',
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -490,7 +517,6 @@ const styles = StyleSheet.create({
   roomsList: {
     padding: spacing.large,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     ...Platform.select({
       web: {
         marginTop: 0,
@@ -502,7 +528,6 @@ const styles = StyleSheet.create({
   roomsListTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
     marginBottom: spacing.medium,
   },
   roomChips: {
@@ -513,50 +538,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
     borderRadius: borderRadius.medium,
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  roomChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   roomChipText: {
     fontSize: 14,
-    color: colors.textPrimary,
     fontWeight: '500',
-  },
-  roomChipTextSelected: {
-    color: colors.card,
-    fontWeight: '600',
   },
   modalFooter: {
     padding: spacing.large,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   confirmButton: {
-    backgroundColor: colors.primary,
     padding: spacing.medium,
     borderRadius: borderRadius.medium,
     alignItems: 'center',
     transition: 'background-color 0.2s ease',
   },
-  confirmButtonDisabled: {
-    backgroundColor: colors.border,
-  },
   confirmButtonText: {
-    color: colors.card,
     fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButtonTextDisabled: {
-    color: colors.textSecondary,
+    fontWeight: '600'
   },
   selectionCount: {
     fontSize: 14,
     fontWeight: '400',
-    color: colors.primary,
   },
   roomsListHeader: {
     flexDirection: 'row',
@@ -577,7 +581,6 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: 14,
-    color: colors.primary,
     fontWeight: '500',
   },
   chipCheckmark: {

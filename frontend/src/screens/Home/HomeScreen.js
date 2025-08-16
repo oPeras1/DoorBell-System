@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Platform, StatusBar, Animated, Image, Text, TouchableOpacity, Modal, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import BottomNavBar from '../../components/BottomNavBar';
@@ -10,8 +9,10 @@ import EventsSection from '../../components/PartyEventsCarousel';
 import { hasUnreadNotifications } from '../../services/notificationService';
 import { openDoor, getDoorPing, getDoorEnvironment } from '../../services/doorService';
 import { getParties } from '../../services/partyService';
-import { USER_TYPE_INFO, CONNECTION_MODES } from '../../constants/users';
+import { CONNECTION_MODES } from '../../constants/users';
 import { BlurView } from 'expo-blur';
+import { useTheme } from '../../context/ThemeContext';
+import { useColors } from '../../hooks/useColors';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
 
@@ -28,6 +29,9 @@ const isSmallScreen = SCREEN_WIDTH < 370;
 
 const HomeScreen = ({ navigation }) => {
   const { user: currentUser, logout, setUser } = useContext(AuthContext);
+  const { isDarkMode, toggleTheme } = useTheme();
+  const colors = useColors();
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
   const [isLoadingUser, setIsLoadingUser] = useState(false);
@@ -355,9 +359,28 @@ const HomeScreen = ({ navigation }) => {
   const isDoorOnline = doorPing && doorPing.status === 'online';
   const canOpenDoor = !isGuest ? isDoorOnline : canGuestOpenDoor();
 
+  const getGlassBackground = () => {
+    if (Platform.OS === 'ios') {
+      return {
+        backgroundColor: isDarkMode ? 'rgba(40,45,65,0.65)' : 'rgba(255,255,255,0.32)',
+        backdropFilter: 'blur(60px)'
+      };
+    } else if (Platform.OS === 'web') {
+      return {
+        backgroundColor: isDarkMode ? 'rgba(40,45,65,0.55)' : 'rgba(255,255,255,0.18)',
+        backdropFilter: 'blur(14px)'
+      };
+    } else {
+      return {
+        backgroundColor: isDarkMode ? 'rgba(40,45,65,0.65)' : 'rgba(255,255,255,0.32)',
+        backdropFilter: 'blur(60px)'
+      };
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       {/* Torna o conteúdo scrollable com refresh */}
       <ScrollView 
@@ -373,20 +396,43 @@ const HomeScreen = ({ navigation }) => {
       >
         <View style={styles.imageContainer}>
           <Image source={getTimeOfDayImage()} style={styles.timeImage} resizeMode="cover" />
-          <LinearGradient colors={['transparent', colors.background]} style={styles.imageFade} start={{ x: 0.5, y: 0.6 }} end={{ x: 0.5, y: 1 }} />
+          <LinearGradient 
+            colors={['transparent', colors.background]} 
+            style={styles.imageFade} 
+            start={{ x: 0.5, y: 0.6 }} 
+            end={{ x: 0.5, y: 1 }} 
+          />
 
           {/* Glass Controls (notifications, profile, etc.) */}
-          <View style={styles.glassControlsContainer}>
+          <View style={[styles.glassControlsContainer, getGlassBackground()]}>
             {/* Dark Mode Button */}
             <View style={styles.glassItem}>
-              <TouchableOpacity style={styles.glassButton} activeOpacity={0.7}>
-                <Ionicons name="moon-outline" size={isSmallScreen ? 16 : 22} color={colors.card} />
+              <TouchableOpacity 
+                style={[
+                  styles.glassButton, 
+                  { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(20,20,20,0.15)' }
+                ]} 
+                activeOpacity={0.7}
+                onPress={toggleTheme}
+              >
+                <Ionicons 
+                  name={isDarkMode ? "sunny-outline" : "moon-outline"} 
+                  size={isSmallScreen ? 16 : 22} 
+                  color="#fff"
+                />
               </TouchableOpacity>
             </View>
             {/* Notification Button */}
             <View style={styles.glassItem}>
-              <TouchableOpacity style={styles.glassButton} activeOpacity={0.7} onPress={handleNotificationsPress}>
-                <Ionicons name="notifications-outline" size={isSmallScreen ? 16 : 22} color={colors.card} />
+              <TouchableOpacity 
+                style={[
+                  styles.glassButton, 
+                  { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(20,20,20,0.15)' }
+                ]} 
+                activeOpacity={0.7} 
+                onPress={handleNotificationsPress}
+              >
+                <Ionicons name="notifications-outline" size={isSmallScreen ? 16 : 22} color="#fff" />
                 {hasUnreadNotificationsState && (
                   <Animated.View style={[
                     styles.notificationDot,
@@ -407,7 +453,10 @@ const HomeScreen = ({ navigation }) => {
                   ]}
                   resizeMode="cover"
                 />
-                <View style={styles.profileAvatarBorder} />
+                <View style={[
+                  styles.profileAvatarBorder,
+                  { borderColor: colors.primary }
+                ]} />
                 <View style={[
                   styles.profileStatusDot,
                   isSmallScreen && styles.profileStatusDotSmall,
@@ -423,7 +472,11 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity 
               style={[
                 styles.openDoorButton, 
-                (isDoorLoading || !canOpenDoor) && styles.openDoorButtonLoading
+                { backgroundColor: colors.primary },
+                (isDoorLoading || !canOpenDoor) && [
+                  styles.openDoorButtonLoading,
+                  { backgroundColor: colors.textSecondary }
+                ]
               ]}
               onPress={handleOpenDoor}
               disabled={isDoorLoading || !canOpenDoor}
@@ -432,12 +485,12 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.doorButtonContent}>
                 {isDoorLoading ? (
                   <Animated.View style={styles.loadingSpinner}>
-                    <Ionicons name="sync" size={28} color={colors.card} />
+                    <Ionicons name="sync" size={28} color="#fff" />
                   </Animated.View>
                 ) : (
-                  <Ionicons name="key" size={28} color={colors.card} />
+                  <Ionicons name="key" size={28} color="#fff" />
                 )}
-                <Text style={styles.doorButtonText}>
+                <Text style={[styles.doorButtonText, { color: "#fff" }]}>
                   {isDoorLoading
                     ? 'Opening...'
                     : isGuest
@@ -453,21 +506,25 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Door Status Card */}
-            <BlurView intensity={90} tint="dark" style={styles.doorStatusCard}>
+            <BlurView 
+              intensity={90} 
+              tint={isDarkMode ? "dark" : "dark"} 
+              style={styles.doorStatusCard}
+            >
               {isGuest ? (
                 <View style={styles.guestMessageContainer}>
                   <View style={styles.guestMessageHeader}>
                     <Ionicons name="information-circle" size={24} color={colors.warning} />
-                    <Text style={styles.guestMessageTitle}>Guest Access</Text>
+                    <Text style={[styles.guestMessageTitle, { color: "#fff" }]}>Guest Access</Text>
                   </View>
-                  <Text style={styles.guestMessageText}>
+                  <Text style={[styles.guestMessageText, { color: "#fff" }]}>
                     As a guest, you can only open the door when you're invited to an active party. 
                     Once the party ends, door access will be restricted until you're invited to another event.
                   </Text>
                   {canGuestOpenDoor() && (
                     <View style={styles.guestActivePartyIndicator}>
                       <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                      <Text style={styles.guestActivePartyText}>
+                      <Text style={[styles.guestActivePartyText, { color: colors.success }]}>
                         You have access - Active party invitation
                       </Text>
                     </View>
@@ -478,7 +535,7 @@ const HomeScreen = ({ navigation }) => {
                   <View style={styles.doorStatusHeader}>
                     <View style={styles.doorStatusIndicator}>
                       <View style={[styles.doorStatusDot, { backgroundColor: getDoorStatusColor() }]} />
-                      <Text style={styles.doorStatusText}>
+                      <Text style={[styles.doorStatusText, { color: "#fff" }]}>
                         {doorPing ? getDoorStatusText() : 'Offline'}
                       </Text>
                     </View>
@@ -487,20 +544,20 @@ const HomeScreen = ({ navigation }) => {
                   <View style={styles.doorStatusContent}>
                     {/* Always show labels, show values only if loaded */}
                     <View style={styles.statusRow}>
-                      <Text style={styles.statusLabel}>Ping:</Text>
-                      <Text style={styles.statusValue}>
+                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Ping:</Text>
+                      <Text style={[styles.statusValue, { color: "#fff" }]}>
                         {doorPing ? getFormattedPing(doorPing.ping) + 'ms' : '--'}
                       </Text>
                     </View>
                     <View style={styles.statusRow}>
-                      <Text style={styles.statusLabel}>Temperature:</Text>
-                      <Text style={styles.statusValue}>
+                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Temperature:</Text>
+                      <Text style={[styles.statusValue, { color: "#fff" }]}>
                         {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
                       </Text>
                     </View>
                     <View style={styles.statusRow}>
-                      <Text style={styles.statusLabel}>Humidity:</Text>
-                      <Text style={styles.statusValue}>
+                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Humidity:</Text>
+                      <Text style={[styles.statusValue, { color: "#fff" }]}>
                         {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
                       </Text>
                     </View>
@@ -530,6 +587,7 @@ const HomeScreen = ({ navigation }) => {
             <Animated.View style={[
               styles.dropdownContainer,
               Platform.OS === 'web' && styles.dropdownContainerWeb,
+              { backgroundColor: colors.card },
               {
                 opacity: dropdownAnimation,
                 transform: [
@@ -539,8 +597,8 @@ const HomeScreen = ({ navigation }) => {
               }
             ]}>
               {/* Header */}
-              <View style={styles.dropdownHeader}>
-                <Text style={styles.dropdownTitle}>User Status</Text>
+              <View style={[styles.dropdownHeader, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.dropdownTitle, { color: colors.textPrimary }]}>User Status</Text>
                 <TouchableOpacity onPress={toggleDropdown} style={styles.closeButton}>
                   <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
@@ -552,7 +610,10 @@ const HomeScreen = ({ navigation }) => {
                     key={key}
                     style={[
                       styles.modeItem,
-                      selectedMode === key && styles.selectedModeItem
+                      selectedMode === key && [
+                        styles.selectedModeItem,
+                        { backgroundColor: `${colors.primary}08` }
+                      ]
                     ]}
                     onPress={() => handleModeSelect(key)}
                     activeOpacity={0.7}
@@ -562,7 +623,7 @@ const HomeScreen = ({ navigation }) => {
                     </View>
                     <View style={styles.modeContent}>
                       <Text style={[styles.modeTitle, { color: mode.color }]}>{mode.title}</Text>
-                      <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
+                      <Text style={[styles.modeSubtitle, { color: colors.textSecondary }]}>{mode.subtitle}</Text>
                     </View>
                     {selectedMode === key && (
                       <Ionicons name="checkmark-circle" size={20} color={mode.color} />
@@ -570,13 +631,20 @@ const HomeScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 ))}
               </View>
-              <View style={styles.dropdownDivider} />
+              <View style={[styles.dropdownDivider, { backgroundColor: colors.border }]} />
               {/* Logout Button */}
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
-                <View style={styles.logoutIconContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.logoutButton, 
+                  { backgroundColor: `${colors.danger}08` }
+                ]} 
+                onPress={handleLogout} 
+                activeOpacity={0.7}
+              >
+                <View style={[styles.logoutIconContainer, { backgroundColor: `${colors.danger}15` }]}>
                   <Ionicons name="log-out-outline" size={18} color={colors.danger} />
                 </View>
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.danger} />
               </TouchableOpacity>
             </Animated.View>
@@ -593,12 +661,19 @@ const HomeScreen = ({ navigation }) => {
               navigation={navigation} 
               parties={allParties} 
               isLoading={isPartiesLoading}
+              titleStyle={{
+                color: isDarkMode ? "#fff" : colors.textPrimary
+              }}
+              subtitleStyle={{
+                color: isDarkMode ? colors.textSecondary : colors.textSecondary
+              }}
             />
             
             {/* House Plan Section showing occupied rooms */}
             {!isGuest && (
               <Animated.View style={[
                 styles.housePlanSection,
+                { backgroundColor: colors.card },
                 { 
                   opacity: housePlanAnimation, 
                   transform: [{ 
@@ -609,12 +684,15 @@ const HomeScreen = ({ navigation }) => {
                   }] 
                 }
               ]}>
-                <View style={styles.housePlanHeader}>
+                <View style={[
+                  styles.housePlanHeader, 
+                  { borderBottomColor: colors.border }
+                ]}>
                   <View style={styles.housePlanHeaderLeft}>
                     <Ionicons name="home" size={24} color={colors.primary} />
                     <View style={styles.housePlanHeaderTextGroup}>
-                      <Text style={styles.housePlanHeaderTitle}>House Status</Text>
-                      <Text style={styles.housePlanHeaderSubtitle}>
+                      <Text style={[styles.housePlanHeaderTitle, { color: colors.textPrimary }]}>House Status</Text>
+                      <Text style={[styles.housePlanHeaderSubtitle, { color: colors.textSecondary }]}>
                         {occupiedRooms.length > 0 
                           ? `${occupiedRooms.length} room${occupiedRooms.length > 1 ? 's' : ''} occupied`
                           : 'All rooms available'}
@@ -626,16 +704,19 @@ const HomeScreen = ({ navigation }) => {
                   <View style={styles.legendContainer}>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                      <Text style={styles.legendText}>Occupied</Text>
+                      <Text style={[styles.legendText, { color: colors.textSecondary }]}>Occupied</Text>
                     </View>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#f8f9fa' }]} />
-                      <Text style={styles.legendText}>Available</Text>
+                      <View style={[styles.legendDot, { backgroundColor: isDarkMode ? '#3C4252' : '#f8f9fa', borderColor: colors.border }]} />
+                      <Text style={[styles.legendText, { color: colors.textSecondary }]}>Available</Text>
                     </View>
                   </View>
                 </View>
                 
-                <View style={styles.housePlanContainer}>
+                <View style={[
+                  styles.housePlanContainer, 
+                  { backgroundColor: isDarkMode ? '#23283A' : '#f1f3f5' }
+                ]}>
                   <HousePlanSelector 
                     viewOnly={true}
                     selectedRooms={occupiedRooms}
@@ -646,12 +727,18 @@ const HomeScreen = ({ navigation }) => {
             )}
 
             {/* Random Facts Card */}
-            <View style={styles.factsCard}>
+            <View style={[
+              styles.factsCard, 
+              { 
+                backgroundColor: colors.card,
+                shadowColor: colors.shadow 
+              }
+            ]}>
               <View style={styles.factsHeader}>
-                <View style={styles.factsIconContainer}>
+                <View style={[styles.factsIconContainer, { backgroundColor: `${colors.primary}15` }]}>
                   <Ionicons name="bulb-outline" size={20} color={colors.primary} />
                 </View>
-                <Text style={styles.factsTitle}>Did You Know?</Text>
+                <Text style={[styles.factsTitle, { color: colors.textPrimary }]}>Did You Know?</Text>
                 <View style={styles.factsRefreshIndicator}>
                   {isFactLoading && (
                     <Ionicons name="sync" size={16} color={colors.textSecondary} />
@@ -659,10 +746,10 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </View>
               <Animated.View style={[styles.factsContent, { opacity: factOpacity }]}>
-                <Text style={styles.factsText}>{currentFact}</Text>
+                <Text style={[styles.factsText, { color: colors.textSecondary }]}>{currentFact}</Text>
               </Animated.View>
               <View style={styles.factsFooter}>
-                <Text style={styles.factsFooterText}>Updates every 15 seconds</Text>
+                <Text style={[styles.factsFooterText, { color: colors.textSecondary }]}>Updates every 15 seconds</Text>
               </View>
             </View>
           </View>
@@ -681,16 +768,9 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
-const glassBackground = Platform.OS === 'ios'
-  ? { backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(60px)' }  
-  : Platform.OS === 'web'
-    ? { backgroundColor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(14px)' }
-    : { backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(60px)' };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   imageContainer: {
     width: '100%',
@@ -717,18 +797,16 @@ const styles = StyleSheet.create({
     top: 32,
     right: 24,
     zIndex: 20,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 30,
     paddingHorizontal: spacing.small,
     paddingVertical: 5,
     gap: spacing.small,
-    ...glassBackground,
-    shadowColor: colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.13,
     shadowRadius: 12,
     ...Platform.select({
-      web: { backdropFilter: 'blur(10px)', border: `1.5px solid ${colors.border}` },
+      web: { backdropFilter: 'blur(10px)', border: '1.5px solid rgba(255,255,255,0.18)' },
     }),
   },
   glassItem: {
@@ -741,7 +819,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    backgroundColor: 'rgba(20,20,20,0.15)',
   },
   profileContainer: {
     position: 'relative',
@@ -753,8 +830,8 @@ const styles = StyleSheet.create({
     right: -2,
     bottom: -2,
     borderRadius: 30,
-    backgroundColor: `${colors.primary}20`,
-    shadowColor: colors.primary,
+    backgroundColor: `rgba(67, 97, 238, 0.2)`,
+    shadowColor: '#4361EE',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -765,7 +842,7 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 2,
-    borderColor: colors.card,
+    borderColor: '#FFFFFF',
     zIndex: 1,
   },
   profileImageSmall: {
@@ -782,7 +859,6 @@ const styles = StyleSheet.create({
     bottom: -1,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: colors.primary,
     opacity: 0.6,
     zIndex: 2,
   },
@@ -794,7 +870,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: colors.card,
+    borderColor: '#FFFFFF',
     zIndex: 3,
   },
   profileStatusDotSmall: {
@@ -810,11 +886,11 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.danger,
+    backgroundColor: '#EF4444',
     zIndex: 2,
     borderWidth: 2,
-    borderColor: colors.card,
-    shadowColor: colors.danger,
+    borderColor: '#FFFFFF',
+    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -830,19 +906,14 @@ const styles = StyleSheet.create({
   },
   
   openDoorButton: {
-    backgroundColor: colors.primary,
     borderRadius: borderRadius.large,
     paddingHorizontal: 32,
     paddingVertical: 16,
-    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
     minWidth: 200,
-  },
-  openDoorButtonLoading: {
-    backgroundColor: colors.textSecondary,
   },
   doorButtonContent: {
     flexDirection: 'row',
@@ -851,7 +922,6 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   doorButtonText: {
-    color: colors.card,
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'Montserrat, System',
@@ -866,7 +936,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20,20,20,0.07)',
     borderWidth: Platform.OS === 'ios' ? 1 : 0.5,
     borderColor: 'rgba(255,255,255,0.10)',
-    shadowColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.3)' : colors.shadow,
+    shadowColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: Platform.OS === 'ios' ? 0.25 : 0.2,
     shadowRadius: Platform.OS === 'ios' ? 20 : 16,
@@ -891,7 +961,6 @@ const styles = StyleSheet.create({
   doorStatusText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   doorStatusContent: {
     gap: spacing.small,
@@ -903,12 +972,10 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: '500',
   },
   statusValue: {
     fontSize: 14,
-    color: '#fff',
     fontWeight: '600',
   },
 
@@ -925,11 +992,9 @@ const styles = StyleSheet.create({
   guestMessageTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   guestMessageText: {
     fontSize: 14,
-    color: '#fff',
     textAlign: 'center',
     lineHeight: 20,
     opacity: 0.9,
@@ -946,7 +1011,6 @@ const styles = StyleSheet.create({
   },
   guestActivePartyText: {
     fontSize: 12,
-    color: colors.success,
     fontWeight: '600',
   },
 
@@ -981,10 +1045,8 @@ const styles = StyleSheet.create({
 
   housePlanSection: {
     marginHorizontal: spacing.large,
-    backgroundColor: colors.card,
     borderRadius: borderRadius.large,
     overflow: 'hidden',
-    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -999,7 +1061,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.large,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   housePlanHeaderLeft: {
     flexDirection: 'row',
@@ -1012,11 +1073,9 @@ const styles = StyleSheet.create({
   housePlanHeaderTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   housePlanHeaderSubtitle: {
     fontSize: 13,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   legendContainer: {
@@ -1034,25 +1093,20 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   legendText: {
     fontSize: 12,
-    color: colors.textSecondary,
   },
   housePlanContainer: {
     height: 280,
-    backgroundColor: '#f1f3f5',
     overflow: 'hidden',
   },
 
   factsCard: {
-    backgroundColor: colors.card,
     borderRadius: borderRadius.medium,
     padding: spacing.medium,
     marginHorizontal: spacing.large,
     marginTop: spacing.xlarge,
-    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -1067,7 +1121,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.small,
@@ -1076,7 +1129,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   factsRefreshIndicator: {
     width: 20,
@@ -1090,14 +1142,12 @@ const styles = StyleSheet.create({
   factsText: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
   },
   factsFooter: {
     alignItems: 'center',
   },
   factsFooterText: {
     fontSize: 12,
-    color: colors.textSecondary,
     fontStyle: 'italic',
   },
 
@@ -1110,11 +1160,9 @@ const styles = StyleSheet.create({
     paddingRight: spacing.large,
   },
   dropdownContainer: {
-    backgroundColor: colors.card,
     borderRadius: borderRadius.large,
     minWidth: 280,
     maxWidth: 320,
-    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -1135,13 +1183,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: `${colors.primary}05`,
+    backgroundColor: 'rgba(67, 97, 238, 0.05)',
   },
   dropdownTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   closeButton: {
     padding: 4,
@@ -1155,9 +1201,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
     borderRadius: 0,
-  },
-  selectedModeItem: {
-    backgroundColor: `${colors.primary}08`,
   },
   modeIconContainer: {
     width: 36,
@@ -1177,24 +1220,20 @@ const styles = StyleSheet.create({
   },
   modeSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
   },
   dropdownDivider: {
     height: 1,
-    backgroundColor: colors.border,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
-    backgroundColor: `${colors.danger}08`,
   },
   logoutIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: `${colors.danger}15`,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.medium,
@@ -1203,7 +1242,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: colors.danger,
+  },
+  loadingSpinner: {
+    // For the door opening spinner animation
   },
 });
 

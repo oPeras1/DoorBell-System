@@ -18,6 +18,7 @@ import { spacing, borderRadius } from '../constants/styles';
 import { updateGuestStatus } from '../services/partyService';
 import { PARTY_TYPE_CONFIG, GUEST_STATUS_CONFIG, STATUS_CONFIG } from '../constants/party';
 import { AuthContext } from '../context/AuthContext';
+import { useColors } from '../hooks/useColors';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = Math.min(screenWidth * 0.9, 400);
@@ -47,6 +48,7 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
 
   const slideAnim = useRef(new Animated.Value(isWeb ? 30 : 0)).current;
   const fadeAnim = useRef(new Animated.Value(isWeb ? 0 : 1)).current;
+  const colors = useColors();
 
   useEffect(() => {
     if (isWeb && !isInitialized) {
@@ -172,6 +174,38 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
     return userGuest ? userGuest.status : 'UNDECIDED';
   };
 
+  useEffect(() => {
+    setCurrentIndex(0);
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ x: 0, animated: false });
+    }
+  }, [parties.length]);
+
+  useEffect(() => {
+    if (isWeb && scrollViewRef.current && userParties.length > 1) {
+      setTimeout(() => {
+        const scrollElement = scrollViewRef.current;
+        let left = 0;
+        if (scrollElement && scrollElement.scrollLeft !== undefined) {
+          left = scrollElement.scrollLeft;
+        }
+        const idx = Math.round(left / (cardWidth + spacing.medium));
+        setCurrentIndex(idx);
+      }, 100);
+    }
+  }, [isWeb, userParties.length, isInitialized]);
+
+  const scrollContentStyle = [
+    styles.scrollContent,
+    userParties.length === 1 && isWeb && { 
+      display: 'flex', 
+      width: '100%', 
+      justifyContent: 'center', 
+      alignItems: 'center' 
+    },
+    userParties.length === 1 && !isWeb && { alignItems: 'flex-start', justifyContent: 'flex-start' }
+  ];
+
   if (isLoading && userParties.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -191,19 +225,20 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
 
   const noParties = userParties.length === 0;
 
-  const containerStyle = isWeb 
-    ? [styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]
-    : styles.container;
-
   return (
-    <Animated.View style={containerStyle}>
+    <Animated.View style={[
+      isWeb 
+        ? [styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]
+        : styles.container,
+      { backgroundColor: colors.background }
+    ]}>
       {/* Header always visible */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="calendar" size={24} color={colors.primary} />
           <View style={styles.headerTextGroup}>
-            <Text style={styles.headerTitle}>Your Events</Text>
-            <Text style={styles.headerSubtitle}>Upcoming events and invitations</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Your Events</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Upcoming events and invitations</Text>
           </View>
         </View>
 
@@ -237,9 +272,9 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
 
       {/* If no parties, show empty state below header; otherwise show the carousel */}
       {noParties ? (
-        <View style={styles.emptyStateCard}>
+        <View style={[styles.emptyStateCard, { backgroundColor: colors.card }]}>
           <View style={styles.emptyIconContainer}>
-            <View style={styles.emptyIconBackground}>
+            <View style={[styles.emptyIconBackground, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}20` }]}>
               <Ionicons name="calendar-outline" size={32} color={colors.primary} />
             </View>
             <View style={styles.emptyIconDecoration}>
@@ -250,8 +285,8 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
           </View>
           
           <View style={styles.emptyTextContainer}>
-            <Text style={styles.emptyTitle}>No upcoming events</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No upcoming events</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
               You're all caught up! When you receive party invitations or create events, they'll appear here.
             </Text>
           </View>
@@ -271,7 +306,7 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
             snapToInterval={cardWidth + spacing.medium}
             snapToAlignment="start"
             decelerationRate="fast"
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={scrollContentStyle}
             onScroll={handleScroll}
             scrollEventThrottle={16}
             removeClippedSubviews={false}
@@ -288,7 +323,7 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
               return (
                 <TouchableOpacity
                   key={`${party.id}-${index}`}
-                  style={styles.card}
+                  style={[styles.card, { backgroundColor: colors.card }]}
                   onPress={() => handleCardPress(party.id)}
                   activeOpacity={0.9}
                   disabled={isUpdating}
@@ -321,16 +356,16 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
                     {/* Host info */}
                     <View style={styles.hostContainer}>
                       <View style={styles.hostInfo}>
-                        <Text style={styles.hostLabel}>
+                        <Text style={[styles.hostLabel, { color: colors.textPrimary }]}>
                           {isHost ? 'You are hosting this party' : `Hosted by ${party.host.username}`}
                         </Text>
                         <View style={styles.attendeesPreview}>
-                          <Text style={styles.attendeesCount}>
+                          <Text style={[styles.attendeesCount, { color: colors.textSecondary }]}>
                             {party.guests.length + 1} {party.guests.length === 0 ? 'person' : 'people'}
                           </Text>
-                          <View style={styles.attendeesDivider} />
+                          <View style={[styles.attendeesDivider, { backgroundColor: colors.border }]} />
                           {isHost ? (
-                            <View style={styles.hostBadge}>
+                            <View style={[styles.hostBadge, { backgroundColor: colors.primary }]}>
                               <Text style={styles.hostBadgeText}>HOST</Text>
                             </View>
                           ) : (
@@ -375,9 +410,9 @@ const PartyEventsCarousel = ({ navigation, parties = [], isLoading = false }) =>
                     )}
                   </View>
 
-                  <View style={styles.cardFooter}>
+                  <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                     <View style={styles.viewDetails}>
-                      <Text style={styles.viewDetailsText}>View Details</Text>
+                      <Text style={[styles.viewDetailsText, { color: colors.primary }]}>View Details</Text>
                       <Ionicons name="chevron-forward" size={16} color={colors.primary} />
                     </View>
                   </View>
@@ -414,6 +449,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginLeft: spacing.large,
     marginBottom: spacing.large,
     paddingHorizontal: spacing.large,
   },

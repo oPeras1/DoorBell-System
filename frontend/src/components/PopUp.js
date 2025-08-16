@@ -10,7 +10,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/useColors'; // Alteração para importar o hook
 import { spacing, borderRadius } from '../constants/styles';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -26,29 +26,31 @@ const PopUp = ({
   type = 'warning', // 'warning', 'danger', 'info', 'success'
   showCancel = true 
 }) => {
+  const colors = useColors();
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   const typeConfig = {
     warning: {
       icon: 'warning',
-      iconColor: '#F59E0B',
-      iconBg: '#FEF3C7'
+      iconColor: colors.warning,
+      iconBg: colors.accentLight,
     },
     danger: {
       icon: 'alert-circle',
-      iconColor: '#EF4444',
-      iconBg: '#FEE2E2'
+      iconColor: colors.danger,
+      iconBg: colors.accentLight,
     },
     info: {
       icon: 'information-circle',
-      iconColor: '#3B82F6',
-      iconBg: '#DBEAFE'
+      iconColor: colors.info,
+      iconBg: colors.accentLight,
     },
     success: {
       icon: 'checkmark-circle',
-      iconColor: '#10B981',
-      iconBg: '#D1FAE5'
+      iconColor: colors.success,
+      iconBg: colors.accentLight,
     }
   };
 
@@ -97,6 +99,91 @@ const PopUp = ({
     }
   };
 
+ 
+  const styles = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing.large,
+    },
+    container: {
+      backgroundColor: colors.card,
+      borderRadius: borderRadius.large,
+      padding: spacing.large,
+      width: Math.min(SCREEN_WIDTH - 40, 320),
+      alignItems: 'center',
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.cardShadow,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 16,
+        },
+        android: {
+          elevation: 12,
+        },
+      }),
+    },
+    iconContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.medium,
+      backgroundColor: config.iconBg,
+    },
+    content: {
+      alignItems: 'center',
+      marginBottom: spacing.large,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.small,
+    },
+    message: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.medium,
+      width: '100%',
+    },
+    button: {
+      flex: 1,
+      paddingVertical: spacing.medium,
+      paddingHorizontal: spacing.large,
+      borderRadius: borderRadius.medium,
+      alignItems: 'center',
+    },
+    cancelButton: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    confirmButton: {
+      backgroundColor: type === 'danger' ? colors.danger : colors.primary,
+    },
+    cancelButtonText: {
+      color: colors.textSecondary,
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    confirmButtonText: {
+      color: '#FFF',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+  });
+
   return (
     <Modal
       visible={visible}
@@ -113,7 +200,7 @@ const PopUp = ({
           }
         ]}>
           {/* Icon */}
-          <View style={[styles.iconContainer, { backgroundColor: config.iconBg }]}>
+          <View style={styles.iconContainer}>
             <Ionicons name={config.icon} size={32} color={config.iconColor} />
           </View>
 
@@ -138,15 +225,11 @@ const PopUp = ({
               style={[
                 styles.button, 
                 styles.confirmButton,
-                type === 'danger' && styles.dangerButton
               ]}
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
-              <Text style={[
-                styles.confirmButtonText,
-                type === 'danger' && styles.dangerButtonText
-              ]}>
+              <Text style={styles.confirmButtonText}>
                 {confirmText}
               </Text>
             </TouchableOpacity>
@@ -156,94 +239,5 @@ const PopUp = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.large,
-  },
-  container: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    padding: spacing.large,
-    width: Math.min(SCREEN_WIDTH - 40, 320),
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
-  },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.medium,
-  },
-  content: {
-    alignItems: 'center',
-    marginBottom: spacing.large,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.small,
-  },
-  message: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.medium,
-    width: '100%',
-  },
-  button: {
-    flex: 1,
-    paddingVertical: spacing.medium,
-    paddingHorizontal: spacing.large,
-    borderRadius: borderRadius.medium,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  confirmButton: {
-    backgroundColor: colors.primary,
-  },
-  dangerButton: {
-    backgroundColor: colors.danger,
-  },
-  cancelButtonText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  confirmButtonText: {
-    color: colors.card,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  dangerButtonText: {
-    color: colors.card,
-  },
-});
 
 export default PopUp;

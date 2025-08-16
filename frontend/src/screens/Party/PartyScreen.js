@@ -26,6 +26,7 @@ import Calendar from '../../components/Calendar';
 import { PARTY_TYPE_CONFIG, ROOM_CONFIG, STATUS_CONFIG } from '../../constants/party';
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
+import { useColors } from '../../hooks/useColors';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -128,6 +129,9 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
     return colors.primary; // Default color for multiple rooms
   };
 
+  const colors = useColors();
+  const styles = getStyles(colors);
+
   return (
     <Animated.View style={[
       styles.partyCard,
@@ -144,7 +148,7 @@ const PartyCard = ({ party, userRole, onDelete, onPress }) => {
               <Ionicons name={typeConfig.icon} size={20} color={typeConfig.color} />
             </View>
             <View style={styles.cardTitleContainer}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{party.name}</Text>
+              <Text style={styles.cardTitle}>{party.name}</Text>
               <Text style={styles.cardSubtitle}>{typeConfig.name}</Text>
             </View>
           </View>
@@ -243,6 +247,9 @@ const PartyScreen = ({ navigation, route }) => {
   const [dateTo, setDateTo] = useState('');
   const [showDateFromPicker, setShowDateFromPicker] = useState(false);
   const [showDateToPicker, setShowDateToPicker] = useState(false);
+
+  const colors = useColors();
+  const styles = getStyles(colors);
 
   const fetchParties = async () => {
     try {
@@ -435,7 +442,7 @@ const PartyScreen = ({ navigation, route }) => {
                     <Ionicons 
                       name={showPastParties ? "time" : "calendar"} 
                       size={16} 
-                      color={showPastParties ? colors.card : colors.primary} 
+                      color={showPastParties ? '#FFF' : colors.primary} 
                     />
                     <Text style={[
                       styles.filterButtonText, 
@@ -452,7 +459,7 @@ const PartyScreen = ({ navigation, route }) => {
                     activeOpacity={0.8}
                     onPress={() => navigation.navigate('PartyCreate')}
                   >
-                    <Ionicons name="add" size={20} color={colors.card} />
+                    <Ionicons name="add" size={20} color={'#FFF'} />
                     <Text style={styles.createButtonText}>Create</Text>
                   </TouchableOpacity>
                 )}
@@ -635,7 +642,7 @@ const PartyScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -703,7 +710,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   filterButtonTextActive: {
-    color: colors.card,
+    color: '#FFF',
   },
   createButton: {
     flexDirection: 'row',
@@ -715,7 +722,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   createButtonText: {
-    color: colors.card,
+    color: '#FFF',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -724,9 +731,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxlarge,
-    justifyContent: 'center',
-    alignItems: 'center',
     minHeight: Dimensions.get('window').height * 0.50,
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: spacing.medium,
   },
   emptyContainer: {
     flex: 1,

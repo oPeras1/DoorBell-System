@@ -23,6 +23,7 @@ import { PARTY_TYPE_CONFIG, STATUS_CONFIG, GUEST_STATUS_CONFIG } from '../../con
 import { AuthContext } from '../../context/AuthContext';
 import Message from '../../components/Message';
 import { Picker } from '@react-native-picker/picker';
+import { useColors } from '../../hooks/useColors';
 
 const GradientBackground = Platform.OS === 'web'
   ? ({ children, colors: gradientColors, style }) => (
@@ -55,6 +56,9 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   const [partyStatusError, setPartyStatusError] = useState('');
   const [editingPartyStatus, setEditingPartyStatus] = useState(false);
   const [partyStatusPicker, setPartyStatusPicker] = useState('');
+
+  const colors = useColors();
+  const styles = getStyles(colors);
 
   useEffect(() => {
     fetchPartyDetails();
@@ -618,17 +622,18 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   centeredContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.large,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
   },
   
   header: {
@@ -786,7 +791,7 @@ const styles = StyleSheet.create({
     padding: spacing.large,
     alignItems: 'center',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+      ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
       android: { elevation: 4 },
       web: { border: `1px solid ${colors.border}`, boxShadow: '0 4px 20px rgba(67,97,238,0.08)' },
     }),
@@ -1107,7 +1112,7 @@ const styles = StyleSheet.create({
   },
   attendeeCard: {
     width: Platform.OS === 'web' ? 'calc(50% - 8px)' : '100%',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.card,
     borderRadius: borderRadius.medium,
     padding: spacing.medium,
     alignItems: 'center',
@@ -1116,8 +1121,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   attendeeCardMobile: {
-    width: '100%', 
-    backgroundColor: '#F8FAFC',
+    width: '100%',
+    backgroundColor: colors.card,
     borderRadius: borderRadius.medium,
     padding: spacing.medium,
     alignItems: 'center',

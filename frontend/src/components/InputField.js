@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
+import { useColors } from '../hooks/useColors';
 
 const InputField = ({ 
   label,
@@ -18,10 +18,10 @@ const InputField = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
-  
-  // Animation for focus effect
   const [focusAnim] = useState(new Animated.Value(0));
-  
+  const colors = useColors();
+  const styles = getStyles(colors);
+
   const handleFocus = () => {
     setIsFocused(true);
     Animated.timing(focusAnim, {
@@ -30,7 +30,7 @@ const InputField = ({
       useNativeDriver: false,
     }).start();
   };
-  
+
   const handleBlur = () => {
     setIsFocused(false);
     Animated.timing(focusAnim, {
@@ -40,7 +40,7 @@ const InputField = ({
     }).start();
     if (onBlur) onBlur();
   };
-  
+
   const borderColor = focusAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [colors.border, colors.primary]
@@ -89,7 +89,7 @@ const InputField = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     marginBottom: spacing.medium,
     width: '100%',
