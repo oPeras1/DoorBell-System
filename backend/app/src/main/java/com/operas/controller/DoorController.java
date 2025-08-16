@@ -13,6 +13,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import java.util.Map;
 import com.operas.exceptions.DoorPingException;
+import com.operas.security.CustomUserDetails;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.operas.service.DoorService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/door")
@@ -24,23 +28,12 @@ public class DoorController {
     private static final String DOORBELL_API_BASE_URL = "https://doorbell-real.houseofknowledge.pt";
     private final RestTemplate restTemplate = new RestTemplate();
 
+    @Autowired
+    private DoorService doorService;
+
     @PostMapping
-    public ResponseEntity<?> openDoor() {
-        String url = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
-
-        try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return ResponseEntity.ok("Door opened successfully: " + response.getBody());
-            } else {
-                return ResponseEntity.status(response.getStatusCode())
-                        .body("Failed to open door. Status: " + response.getStatusCode());
-            }
-
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error contacting doorbell API: " + e.getMessage());
-        }
+    public ResponseEntity<?> openDoor(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return doorService.openDoor(DOORBELL_API_BASE_URL, userDetails.getUser());
     }
 
     @PostMapping("/bell-event")
@@ -73,7 +66,7 @@ public class DoorController {
     }
 
     @GetMapping("/ping")
-    public ResponseEntity<?> ping() {
+    public ResponseEntity<?> ping(@AuthenticationPrincipal CustomUserDetails userDetails) {
         String url = DOORBELL_API_BASE_URL + "/ping";
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
@@ -106,7 +99,7 @@ public class DoorController {
     }
 
     @GetMapping("/environment")
-    public ResponseEntity<?> environment() {
+    public ResponseEntity<?> environment(@AuthenticationPrincipal CustomUserDetails userDetails) {
         String url = DOORBELL_API_BASE_URL + "/environment";
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(

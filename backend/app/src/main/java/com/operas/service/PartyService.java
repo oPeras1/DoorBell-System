@@ -71,9 +71,9 @@ public class PartyService {
         }
     }
 
-    private void updateAutomaticStatus(Party party, LocalDateTime now) {
-        // Don't override CANCELLED status
-        if (party.getStatus() == Party.PartyStatus.CANCELLED) {
+    protected void updateAutomaticStatus(Party party, LocalDateTime now) {
+        // Don't override CANCELLED or COMPLETED status
+        if (party.getStatus() == Party.PartyStatus.CANCELLED || party.getStatus() == Party.PartyStatus.COMPLETED) {
             return;
         }
 
