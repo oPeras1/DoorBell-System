@@ -15,6 +15,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useColors } from '../../hooks/useColors';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
   getTimeOfDayImage,
@@ -96,36 +97,38 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
-  useEffect(() => {
-    if (!isGuest) {
-      fetchDoorData();
-    }
-    fetchRandomFact();
-    fetchPartyData();
-    
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
-    ]).start();
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isGuest) {
+        fetchDoorData();
+      }
+      fetchRandomFact();
+      fetchPartyData();
 
-    // Set up fact refresh interval (15 seconds)
-    const factInterval = setInterval(fetchRandomFact, 15000);
-    
-    // Set up door data refresh interval (30 seconds) - only for non-guests
-    let doorInterval;
-    if (!isGuest) {
-      doorInterval = setInterval(fetchDoorData, 30000);
-    }
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
+      ]).start();
 
-    // Set up party data refresh interval (30 seconds)
-    const partiesInterval = setInterval(fetchPartyData, 30000);
+      // Set up fact refresh interval (15 seconds)
+      const factInterval = setInterval(fetchRandomFact, 15000);
+      
+      // Set up door data refresh interval (30 seconds) - only for non-guests
+      let doorInterval;
+      if (!isGuest) {
+        doorInterval = setInterval(fetchDoorData, 30000);
+      }
 
-    return () => {
-      clearInterval(factInterval);
-      if (doorInterval) clearInterval(doorInterval);
-      clearInterval(partiesInterval);
-    };
-  }, [isGuest]);
+      // Set up party data refresh interval (30 seconds)
+      const partiesInterval = setInterval(fetchPartyData, 30000);
+
+      return () => {
+        clearInterval(factInterval);
+        if (doorInterval) clearInterval(doorInterval);
+        clearInterval(partiesInterval);
+      };
+    }, [isGuest])
+  );
 
   useEffect(() => {
     if (!isGuest) {
@@ -236,17 +239,19 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    let intervalId;
-    const fetchUnread = () => {
-      hasUnreadNotifications()
-        .then(setHasUnreadNotificationsState)
-        .catch(() => setHasUnreadNotificationsState(false));
-    };
-    fetchUnread();
-    intervalId = setInterval(fetchUnread, 30000);
-    return () => clearInterval(intervalId);
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      let intervalId;
+      const fetchUnread = () => {
+        hasUnreadNotifications()
+          .then(setHasUnreadNotificationsState)
+          .catch(() => setHasUnreadNotificationsState(false));
+      };
+      fetchUnread();
+      intervalId = setInterval(fetchUnread, 30000);
+      return () => clearInterval(intervalId);
+    }, [])
+  );
 
   useEffect(() => {
     if (hasUnreadNotificationsState) {

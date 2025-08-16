@@ -19,6 +19,7 @@ import { USER_TYPE_INFO, CONNECTION_MODES } from '../constants/users';
 import { hasUnreadNotifications } from '../services/notificationService';
 import { useTheme } from '../context/ThemeContext';
 import { useColors } from '../hooks/useColors';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
@@ -50,17 +51,19 @@ const TopField = ({
   const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
   const notificationDotScale = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    let intervalId;
-    const fetchUnread = () => {
-      hasUnreadNotifications()
-        .then(setHasUnreadNotificationsState)
-        .catch(() => setHasUnreadNotificationsState(false));
-    };
-    fetchUnread();
-    intervalId = setInterval(fetchUnread, 30000);
-    return () => clearInterval(intervalId);
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      let intervalId;
+      const fetchUnread = () => {
+        hasUnreadNotifications()
+          .then(setHasUnreadNotificationsState)
+          .catch(() => setHasUnreadNotificationsState(false));
+      };
+      fetchUnread();
+      intervalId = setInterval(fetchUnread, 30000);
+      return () => clearInterval(intervalId);
+    }, [])
+  );
 
   useEffect(() => {
     if (hasUnreadNotificationsState) {

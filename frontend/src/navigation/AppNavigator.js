@@ -39,13 +39,13 @@ const AppStack = () => (
       cardStyle: { backgroundColor: colors.background },
     }}
   >
-    <Stack.Screen name="Home" component={HomeScreen} />
-    <Stack.Screen name="Users" component={UsersScreen} />
-    <Stack.Screen name="Party" component={PartyScreen} />
-    <Stack.Screen name="PartyCreate" component={PartyCreateScreen} />
-    <Stack.Screen name="Settings" component={SettingsScreen} />
-    <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} />
-    <Stack.Screen name="Notifications" component={Notifications} />
+    <Stack.Screen name="Home" component={HomeScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Users" component={UsersScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Party" component={PartyScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="PartyCreate" component={PartyCreateScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Settings" component={SettingsScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Notifications" component={Notifications} options={{ unmountOnBlur: true }} />
   </Stack.Navigator>
 );
 
