@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
-import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import Message from '../../components/Message';
+import { useColors } from '../../hooks/useColors';
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useContext(AuthContext);
@@ -92,7 +92,6 @@ const RegisterScreen = ({ navigation }) => {
       setLoading(true);
       await register({ username, password });
       setSuccessMessage('Account created successfully! You can now sign in.');
-      // Salva o timeout para poder limpar depois
       timeoutRef.current = setTimeout(() => {
         setSuccessMessage('');
         navigation.navigate('Login');
@@ -117,26 +116,27 @@ const RegisterScreen = ({ navigation }) => {
   const dismissError = () => setErrorMessage('');
   const dismissSuccess = () => setSuccessMessage('');
 
-  // Componente visual de requisitos
+  const themeColors = useColors();
+
   const Requirement = ({ met, text }) => (
     <View style={styles.reqItem}>
       <Ionicons 
         name={met ? "checkmark-circle" : "close-circle"} 
         size={18} 
-        color={met ? colors.success : colors.danger} 
+        color={met ? themeColors.success : themeColors.danger} 
         style={{ marginRight: 6 }}
       />
-      <Text style={[styles.reqText, { color: met ? colors.success : colors.danger }]}>{text}</Text>
+      <Text style={[styles.reqText, { color: met ? themeColors.success : themeColors.danger }]}>{text}</Text>
     </View>
   );
 
   return (
-    <View style={styles.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44 }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle={themeColors.background === '#23283A' ? 'light-content' : 'dark-content'} />
       <Message message={errorMessage} onDismiss={dismissError} type="error" />
       <Message message={successMessage} onDismiss={dismissSuccess} type="success" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: themeColors.background }]} showsVerticalScrollIndicator={false}>
           <Animated.View style={[
             styles.header,
             {
@@ -145,15 +145,16 @@ const RegisterScreen = ({ navigation }) => {
             }
           ]}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="chevron-back" size={24} color={colors.primary} />
+              <Ionicons name="chevron-back" size={24} color={themeColors.primary} />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>Create Account</Text>
           </Animated.View>
           <Animated.Text style={[
             styles.subtitle,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
+              transform: [{ translateY: slideAnim }],
+              color: themeColors.textSecondary
             }
           ]}>Please fill out the form to create your account. Note that if you are not a member of the House, you may need to wait for approval to open the door.</Animated.Text>
           
@@ -169,7 +170,7 @@ const RegisterScreen = ({ navigation }) => {
               placeholder="Choose a username"
               value={username}
               onChangeText={setUsername}
-              icon={<Ionicons name="person-outline" size={22} color={colors.primary} />}
+              icon={<Ionicons name="person-outline" size={22} color={themeColors.primary} />}
               error={errors.username}
               autoCapitalize="none"
             />
@@ -179,7 +180,7 @@ const RegisterScreen = ({ navigation }) => {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              icon={<Ionicons name="lock-closed-outline" size={22} color={colors.primary} />}
+              icon={<Ionicons name="lock-closed-outline" size={22} color={themeColors.primary} />}
               error={errors.password}
             />
             <InputField
@@ -188,7 +189,7 @@ const RegisterScreen = ({ navigation }) => {
               secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              icon={<Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />}
+              icon={<Ionicons name="shield-checkmark-outline" size={22} color={themeColors.primary} />}
               error={errors.confirmPassword}
             />
 
@@ -202,7 +203,9 @@ const RegisterScreen = ({ navigation }) => {
                     inputRange: [0, 1],
                     outputRange: [20, 0]
                   })
-                }]
+                }],
+                backgroundColor: themeColors.card,
+                shadowColor: themeColors.shadow,
               }
             ]}>
               <Requirement met={usernameValid} text="Username with at least 4 characters" />
@@ -224,9 +227,9 @@ const RegisterScreen = ({ navigation }) => {
                 disabled={loading || !usernameValid || !passwordValid || !passwordsMatch }
               />
               <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>Already have an account? </Text>
+                <Text style={[styles.loginText, { color: themeColors.textSecondary }]}>Already have an account? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.loginLink}>Sign In</Text>
+                  <Text style={[styles.loginLink, { color: themeColors.primary }]}>Sign In</Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>
@@ -240,8 +243,6 @@ const RegisterScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
   container: {
     flex: 1,
@@ -262,11 +263,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
     marginBottom: spacing.xlarge,
     marginLeft: spacing.small + 40,
     marginTop: 0,
@@ -280,23 +279,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.large,
   },
-  loginText: {
-    color: colors.textSecondary,
-  },
   loginLink: {
-    color: colors.primary,
     fontWeight: '600',
   },
   Register: {
     marginTop: spacing.large,
   },
   requirementsBox: {
-    backgroundColor: colors.card,
     borderRadius: 12,
     padding: spacing.medium,
     marginBottom: spacing.large,
     marginTop: spacing.small,
-    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,

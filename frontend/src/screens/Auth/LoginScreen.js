@@ -18,6 +18,8 @@ import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useColors } from '../../hooks/useColors';
+import { useTheme } from '../../context/ThemeContext';
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useContext(AuthContext);
@@ -32,6 +34,9 @@ const LoginScreen = ({ navigation }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
   const buttonScaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  const colors = useColors();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     // Enhanced entrance animation
@@ -109,17 +114,25 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar
         translucent
         backgroundColor="transparent"
-        barStyle="dark-content"
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
       />
-      <Message 
-        message={errorMessage} 
-        onDismiss={dismissError}
-        type="error"
-      />
+      {/* Theme toggle and beta chip*/}
+      <View style={styles.themeRow}>
+        <TouchableOpacity onPress={toggleTheme} style={styles.themeIcon}>
+          <Ionicons
+            name={isDarkMode ? "moon-outline" : "sunny-outline"}
+            size={28}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+        <View style={styles.betaChip}>
+          <Text style={styles.betaText}>BETA</Text>
+        </View>
+      </View>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -143,8 +156,8 @@ const LoginScreen = ({ navigation }) => {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.title}>DoorBell Access</Text>
-            <Text style={styles.subtitle}>Welcome back! Please sign in to continue</Text>
+            <Text style={[styles.title, { color: colors.primary }]}>DoorBell Access</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Welcome back! Please sign in to continue</Text>
           </Animated.View>
           
           <Animated.View style={[
@@ -175,7 +188,7 @@ const LoginScreen = ({ navigation }) => {
             />
 
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>Forgot Password?</Text>
             </TouchableOpacity>
 
             <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
@@ -188,9 +201,9 @@ const LoginScreen = ({ navigation }) => {
             </Animated.View>
             
             <View style={styles.registerContainer}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
+              <Text style={[styles.registerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
               <TouchableOpacity onPress={navigateToRegister}>
-                <Text style={styles.registerLink}>Sign Up</Text>
+                <Text style={[styles.registerLink, { color: colors.primary }]}>Sign Up</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -203,7 +216,6 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
   container: {
@@ -213,6 +225,36 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: spacing.large,
     justifyContent: 'center',
+  },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    position: 'absolute',
+    top: 20,
+    right: 30,
+    zIndex: 10,
+    gap: 8,
+  },
+  themeIcon: {
+    padding: 4,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+  },
+  betaChip: {
+    backgroundColor: '#22C55E',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  betaText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+    letterSpacing: 1,
   },
   logoContainer: {
     alignItems: 'center',
@@ -226,12 +268,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.primary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.small,
   },
@@ -244,7 +284,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxlarge,
   },
   forgotPasswordText: {
-    color: colors.primary,
     fontWeight: '500',
   },
   registerContainer: {
@@ -252,11 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.medium,
   },
-  registerText: {
-    color: colors.textSecondary,
-  },
   registerLink: {
-    color: colors.primary,
     fontWeight: '600',
   },
 });
