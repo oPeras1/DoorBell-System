@@ -18,9 +18,77 @@ import { Ionicons } from '@expo/vector-icons';
 import Message from '../../components/Message';
 import { useColors } from '../../hooks/useColors';
 
+const Requirement = ({ met, text, delay }) => {
+    const themeColors = useColors();
+    const scaleAnim = useRef(new Animated.Value(met ? 1 : 0)).current;
+    const itemSlideAnim = useRef(new Animated.Value(20)).current;
+    const itemFadeAnim = useRef(new Animated.Value(0)).current;
+    const initialMount = useRef(true);
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(itemFadeAnim, {
+                toValue: 1,
+                duration: 500,
+                delay,
+                useNativeDriver: false,
+            }),
+            Animated.spring(itemSlideAnim, {
+                toValue: 0,
+                friction: 7,
+                tension: 40,
+                delay,
+                useNativeDriver: false,
+            })
+        ]).start();
+    }, []);
+
+    useEffect(() => {
+        if (initialMount.current) {
+            initialMount.current = false;
+            return;
+        }
+        Animated.spring(scaleAnim, {
+            toValue: met ? 1 : 0,
+            friction: 4,
+            useNativeDriver: false,
+        }).start();
+    }, [met]);
+
+    const animatedIconStyle = {
+        transform: [{ scale: scaleAnim }]
+    };
+
+    return (
+        <Animated.View style={[
+            styles.reqItem, 
+            { opacity: itemFadeAnim, transform: [{ translateY: itemSlideAnim }] }
+        ]}>
+            <View style={styles.reqIconContainer}>
+                <Ionicons 
+                    name={"close-circle"} 
+                    size={20} 
+                    color={themeColors.danger} 
+                    style={{ opacity: met ? 0 : 1 }}
+                />
+                <Animated.View style={[StyleSheet.absoluteFill, animatedIconStyle]}>
+                    <Ionicons 
+                        name={"checkmark-circle"} 
+                        size={20} 
+                        color={themeColors.success}
+                    />
+                </Animated.View>
+            </View>
+            <Text style={[styles.reqText, { color: met ? themeColors.textPrimary : themeColors.textSecondary }]}>{text}</Text>
+        </Animated.View>
+    );
+};
+
+
 const RegisterScreen = ({ navigation }) => {
   const { register } = useContext(AuthContext);
   const [username, setUsername] = useState('');
+  const [birthdate, setBirthdate] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,18 +96,32 @@ const RegisterScreen = ({ navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const buttonScaleAnim = useRef(new Animated.Value(0.95)).current;
   const timeoutRef = useRef(null);
 
   const usernameValid = username.length >= 4;
+  const birthdateValidFormat = /^\d{2}-\d{2}-\d{4}$/.test(birthdate);
+  const isOldEnough = (() => {
+    if (!birthdateValidFormat) return false;
+    const parts = birthdate.split('-');
+    if (parts.length !== 3) return false;
+    const [day, month, year] = parts.map(Number);
+
+    const birthDateObj = new Date(year, month - 1, day);
+    if (birthDateObj.getFullYear() !== year || birthDateObj.getMonth() !== month - 1 || birthDateObj.getDate() !== day) {
+        return false;
+    }
+
+    const today = new Date();
+    const sixteenYearsAgo = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
+    return birthDateObj <= sixteenYearsAgo;
+  })();
   const passwordValid = password.length >= 6;
   const passwordsMatch = password === confirmPassword && password.length > 0;
 
   useEffect(() => {
-    // Enhanced entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -57,7 +139,7 @@ const RegisterScreen = ({ navigation }) => {
 
   // Button scale animation when form is valid
   useEffect(() => {
-    if (usernameValid && passwordValid && passwordsMatch) {
+    if (usernameValid && birthdateValidFormat && isOldEnough && passwordValid && passwordsMatch) {
       Animated.spring(buttonScaleAnim, {
         toValue: 1,
         friction: 6,
@@ -72,11 +154,14 @@ const RegisterScreen = ({ navigation }) => {
         useNativeDriver: false,
       }).start();
     }
-  }, [usernameValid, passwordValid, passwordsMatch]);
+  }, [usernameValid, birthdateValidFormat, isOldEnough, passwordValid, passwordsMatch]);
 
   const validateForm = () => {
     const newErrors = {};
     if (!usernameValid) newErrors.username = 'Username must be at least 4 characters';
+    if (!birthdate) newErrors.birthdate = 'Please enter your birthdate';
+    else if (!birthdateValidFormat) newErrors.birthdate = 'Please use DD-MM-YYYY format';
+    else if (!isOldEnough) newErrors.birthdate = 'You must be at least 16 years old';
     if (!passwordValid) newErrors.password = 'Password must be at least 6 characters';
     if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
     else if (!passwordsMatch) newErrors.confirmPassword = 'Passwords do not match';
@@ -90,7 +175,10 @@ const RegisterScreen = ({ navigation }) => {
     setSuccessMessage('');
     try {
       setLoading(true);
-      await register({ username, password });
+      // Format date to YYYY-MM-DD for the backend
+      const [day, month, year] = birthdate.split('-');
+      const formattedBirthdate = `${year}-${month}-${day}`;
+      await register({ username, password, birthdate: formattedBirthdate });
       setSuccessMessage('Account created successfully! You can now sign in.');
       timeoutRef.current = setTimeout(() => {
         setSuccessMessage('');
@@ -118,18 +206,6 @@ const RegisterScreen = ({ navigation }) => {
 
   const themeColors = useColors();
 
-  const Requirement = ({ met, text }) => (
-    <View style={styles.reqItem}>
-      <Ionicons 
-        name={met ? "checkmark-circle" : "close-circle"} 
-        size={18} 
-        color={met ? themeColors.success : themeColors.danger} 
-        style={{ marginRight: 6 }}
-      />
-      <Text style={[styles.reqText, { color: met ? themeColors.success : themeColors.danger }]}>{text}</Text>
-    </View>
-  );
-
   return (
     <View style={[styles.root, { backgroundColor: themeColors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44 }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle={themeColors.background === '#23283A' ? 'light-content' : 'dark-content'} />
@@ -145,7 +221,7 @@ const RegisterScreen = ({ navigation }) => {
             }
           ]}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="chevron-back" size={24} color={themeColors.primary} />
+              <Ionicons name="chevron-back" size={28} color={themeColors.primary} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: themeColors.textPrimary }]}>Create Account</Text>
           </Animated.View>
@@ -175,6 +251,16 @@ const RegisterScreen = ({ navigation }) => {
               autoCapitalize="none"
             />
             <InputField
+              label="Birthdate"
+              placeholder="DD-MM-YYYY"
+              value={birthdate}
+              onChangeText={setBirthdate}
+              icon={<Ionicons name="calendar-outline" size={22} color={themeColors.primary} />}
+              error={errors.birthdate}
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            <InputField
               label="Password"
               placeholder="Create a password"
               secureTextEntry
@@ -193,24 +279,21 @@ const RegisterScreen = ({ navigation }) => {
               error={errors.confirmPassword}
             />
 
-            {/* Requisitos visuais */}
+            {/* Requisitos visuais melhorados */}
             <Animated.View style={[
               styles.requirementsBox,
               {
-                opacity: fadeAnim,
-                transform: [{ 
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0]
-                  })
-                }],
+                opacity: fadeAnim, // Fades in with the rest of the form
                 backgroundColor: themeColors.card,
-                shadowColor: themeColors.shadow,
+                borderColor: themeColors.border,
               }
             ]}>
-              <Requirement met={usernameValid} text="Username with at least 4 characters" />
-              <Requirement met={passwordValid} text="Password with at least 6 characters" />
-              <Requirement met={passwordsMatch} text="Passwords match" />
+              <Text style={[styles.reqTitle, { color: themeColors.textPrimary }]}>Requirements</Text>
+              <Requirement met={usernameValid} text="Username with at least 4 characters" delay={100} />
+              <Requirement met={birthdateValidFormat} text="Birthdate in DD-MM-YYYY format" delay={200} />
+              <Requirement met={isOldEnough} text="You are at least 16 years old" delay={300} />
+              <Requirement met={passwordValid} text="Password with at least 6 characters" delay={400} />
+              <Requirement met={passwordsMatch} text="Passwords match" delay={500} />
             </Animated.View>
 
             <Animated.View style={[
@@ -224,7 +307,7 @@ const RegisterScreen = ({ navigation }) => {
                 title="Sign Up" 
                 onPress={handleRegister} 
                 loading={loading}
-                disabled={loading || !usernameValid || !passwordValid || !passwordsMatch }
+                disabled={loading || !usernameValid || !birthdateValidFormat || !isOldEnough || !passwordValid || !passwordsMatch }
               />
               <View style={styles.loginContainer}>
                 <Text style={[styles.loginText, { color: themeColors.textSecondary }]}>Already have an account? </Text>
@@ -249,60 +332,76 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: spacing.large,
+    paddingHorizontal: spacing.large,
+    paddingVertical: spacing.medium,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.small,
+    marginLeft: -spacing.small, // Counteract button padding
   },
   backButton: {
     padding: spacing.small,
     marginRight: spacing.small,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   subtitle: {
     fontSize: 16,
     marginBottom: spacing.xlarge,
-    marginLeft: spacing.small + 40,
-    marginTop: 0,
+    paddingHorizontal: spacing.small,
+    lineHeight: 24,
   },
   formContainer: {
     width: '100%',
-    marginTop: spacing.large,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: spacing.large,
+    paddingBottom: spacing.large,
+  },
+  loginText: {
+    fontSize: 15,
   },
   loginLink: {
-    fontWeight: '600',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   Register: {
     marginTop: spacing.large,
   },
   requirementsBox: {
-    borderRadius: 12,
-    padding: spacing.medium,
-    marginBottom: spacing.large,
-    marginTop: spacing.small,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 16,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    marginTop: spacing.large,
+    borderWidth: 1,
+  },
+  reqTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: spacing.medium,
   },
   reqItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.medium,
+  },
+  reqIconContainer: {
+      width: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
   },
   reqText: {
     fontSize: 14,
     fontWeight: '500',
+    flex: 1,
   },
 });
 

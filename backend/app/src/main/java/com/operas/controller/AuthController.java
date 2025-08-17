@@ -37,8 +37,14 @@ public class AuthController {
     private JwtUtil jwtUtil;
     
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody User user) {
-        userService.registerUser(user);
+    public ResponseEntity<?> registerUser(@Valid @RequestBody AuthRequest authRequest) {
+        User user = new User();
+        user.setUsername(authRequest.getUsername());
+        user.setPassword(authRequest.getPassword());
+        // Adiciona o birthdate recebido
+        user.setBirthdate(authRequest.getBirthdate());
+        
+        userService.registerUser(user, authRequest.getOnesignalId());
 
         logService.createLog(user.getId(), new Log("User registered: " + user.getUsername(), user, "REGISTRATION"));
         return ResponseEntity.ok("User registered successfully");
@@ -53,6 +59,12 @@ public class AuthController {
             String token = jwtUtil.generateToken(authRequest.getUsername());
 
             User user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+            
+            // Update OneSignal ID if provided
+            if (authRequest.getOnesignalId() != null) {
+                userService.updateOneSignalId(user.getId(), authRequest.getOnesignalId());
+                user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+            }
 
             logService.createLog(user.getId(), new Log("User logged in: " + authRequest.getUsername(), user, "LOGIN"));
             

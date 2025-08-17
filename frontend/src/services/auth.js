@@ -1,10 +1,29 @@
 import api from './api';
 import { API_ENDPOINTS } from '../config/apiConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { OneSignal } from 'react-native-onesignal';
+import { Platform } from 'react-native';
+
+const getOneSignalPlayerId = async () => {
+  if (Platform.OS === 'web') return null;
+  
+  try {
+    const playerId = await OneSignal.User.getOnesignalId();
+    return playerId;
+  } catch (error) {
+    return null;
+  }
+};
 
 export const login = async (credentials) => {
   try {
-    const response = await api.post(API_ENDPOINTS.LOGIN, credentials);
+    const onesignalId = await getOneSignalPlayerId();
+    const requestData = {
+      ...credentials,
+      onesignalId
+    };
+    
+    const response = await api.post(API_ENDPOINTS.LOGIN, requestData);
     const { token, user } = response.data;
     
     // Save token and user to AsyncStorage
@@ -23,7 +42,18 @@ export const login = async (credentials) => {
 
 export const register = async (userData) => {
   try {
-    const response = await api.post(API_ENDPOINTS.REGISTER, userData);
+    const onesignalId = await getOneSignalPlayerId();
+    let requestData = {
+      ...userData,
+      onesignalId
+    };
+
+    if (requestData.birthdate && /^\d{2}-\d{2}-\d{4}$/.test(requestData.birthdate)) {
+      const [day, month, year] = requestData.birthdate.split('-');
+      requestData.birthdate = `${year}-${month}-${day}`;
+    }
+
+    const response = await api.post(API_ENDPOINTS.REGISTER, requestData);
     return response.data;
   } catch (error) {
     throw error;

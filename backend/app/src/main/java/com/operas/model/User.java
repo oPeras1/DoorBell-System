@@ -14,7 +14,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -29,12 +32,17 @@ public class User {
         KNOWLEDGER
     }
 
+    public enum UserStatus {
+        ONLINE,
+        DONT_DISTURB
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
     @NotBlank(message = "Username is required")
-    @Size(min = 4, max = 100, message = "Username must be at least 4 characters")
+    @Size(min = 4, max = 14, message = "Username must be at least 4 characters and max 14 characters")
     @Column(unique = true, nullable = false)
     private String username;
 
@@ -47,7 +55,27 @@ public class User {
     @Column(nullable = false)
     private UserType type = UserType.GUEST;
 
-    //Expiration date for the user
+    // Birthdate of the user
+    @Column(name = "birthdate")
+    private LocalDate birthdate;
+
+    // Date when the user was created
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Expiration date for the user
     @Column(name = "expiration_date")
     private LocalDateTime expirationDate;
+
+    // OneSignal ID for push notifications (if applicable)
+    @Column(name = "onesignal_id")
+    private List<String> onesignalId;
+
+    // Indicates whether the user can open the door
+    @Column(nullable = false)
+    private boolean muted = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status = UserStatus.ONLINE;
 }
