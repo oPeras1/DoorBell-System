@@ -88,7 +88,6 @@ const HomeScreen = ({ navigation }) => {
         guest.user.id === currentUser?.id
       );
       
-      console.log(`Party ${party.id} active: ${isPartyActive}, invited: ${isUserInvited}`);
       return isPartyActive && isUserInvited;
     });
   };

@@ -45,7 +45,7 @@ export const CONNECTION_MODES = {
     title: 'Online',
     subtitle: 'Available for all interactions'
   },
-  DO_NOT_DISTURB: {
+  DONT_DISTURB: {
     icon: 'moon',
     color: '#EF4444',
     bgColor: '#FEE2E2',

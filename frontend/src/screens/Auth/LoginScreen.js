@@ -141,6 +141,11 @@ const LoginScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
+          <Message
+            message={errorMessage}
+            onDismiss={dismissError}
+            type="error"
+          />
           <Animated.View style={[
             styles.logoContainer,
             {

@@ -122,7 +122,7 @@ const UsersScreen = ({ navigation }) => {
         ]}
         activeOpacity={0.95}
         onPress={() => {
-          // Add haptic feedback or navigation
+          navigation.navigate('UserDetails', { userId: user.id });
         }}
       >
         <LinearGradient
@@ -162,7 +162,7 @@ const UsersScreen = ({ navigation }) => {
                 <TouchableOpacity 
                   style={[styles.userActionButton, { borderColor: `${userInfo.color}80`, backgroundColor: `${userInfo.color}15` }]}
                   onPress={() => {
-                    // Add user action
+                    navigation.navigate('UserDetails', { userId: user.id });
                   }}
                 >
                   <Ionicons name="ellipsis-vertical" size={16} color={userInfo.color} />

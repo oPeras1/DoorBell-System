@@ -25,19 +25,19 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
     
-    public String generateToken(String username){
+    public String generateToken(String userId){
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
         
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(userId)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
     
-    public String getUsernameFromJWT(String token){
+    public String getUserIdFromJWT(String token){
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()

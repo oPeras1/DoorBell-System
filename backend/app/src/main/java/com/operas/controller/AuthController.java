@@ -8,7 +8,9 @@ import com.operas.model.Log;
 import com.operas.security.JwtUtil;
 import com.operas.service.UserService;
 import com.operas.service.LogService;
+import com.operas.service.NotificationService;
 import com.operas.exceptions.WrongCredentialsException;
+import com.operas.exceptions.UserNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,6 +38,9 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
     
+    @Autowired
+    private NotificationService notificationService;
+    
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody AuthRequest authRequest) {
         User user = new User();
@@ -47,6 +52,9 @@ public class AuthController {
         userService.registerUser(user, authRequest.getOnesignalId());
 
         logService.createLog(user.getId(), new Log("User registered: " + user.getUsername(), user, "REGISTRATION"));
+        
+        notificationService.sendWelcomeNotification(user);
+        
         return ResponseEntity.ok("User registered successfully");
     }
     
@@ -56,14 +64,16 @@ public class AuthController {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
             );
-            String token = jwtUtil.generateToken(authRequest.getUsername());
-
-            User user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+            
+            User user = userService.findByUsername(authRequest.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + authRequest.getUsername()));
+            String token = jwtUtil.generateToken(user.getId().toString());
             
             // Update OneSignal ID if provided
             if (authRequest.getOnesignalId() != null) {
                 userService.updateOneSignalId(user.getId(), authRequest.getOnesignalId());
-                user = userService.findByUsername(authRequest.getUsername()).orElseThrow();
+                user = userService.findByUsername(authRequest.getUsername())
+                    .orElseThrow(() -> new UserNotFoundException("User not found: " + authRequest.getUsername()));
             }
 
             logService.createLog(user.getId(), new Log("User logged in: " + authRequest.getUsername(), user, "LOGIN"));

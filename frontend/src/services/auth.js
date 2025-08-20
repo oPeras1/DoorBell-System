@@ -62,12 +62,17 @@ export const register = async (userData) => {
 
 export const logout = async () => {
   try {
+    const onesignalId = await getOneSignalPlayerId();
+    if (onesignalId) {
+      await api.delete(API_ENDPOINTS.USER_ME + '/onesignal', {
+        data: { onesignalId }
+      });
+    }
     await api.post(API_ENDPOINTS.LOGOUT);
     await AsyncStorage.removeItem('userToken');
     await AsyncStorage.removeItem('user');
     return true;
   } catch (error) {
-    // Remove token and user from AsyncStorage even if the server request fails
     await AsyncStorage.removeItem('userToken');
     await AsyncStorage.removeItem('user');
     return false;

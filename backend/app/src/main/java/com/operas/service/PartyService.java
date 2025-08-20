@@ -12,13 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.operas.model.Party;
 import com.operas.model.User;
 import com.operas.model.GuestStatus;
-import com.operas.model.Notification;
 import com.operas.repository.PartyRepository;
 import com.operas.repository.UserRepository;
 import com.operas.repository.GuestStatusRepository;
 import com.operas.exceptions.BadRequestException;
 import com.operas.dto.PartyDto;
-import com.operas.dto.NotificationDto;
 
 @Service
 public class PartyService {
@@ -27,7 +25,7 @@ public class PartyService {
     private final GuestStatusRepository guestStatusRepository;
 
     @Autowired
-    private DashboardNotificationService dashboardNotificationService;
+    private NotificationService notificationService;
 
     @Autowired
     public PartyService(PartyRepository partyRepository, UserRepository userRepository, GuestStatusRepository guestStatusRepository) {
@@ -158,22 +156,17 @@ public class PartyService {
         guestStatusRepository.saveAll(guestStatuses);
         saved.setGuests(guestStatuses);
 
-        // Notify guests about the new party
+        // Notify guests about the party invitation
         List<Long> guestUserIds = guestStatuses.stream()
             .map(gs -> gs.getUser().getId())
             .toList();
-        String notificationTitle = "You got an invitation!";
-        String formattedDateTime = saved.getDateTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-        String notificationMessage = "Invite to '" + saved.getName() + "' at " + formattedDateTime + "." + " Check details.";
 
-        NotificationDto notificationDto = new NotificationDto(
-            notificationTitle,
-            notificationMessage,
+        notificationService.sendPartyInvitationNotification(
+            saved.getName(),
+            saved.getDateTime(),
             guestUserIds,
-            Notification.NotificationType.PARTY,
             saved.getId()
         );
-        dashboardNotificationService.sendNotification(notificationDto);
 
         return PartyDto.fromEntity(saved);
     }

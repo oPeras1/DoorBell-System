@@ -191,11 +191,8 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
     try {
       if (notification.type === 'PARTY' && notification.partyId) {
         navigation.navigate('PartyDetails', { partyId: notification.partyId });
-      } else if (notificationTypes[notification.type]) {
-        console.log('Notification pressed:', notification);
-      } else {  
-        console.warn('Unknown notification type:', notification.type);
       }
+      
       await markNotificationAsRead(notification.id);
       setNotifications(prev => prev.filter(n => n.id !== notification.id));
       incrementSeenCounters();

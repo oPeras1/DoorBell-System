@@ -11,6 +11,7 @@ import PartyCreateScreen from '../screens/Party/PartyCreateScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
 import Notifications from '../screens/Notifications/Notifications';
+import UsersDetailsScreen from '../screens/Users/UsersDetailsScreen';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -46,6 +47,7 @@ const AppStack = () => (
     <Stack.Screen name="Settings" component={SettingsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Notifications" component={Notifications} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="UserDetails" component={UsersDetailsScreen} options={{ unmountOnBlur: true }} />
   </Stack.Navigator>
 );
 

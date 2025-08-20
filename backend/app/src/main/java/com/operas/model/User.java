@@ -75,6 +75,7 @@ public class User {
     @Column(nullable = false)
     private boolean muted = false;
 
+    // Notification status of the user
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ONLINE;
