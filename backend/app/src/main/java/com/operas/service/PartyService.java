@@ -96,6 +96,9 @@ public class PartyService {
         if (user.getType() == User.UserType.GUEST) {
             throw new BadRequestException("Guests cannot create parties.");
         }
+        if (user.isMuted() && user.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("You are muted and cannot create a party.");
+        }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dateTime = partyDto.getDateTime();

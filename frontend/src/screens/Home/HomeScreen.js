@@ -224,7 +224,17 @@ const HomeScreen = ({ navigation }) => {
         setTimeout(fetchDoorData, 1000);
       }
     } catch (error) {
-      setMessage('Failed to open door');
+      let errorMsg = 'Failed to open door';
+      if (error?.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMsg = error.response.data;
+        } else if (error.response.data?.message) {
+          errorMsg = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      setMessage(errorMsg);
       setMessageType('error');
       console.log('Error opening door:', error);
     } finally {
@@ -343,13 +353,24 @@ const HomeScreen = ({ navigation }) => {
   // Helper to split long usernames
   const getFormattedUserName = (username) => {
     if (!username) return '';
-    if (username.length <= 8) return username;
+    if (username.length <= 6) return username;
     const chunks = [];
-    for (let i = 0; i < username.length; i += 8) {
-      chunks.push(username.slice(i, i + 8));
+    for (let i = 0; i < username.length; i += 6) {
+      chunks.push(username.slice(i, i + 6));
     }
     return chunks.join('\n');
   };
+
+  // Helper to calculate the number of lines the username will occupy
+  const getUserNameLineCount = (username) => {
+    if (!username || username.length <= 6) return 1;
+    return Math.ceil(username.length / 6);
+  };
+  
+  // Calculate vertical offset based on username line count
+  const userNameLineCount = getUserNameLineCount(currentUser?.username);
+  const LINE_HEIGHT = 46;
+  const verticalOffset = (userNameLineCount - 1) * LINE_HEIGHT;
 
   const isDoorOnline = doorPing && doorPing.status === 'online';
   const canOpenDoor = !isGuest ? isDoorOnline : canGuestOpenDoor();
@@ -461,8 +482,11 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Door Control Section - Separate from glass controls */}
-          <View style={styles.doorControlSection}>
+          {/* Door Control Section with dynamic style */}
+          <View style={[
+            styles.doorControlSection,
+            { bottom: 130 - verticalOffset }
+          ]}>
             {/* Open Door Button */}
             <TouchableOpacity 
               style={[
@@ -885,7 +909,7 @@ const styles = StyleSheet.create({
 
   doorControlSection: {
     position: 'absolute',
-    bottom: 130,
+    bottom: 130, 
     left: 24,
     right: 24,
     alignItems: 'center',

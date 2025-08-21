@@ -24,6 +24,7 @@ import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
 import { PARTY_TYPE_CONFIG, ROOMS } from '../../constants/party';
 import { useColors } from '../../hooks/useColors';
+import { getLocalDate, formatLocalISOString } from '../../constants/functions';
 
 
 const PARTY_TYPES = Object.entries(PARTY_TYPE_CONFIG).map(([key, value]) => ({
@@ -51,8 +52,8 @@ const PartyCreateScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    dateTime: new Date(Date.now() + 60 * 60 * 1000),
-    endDateTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+    dateTime: getLocalDate(),
+    endDateTime: new Date(getLocalDate().getTime() + 2 * 60 * 60 * 1000),
     rooms: ['LIVING_ROOM'],
     type: 'HOUSE_PARTY',
     guests: []
@@ -160,6 +161,8 @@ const PartyCreateScreen = ({ navigation, route }) => {
       const partyData = {
         ...formData,
         status: 'SCHEDULED',
+        dateTime: formatLocalISOString(formData.dateTime),
+        endDateTime: formatLocalISOString(formData.endDateTime),
         guests: formData.guests.map(guest => ({
           user: { id: guest.id },
           status: 'UNDECIDED'
@@ -573,8 +576,14 @@ const PartyCreateScreen = ({ navigation, route }) => {
           visible={showDatePicker}
           onClose={() => setShowDatePicker(false)}
           onDateSelect={handleDateTimeSelect}
-          selectedDate={datePickerType === 'start' ? formData.dateTime : formData.endDateTime}
-          minimumDate={datePickerType === 'start' ? new Date() : formData.dateTime}
+          selectedDate={
+            showDatePicker
+              ? (datePickerType === 'start'
+                  ? formData.dateTime
+                  : formData.endDateTime)
+              : getLocalDate()
+          }
+          minimumDate={datePickerType === 'start' ? getLocalDate() : formData.dateTime}
           title={datePickerType === 'start' ? 'Select Start Date & Time' : 'Select End Date & Time'}
         />
 

@@ -30,6 +30,10 @@ public class DoorService {
     public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user) {
         String url = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
 
+        if (user.isMuted() && user.getType() != User.UserType.KNOWLEDGER) {
+            throw new DoorOpenException("You are muted and cannot open the door.");
+        }
+
         if (user.getType() == User.UserType.GUEST) {
             List<Party> parties = partyRepository.findAll();
             LocalDateTime now = LocalDateTime.now();

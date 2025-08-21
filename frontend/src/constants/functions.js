@@ -62,3 +62,29 @@ export const getTimeBasedColor = () => {
   if (hour >= 12 && hour < 18) return '#EF4444';
   return '#6366F1';
 };
+
+export const getLocalDate = (date) => {
+  const d = date ? new Date(date) : new Date();
+  return new Date(
+    d.getFullYear(),
+    d.getMonth(),
+    d.getDate(),
+    d.getHours(),
+    d.getMinutes(),
+    0,
+    0
+  );
+};
+
+export const formatLocalISOString = (date) => {
+  // YYYY-MM-DDTHH:mm:ss (local time, no Z)
+  const pad = (n) => String(n).padStart(2, '0');
+  return (
+    date.getFullYear() +
+    '-' + pad(date.getMonth() + 1) +
+    '-' + pad(date.getDate()) +
+    'T' + pad(date.getHours()) +
+    ':' + pad(date.getMinutes()) +
+    ':' + pad(date.getSeconds())
+  );
+};
