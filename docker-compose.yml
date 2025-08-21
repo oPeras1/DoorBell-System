@@ -4,8 +4,9 @@ services:
     container_name: doorbell_db
     restart: unless-stopped
     environment:
-      - "MARIADB_ROOT_PASSWORD=houseof5"
-      - "MARIADB_DATABASE=doorbell"
+      TZ: Europe/Lisbon
+      MARIADB_ROOT_PASSWORD: houseof5
+      MARIADB_DATABASE: doorbell"
     ports:
       - "3306:3306"
     volumes:
@@ -21,9 +22,10 @@ services:
     container_name: doorbell_backend
     restart: unless-stopped
     environment:
-      - APP_SECRET_KEY=${APP_SECRET_KEY}
-      - ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
-      - ONESIGNAL_API_KEY=${ONESIGNAL_API_KEY}
+      TZ: Europe/Lisbon
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      ONESIGNAL_APP_ID: ${ONESIGNAL_APP_ID}
+      ONESIGNAL_API_KEY: ${ONESIGNAL_API_KEY}
     ports:
       - "2080:8080"
     depends_on:
@@ -37,6 +39,8 @@ services:
       dockerfile: Dockerfile
     container_name: doorbell_frontend
     restart: unless-stopped
+    environment:
+      TZ: Europe/Lisbon
     ports:
       - "2081:3000"
     depends_on:
