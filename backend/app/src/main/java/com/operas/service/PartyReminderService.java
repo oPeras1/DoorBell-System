@@ -7,11 +7,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.operas.model.Party;
 import com.operas.model.GuestStatus;
+import com.operas.model.User;
+import com.operas.model.Notification;
 import com.operas.repository.PartyRepository;
+import com.operas.repository.UserRepository;
+import com.operas.dto.NotificationDto;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @Service
 public class PartyReminderService {
@@ -20,10 +26,15 @@ public class PartyReminderService {
     private PartyRepository partyRepository;
     
     @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
     private NotificationService notificationService;
     
     @Autowired
     private PartyService partyService;
+
+    private final Random random = new Random();
 
     @Scheduled(cron = "0 * * * * *") // Every minute at 0 seconds
     @Transactional
@@ -120,5 +131,87 @@ public class PartyReminderService {
         }
 
         return userIds;
+    }
+
+    @Scheduled(cron = "0 0 12 * * *") // Every day at noon
+    @Transactional
+    public void dailyHouseChecks() {
+        checkCleaningFrequency();
+        checkBirthdayReminders();
+    }
+
+    private void checkCleaningFrequency() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime twoWeeksAgo = now.minusWeeks(2);
+        List<Party> recentCleaningParties = partyRepository.findAll().stream()
+            .filter(party -> party.getType() == Party.PartyType.CLEANING)
+            .filter(party -> party.getDateTime() != null && party.getDateTime().isAfter(twoWeeksAgo))
+            .filter(party -> party.getStatus() != Party.PartyStatus.CANCELLED)
+            .toList();
+
+        // If no cleaning parties in the last 2 weeks, send urgent notification
+        if (recentCleaningParties.isEmpty()) {
+            sendCleaningUrgentNotification();
+        }
+    }
+
+    private void checkBirthdayReminders() {
+        LocalDate today = java.time.LocalDate.now();
+        List<User> birthdayUsers = userRepository.findAll().stream()
+            .filter(u -> u.getBirthdate() != null && u.getBirthdate().getMonthValue() == today.getMonthValue() && u.getBirthdate().getDayOfMonth() == today.getDayOfMonth())
+            .toList();
+        for (User user : birthdayUsers) {
+            sendBirthdayNotification(user);
+        }
+    }
+
+    private void sendBirthdayNotification(User user) {
+        String title = "🎉 Happy Birthday!";
+        String message = "Congratulations " + user.getUsername() + "! The house wishes you a fantastic day!";
+        NotificationDto notificationDto = new NotificationDto(
+            title,
+            message,
+            List.of(user.getId()),
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        notificationService.sendNotification(notificationDto);
+    }
+
+    private void sendCleaningUrgentNotification() {
+        // Get all KNOWLEDGER and HOUSER users
+        List<Long> targetUserIds = userRepository.findAll().stream()
+            .filter(user -> user.getType() == User.UserType.KNOWLEDGER || user.getType() == User.UserType.HOUSER)
+            .map(User::getId)
+            .toList();
+        
+        if (targetUserIds.isEmpty()) {
+            return;
+        }
+        
+        // Choose one of 3 urgent messages randomly
+        String[] urgentTitles = {
+            "🧹 CRITICAL: House Cleaning OVERDUE!",
+            "🚨 URGENT: 2 Weeks Without Cleaning!",
+            "⚠️ IMMEDIATE ACTION REQUIRED: Cleaning Needed!"
+        };
+        
+        String[] urgentMessages = {
+            "It's been 2 weeks since the last cleaning session! The house desperately needs attention. Schedule a cleaning party IMMEDIATELY!",
+            "WARNING: No cleaning has occurred for 2 weeks! This is unacceptable. Organize a mandatory cleaning session NOW!",
+            "CRITICAL ALERT: 2 weeks without proper house cleaning! Health and hygiene standards are at risk. Act immediately!"
+        };
+        
+        int messageIndex = random.nextInt(3);
+        
+        NotificationDto notificationDto = new NotificationDto(
+            urgentTitles[messageIndex],
+            urgentMessages[messageIndex],
+            targetUserIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        
+        notificationService.sendNotification(notificationDto);
     }
 }

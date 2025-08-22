@@ -17,6 +17,7 @@ import { colors } from '../constants/colors';
 import { spacing, borderRadius } from '../constants/styles';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../constants/users';
 import { hasUnreadNotifications } from '../services/notificationService';
+import { updateUserStatus, getMe } from '../services/userService';
 import { useTheme } from '../context/ThemeContext';
 import { useColors } from '../hooks/useColors';
 import { useFocusEffect } from '@react-navigation/native';
@@ -38,18 +39,37 @@ const TopField = ({
   greeting, 
   userName, 
   userType = 'GUEST',
+  userStatus,
   showDarkModeToggle = true,
   onLogout,
+  onStatusChange,
   navigation
 }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const colors = useColors();
   
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [selectedMode, setSelectedMode] = useState('ONLINE');
+  const [selectedMode, setSelectedMode] = useState(undefined); // undefined until loaded
+  const [statusLoaded, setStatusLoaded] = useState(false);
   const [dropdownAnimation] = useState(new Animated.Value(0));
   const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
   const notificationDotScale = useRef(new Animated.Value(1)).current;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      getMe().then(user => {
+        if (isActive && user?.status) {
+          setSelectedMode(user.status);
+          setStatusLoaded(true);
+        }
+      }).catch(() => {
+        setSelectedMode('ONLINE');
+        setStatusLoaded(true);
+      });
+      return () => { isActive = false; };
+    }, [])
+  );
 
   useFocusEffect(
     React.useCallback(() => {
@@ -86,6 +106,13 @@ const TopField = ({
     }
   }, [hasUnreadNotificationsState]);
 
+  useEffect(() => {
+    if (userStatus) {
+      setSelectedMode(userStatus);
+      setStatusLoaded(true);
+    }
+  }, [userStatus]);
+
   const toggleDropdown = () => {
     if (dropdownVisible) {
       // Close animation
@@ -107,9 +134,19 @@ const TopField = ({
     }
   };
 
-  const handleModeSelect = (mode) => {
-    setSelectedMode(mode);
-    toggleDropdown();
+  const handleModeSelect = async (mode) => {
+    try {
+      await updateUserStatus(mode);
+      setSelectedMode(mode);
+      if (onStatusChange) {
+        onStatusChange(mode);
+      }
+      toggleDropdown();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      // Don't change UI state if API call fails
+      toggleDropdown();
+    }
   };
 
   const handleLogout = () => {
@@ -254,11 +291,23 @@ const TopField = ({
                   resizeMode="cover"
                 />
                 <View style={styles.profileAvatarBorder} />
-                <View style={[
-                  styles.profileStatusDot,
-                  isSmallScreen && styles.profileStatusDotSmall,
-                  { backgroundColor: getCurrentModeInfo().color }
-                ]} />
+                {statusLoaded && (
+                  <View style={[
+                    styles.profileStatusDot,
+                    isSmallScreen && styles.profileStatusDotSmall,
+                    { backgroundColor: getCurrentModeInfo().color }
+                  ]} />
+                )}
+                {!statusLoaded && (
+                  <View style={[
+                    styles.profileStatusDot,
+                    isSmallScreen && styles.profileStatusDotSmall,
+                    { backgroundColor: '#ccc', justifyContent: 'center', alignItems: 'center' }
+                  ]}>
+                    <Animated.View style={{ width: 10, height: 10 }}>
+                    </Animated.View>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>

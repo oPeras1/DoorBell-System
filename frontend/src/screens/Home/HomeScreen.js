@@ -16,6 +16,7 @@ import { useColors } from '../../hooks/useColors';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
 import { useFocusEffect } from '@react-navigation/native';
+import { updateUserStatus } from '../../services/userService';
 
 import {
   getTimeOfDayImage,
@@ -39,7 +40,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Dropdown/profile logic
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [selectedMode, setSelectedMode] = useState('ONLINE');
+  const [selectedMode, setSelectedMode] = useState(currentUser?.status || 'ONLINE');
   const [dropdownAnimation] = useState(new Animated.Value(0));
 
   const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
@@ -287,9 +288,20 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const handleModeSelect = (mode) => {
-    setSelectedMode(mode);
-    toggleDropdown();
+  const handleModeSelect = async (mode) => {
+    try {
+      await updateUserStatus(mode);
+      setSelectedMode(mode);
+      // Update user context with new status
+      if (setUser && currentUser) {
+        setUser({ ...currentUser, status: mode });
+      }
+      toggleDropdown();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      // Don't change UI state if API call fails
+      toggleDropdown();
+    }
   };
 
   const handleLogout = () => {

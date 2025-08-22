@@ -101,7 +101,9 @@ public class UserService {
     public UserDto getCurrentUser(CustomUserDetails userDetails) {
         User user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("The user does not exist"));
-        return UserDto.fromEntity(user, user.getType());
+        UserDto dto = UserDto.fromEntity(user, user.getType());
+        dto.setStatus(user.getStatus());
+        return dto;
     }
 
     public void updateMuted(CustomUserDetails userDetails, Long targetId, Boolean muted) {
