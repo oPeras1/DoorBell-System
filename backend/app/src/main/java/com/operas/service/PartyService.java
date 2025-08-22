@@ -229,12 +229,28 @@ public class PartyService {
 
         // Only the host or KNOWLEDGER can manually change party status
         if (!isHost && !isKnowledger) {
-            throw new SecurityException("Only the host or a KNOWLEDGER can change the party status.");
+            throw new BadRequestException("Only the host or a KNOWLEDGER can change the party status.");
+        }
+        if (isHost && !isKnowledger && requester.isMuted()) {
+            throw new BadRequestException("You are muted and cannot change the party status.");
         }
 
         party.setStatus(newStatus);
         Party saved = partyRepository.save(party);
-        
+
+        // Notify host and guests about the status change
+        List<Long> recipientIds = new ArrayList<>();
+        recipientIds.add(saved.getHost().getId());
+        if (saved.getGuests() != null) {
+            recipientIds.addAll(
+                saved.getGuests().stream()
+                    .map(gs -> gs.getUser().getId())
+                    .filter(id -> !id.equals(saved.getHost().getId()))
+                    .toList()
+            );
+        }
+        notificationService.sendPartyStatusChangedNotification(saved, newStatus, recipientIds);
+
         return PartyDto.fromEntity(saved);
     }
 

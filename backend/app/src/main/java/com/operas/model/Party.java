@@ -103,4 +103,20 @@ public class Party {
     @Column(nullable = false)
     @NotNull(message = "Party type cannot be null")
     private PartyType type;
+
+    // Reminder tracking fields
+    @Column(name = "reminder_3_days_sent", nullable = false)
+    private boolean reminder3DaysSent = false;
+    
+    @Column(name = "reminder_24_hours_sent", nullable = false)
+    private boolean reminder24HoursSent = false;
+    
+    @Column(name = "reminder_1_hour_sent", nullable = false)
+    private boolean reminder1HourSent = false;
+    
+    @Column(name = "start_notification_sent", nullable = false)
+    private boolean startNotificationSent = false;
+    
+    @Column(name = "end_notification_sent", nullable = false)
+    private boolean endNotificationSent = false;
 }
