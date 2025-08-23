@@ -26,6 +26,8 @@ services:
       APP_SECRET_KEY: ${APP_SECRET_KEY}
       ONESIGNAL_APP_ID: ${ONESIGNAL_APP_ID}
       ONESIGNAL_API_KEY: ${ONESIGNAL_API_KEY}
+      ROUTING_DESTINATION_LAT: ${ROUTING_DESTINATION_LAT}
+      ROUTING_DESTINATION_LNG: ${ROUTING_DESTINATION_LNG}
     ports:
       - "2080:8080"
     depends_on:
@@ -47,7 +49,24 @@ services:
       - mariadb
     networks:
       - doorbell-network
-
+      
+  osrm:
+    image: osrm/osrm-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data/map:/data/map
+    working_dir: /data/map
+    command: >
+      sh -c "
+        if [ ! -f lisboa.osrm ]; then
+          osrm-extract -p /opt/foot.lua lisboa.osm.pbf &&
+          osrm-contract lisboa.osrm;
+        fi &&
+        osrm-routed --algorithm ch lisboa.osrm
+      "
+    networks:
+      - doorbell-network
 
 volumes:
   mariadb_data:
