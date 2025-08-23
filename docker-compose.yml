@@ -49,7 +49,7 @@ services:
       - mariadb
     networks:
       - doorbell-network
-      
+
   osrm:
     image: osrm/osrm-backend
     ports:
