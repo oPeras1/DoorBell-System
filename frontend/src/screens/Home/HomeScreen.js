@@ -365,10 +365,10 @@ const HomeScreen = ({ navigation }) => {
   // Helper to split long usernames
   const getFormattedUserName = (username) => {
     if (!username) return '';
-    if (username.length <= 6) return username;
+    if (username.length <= 7) return username;
     const chunks = [];
-    for (let i = 0; i < username.length; i += 6) {
-      chunks.push(username.slice(i, i + 6));
+    for (let i = 0; i < username.length; i += 7) {
+      chunks.push(username.slice(i, i + 7));
     }
     return chunks.join('\n');
   };
