@@ -133,7 +133,7 @@ public class PartyReminderService {
         return userIds;
     }
 
-    @Scheduled(cron = "0 0 12 * * *") // Every day at noon
+    @Scheduled(cron = "0 0 0 * * *") // Every day at midnight
     @Transactional
     public void dailyHouseChecks() {
         checkCleaningFrequency();
@@ -165,13 +165,17 @@ public class PartyReminderService {
         }
     }
 
-    private void sendBirthdayNotification(User user) {
+    private void sendBirthdayNotification(User birthdayUser) {
         String title = "🎉 Happy Birthday!";
-        String message = "Congratulations " + user.getUsername() + "! The house wishes you a fantastic day!";
+        String message = "Congratulations " + birthdayUser.getUsername() + "! The house wishes you a fantastic day!";
+
+        List<Long> allUserIds = userRepository.findAll().stream()
+            .map(User::getId)
+            .toList();
         NotificationDto notificationDto = new NotificationDto(
             title,
             message,
-            List.of(user.getId()),
+            allUserIds,
             Notification.NotificationType.SYSTEM,
             null
         );
