@@ -4,6 +4,7 @@ import com.operas.dto.AuthRequest;
 import com.operas.dto.AuthResponse;
 import com.operas.dto.UserDto;
 import com.operas.model.User;
+import com.operas.model.PasswordResetRequest;
 import com.operas.model.Log;
 import com.operas.security.JwtUtil;
 import com.operas.service.UserService;
@@ -22,6 +23,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.authentication.BadCredentialsException;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -95,5 +98,26 @@ public class AuthController {
         // For stateless JWT, logout is managed client-side by discarding the token.
         // Alternatively, a token blacklist could be implemented.
         return ResponseEntity.ok("Logged out successfully");
+    }
+    
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        knowledgerService.requestPasswordReset(username);
+        return ResponseEntity.ok("Password reset request submitted successfully");
+    }
+
+    @GetMapping("/forgot-password/status/{username}")
+    public ResponseEntity<?> getPasswordResetStatus(@PathVariable String username) {
+        PasswordResetRequest status = knowledgerService.getPasswordResetStatus(username);
+        return ResponseEntity.ok(status);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String newPassword = request.get("password");
+        knowledgerService.resetPassword(username, newPassword);
+        return ResponseEntity.ok("Password reset successfully");
     }
 }

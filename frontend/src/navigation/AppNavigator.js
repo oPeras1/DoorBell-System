@@ -4,6 +4,7 @@ import { View, StyleSheet, StatusBar, Platform, Dimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
+import ForgotUserPassword from '../screens/Auth/ForgotUserPassword';
 import HomeScreen from '../screens/Home/HomeScreen';
 import UsersScreen from '../screens/Users/UsersScreen';
 import PartyScreen from '../screens/Party/PartyScreen';
@@ -12,6 +13,7 @@ import SettingsScreen from '../screens/Settings/SettingsScreen';
 import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
 import Notifications from '../screens/Notifications/Notifications';
 import UsersDetailsScreen from '../screens/Users/UsersDetailsScreen';
+import ForgotPasswordScreen from '../screens/Settings/ForgotPasswordScreen';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -30,6 +32,7 @@ const AuthStack = () => (
   >
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
+    <Stack.Screen name="ForgotUserPassword" component={ForgotUserPassword} />
   </Stack.Navigator>
 );
 
@@ -48,6 +51,7 @@ const AppStack = () => (
     <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Notifications" component={Notifications} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="UserDetails" component={UsersDetailsScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ unmountOnBlur: true }} />
   </Stack.Navigator>
 );
 

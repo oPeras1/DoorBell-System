@@ -96,3 +96,30 @@ export const getCurrentUser = async () => {
     throw error;
   }
 };
+
+export const requestPasswordReset = async (username) => {
+  try {
+    const response = await api.post(API_ENDPOINTS.FORGOT_PASSWORD, { username });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getPasswordResetStatus = async (username) => {
+  try {
+    const response = await api.get(`${API_ENDPOINTS.FORGOT_PASSWORD_STATUS}/${username}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const resetPassword = async (username, password) => {
+  try {
+    const response = await api.post(API_ENDPOINTS.RESET_PASSWORD, { username, password });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

@@ -24,4 +24,10 @@ export const API_ENDPOINTS = {
   REGISTRATION_STATUS: '/maintenance/registration-status',
   BLOCK_REGISTRATION: '/maintenance/block-registration',
   UNBLOCK_REGISTRATION: '/maintenance/unblock-registration',
+  FORGOT_PASSWORD: '/auth/forgot-password',
+  FORGOT_PASSWORD_STATUS: '/auth/forgot-password/status',
+  RESET_PASSWORD: '/auth/reset-password',
+  PASSWORD_RESET_REQUESTS: '/maintenance/password-reset-requests',
+  APPROVE_PASSWORD_RESET: '/maintenance/password-reset-requests',
+  REJECT_PASSWORD_RESET: '/maintenance/password-reset-requests',
 };

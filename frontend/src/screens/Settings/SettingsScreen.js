@@ -217,7 +217,33 @@ const SettingsScreen = ({ navigation }) => {
                   </View>
                   <View style={styles.settingsTextContainer}>
                     <Text style={styles.settingsItemTitle(colors)}>Personal Account</Text>
-                    <Text style={styles.settingsItemSubtitle(colors)}>Edit your profile and account details</Text>
+                    <Text style={styles.settingsItemSubtitle(colors)}>Edit your profile and account details for a better experience.</Text>
+                  </View>
+                </View>
+                <View style={styles.settingsItemRight}>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsItem(colors)}
+              onPress={() => navigation.navigate('ForgotPassword')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingsItemContent}>
+                <View style={styles.settingsItemLeft}>
+                  <View style={[
+                    styles.settingsIconContainer,
+                    { backgroundColor: `${colors.warning}15` }
+                  ]}>
+                    <Ionicons name="key-outline" size={24} color={colors.warning} />
+                  </View>
+                  <View style={styles.settingsTextContainer}>
+                    <Text style={styles.settingsItemTitle(colors)}>Password Reset Requests</Text>
+                    <Text style={styles.settingsItemSubtitle(colors)}>
+                      Review and approve password reset requests from users
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.settingsItemRight}>
@@ -247,7 +273,7 @@ const SettingsScreen = ({ navigation }) => {
                         <Text style={styles.settingsItemSubtitle(colors)}>
                           {isMaintenanceActive 
                             ? 'System is currently in maintenance mode' 
-                            : 'Toggle system maintenance mode'}
+                            : 'Toggle system maintenance mode and restrict door access'}
                         </Text>
                       </View>
                     </View>

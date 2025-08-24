@@ -206,4 +206,15 @@ public class NotificationService {
         );
         sendNotification(notificationDto);
     }
+
+    public void sendPasswordResetRequestNotification(String username, List<Long> knowledgerIds) {
+        NotificationDto notificationDto = new NotificationDto(
+            "Password Reset Request",
+            "User '" + username + "' has requested a password reset. Please review the request.",
+            knowledgerIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        sendNotification(notificationDto);
+    }
 }
