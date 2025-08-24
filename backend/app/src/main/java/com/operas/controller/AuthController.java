@@ -9,6 +9,7 @@ import com.operas.security.JwtUtil;
 import com.operas.service.UserService;
 import com.operas.service.LogService;
 import com.operas.service.NotificationService;
+import com.operas.service.KnowledgerService;
 import com.operas.exceptions.WrongCredentialsException;
 import com.operas.exceptions.UserNotFoundException;
 
@@ -41,12 +42,17 @@ public class AuthController {
     @Autowired
     private NotificationService notificationService;
     
+    @Autowired
+    private KnowledgerService knowledgerService;
+    
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody AuthRequest authRequest) {
+        if (knowledgerService.isRegistrationBlocked()) {
+            throw new com.operas.exceptions.BadRequestException("User registration is currently blocked");
+        }
         User user = new User();
         user.setUsername(authRequest.getUsername());
         user.setPassword(authRequest.getPassword());
-        // Adiciona o birthdate recebido
         user.setBirthdate(authRequest.getBirthdate());
         
         userService.registerUser(user, authRequest.getOnesignalId());

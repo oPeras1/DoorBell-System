@@ -12,6 +12,7 @@ import com.operas.exceptions.BadRequestException;
 public class KnowledgerService {
 
     private static volatile boolean maintenanceActive = false;
+    private static volatile boolean registrationBlocked = false;
 
     @Autowired
     private NotificationService notificationService;
@@ -43,5 +44,33 @@ public class KnowledgerService {
 
     public boolean isMaintenanceActive() {
         return maintenanceActive;
+    }
+
+    public void blockRegistration(User user) {
+        if (user.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("Only knowledger can block registration");
+        }
+        registrationBlocked = true;
+        List<Long> knowledgerIds = userRepository.findAll().stream()
+            .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
+            .map(User::getId)
+            .collect(Collectors.toList());
+        notificationService.sendRegistrationBlockedNotification(knowledgerIds);
+    }
+
+    public void unblockRegistration(User user) {
+        if (user.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("Only knowledger can unblock registration");
+        }
+        registrationBlocked = false;
+        List<Long> knowledgerIds = userRepository.findAll().stream()
+            .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
+            .map(User::getId)
+            .collect(Collectors.toList());
+        notificationService.sendRegistrationUnblockedNotification(knowledgerIds);
+    }
+
+    public boolean isRegistrationBlocked() {
+        return registrationBlocked;
     }
 }

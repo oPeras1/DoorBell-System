@@ -184,4 +184,26 @@ public class NotificationService {
         );
         sendNotification(notificationDto);
     }
+
+    public void sendRegistrationBlockedNotification(List<Long> knowledgerIds) {
+        NotificationDto notificationDto = new NotificationDto(
+            "User Registration Blocked",
+            "New user registrations have been blocked by a knowledger.",
+            knowledgerIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        sendNotification(notificationDto);
+    }
+
+    public void sendRegistrationUnblockedNotification(List<Long> knowledgerIds) {
+        NotificationDto notificationDto = new NotificationDto(
+            "User Registration Unblocked",
+            "New user registrations have been unblocked by a knowledger.",
+            knowledgerIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        sendNotification(notificationDto);
+    }
 }

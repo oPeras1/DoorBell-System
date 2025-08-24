@@ -31,4 +31,22 @@ public class KnowledgerController {
         boolean status = knowledgerService.isMaintenanceActive();
         return ResponseEntity.ok(status);
     }
+
+    @PostMapping("/block-registration")
+    public ResponseEntity<?> blockRegistration(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        knowledgerService.blockRegistration(userDetails.getUser());
+        return ResponseEntity.ok("User registration blocked");
+    }
+
+    @PostMapping("/unblock-registration")
+    public ResponseEntity<?> unblockRegistration(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        knowledgerService.unblockRegistration(userDetails.getUser());
+        return ResponseEntity.ok("User registration unblocked");
+    }
+
+    @GetMapping("/registration-status")
+    public ResponseEntity<?> getRegistrationStatus() {
+        boolean status = knowledgerService.isRegistrationBlocked();
+        return ResponseEntity.ok(status);
+    }
 }

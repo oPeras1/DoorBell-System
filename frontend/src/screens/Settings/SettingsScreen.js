@@ -16,7 +16,16 @@ import TopField from '../../components/TopField';
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 import { useColors } from '../../hooks/useColors';
-import { getMaintenanceStatus, activateMaintenance, deactivateMaintenance } from '../../services/doorService';
+import { 
+  getMaintenanceStatus, 
+  activateMaintenance, 
+  deactivateMaintenance 
+} from '../../services/doorService';
+import { 
+  getRegistrationStatus, 
+  blockRegistration, 
+  unblockRegistration 
+} from '../../services/userService';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Switch from '../../components/Switch';
@@ -29,6 +38,10 @@ const SettingsScreen = ({ navigation }) => {
   const [isLoadingMaintenance, setIsLoadingMaintenance] = useState(false);
   const [showMaintenancePopup, setShowMaintenancePopup] = useState(false);
   const [pendingMaintenanceState, setPendingMaintenanceState] = useState(false);
+  const [isRegistrationBlocked, setIsRegistrationBlocked] = useState(false);
+  const [isLoadingRegistration, setIsLoadingRegistration] = useState(false);
+  const [showRegistrationPopup, setShowRegistrationPopup] = useState(false);
+  const [pendingRegistrationState, setPendingRegistrationState] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
   const colors = useColors();
@@ -54,6 +67,7 @@ const SettingsScreen = ({ navigation }) => {
   useEffect(() => {
     if (isKnowledger) {
       fetchMaintenanceStatus();
+      fetchRegistrationStatus();
     }
   }, [isKnowledger]);
 
@@ -63,6 +77,15 @@ const SettingsScreen = ({ navigation }) => {
       setIsMaintenanceActive(status);
     } catch (error) {
       console.error('Error fetching maintenance status:', error);
+    }
+  };
+
+  const fetchRegistrationStatus = async () => {
+    try {
+      const status = await getRegistrationStatus();
+      setIsRegistrationBlocked(status);
+    } catch (error) {
+      console.error('Error fetching registration status:', error);
     }
   };
 
@@ -98,6 +121,40 @@ const SettingsScreen = ({ navigation }) => {
   const cancelMaintenanceChange = () => {
     setShowMaintenancePopup(false);
     setPendingMaintenanceState(isMaintenanceActive);
+  };
+
+  const handleRegistrationToggle = (value) => {
+    setPendingRegistrationState(value);
+    setShowRegistrationPopup(true);
+  };
+
+  const confirmRegistrationChange = async () => {
+    try {
+      setIsLoadingRegistration(true);
+      setShowRegistrationPopup(false);
+
+      if (pendingRegistrationState) {
+        await blockRegistration();
+        setMessage('User registration blocked successfully');
+      } else {
+        await unblockRegistration();
+        setMessage('User registration unblocked successfully');
+      }
+
+      setIsRegistrationBlocked(pendingRegistrationState);
+      setMessageType('success');
+    } catch (error) {
+      console.error('Error changing registration block:', error);
+      setMessage('Failed to change registration block');
+      setMessageType('error');
+    } finally {
+      setIsLoadingRegistration(false);
+    }
+  };
+
+  const cancelRegistrationChange = () => {
+    setShowRegistrationPopup(false);
+    setPendingRegistrationState(isRegistrationBlocked);
   };
 
   const handlePersonalSettings = () => {
@@ -171,41 +228,80 @@ const SettingsScreen = ({ navigation }) => {
 
             {/* Maintenance Mode Setting - Only for Knowledgers */}
             {isKnowledger && (
-              <View style={styles.settingsItem(colors)}>
-                <View style={styles.settingsItemContent}>
-                  <View style={styles.settingsItemLeft}>
-                    <View style={[
-                      styles.settingsIconContainer, 
-                      { backgroundColor: isMaintenanceActive ? `${colors.info}15` : `${colors.primary}15` }
-                    ]}>
-                      <Ionicons 
-                        name={isMaintenanceActive ? "information-circle" : "settings-outline"} 
-                        size={24} 
-                        color={colors.primary} 
+              <>
+                <View style={styles.settingsItem(colors)}>
+                  <View style={styles.settingsItemContent}>
+                    <View style={styles.settingsItemLeft}>
+                      <View style={[
+                        styles.settingsIconContainer, 
+                        { backgroundColor: isMaintenanceActive ? `${colors.info}15` : `${colors.primary}15` }
+                      ]}>
+                        <Ionicons 
+                          name={isMaintenanceActive ? "information-circle" : "settings-outline"} 
+                          size={24} 
+                          color={colors.primary} 
+                        />
+                      </View>
+                      <View style={styles.settingsTextContainer}>
+                        <Text style={styles.settingsItemTitle(colors)}>Maintenance Mode</Text>
+                        <Text style={styles.settingsItemSubtitle(colors)}>
+                          {isMaintenanceActive 
+                            ? 'System is currently in maintenance mode' 
+                            : 'Toggle system maintenance mode'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.settingsItemRight}>
+                      <Switch
+                        value={isMaintenanceActive}
+                        onValueChange={handleMaintenanceToggle}
+                        disabled={isLoadingMaintenance}
+                        size="medium"
+                        activeColor={colors.primary}
+                        inactiveColor={colors.border}
+                        thumbColor={isMaintenanceActive ? '#FFFFFF' : colors.textSecondary}
                       />
                     </View>
-                    <View style={styles.settingsTextContainer}>
-                      <Text style={styles.settingsItemTitle(colors)}>Maintenance Mode</Text>
-                      <Text style={styles.settingsItemSubtitle(colors)}>
-                        {isMaintenanceActive 
-                          ? 'System is currently in maintenance mode' 
-                          : 'Toggle system maintenance mode'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.settingsItemRight}>
-                    <Switch
-                      value={isMaintenanceActive}
-                      onValueChange={handleMaintenanceToggle}
-                      disabled={isLoadingMaintenance}
-                      size="medium"
-                      activeColor={colors.primary}
-                      inactiveColor={colors.border}
-                      thumbColor={isMaintenanceActive ? '#FFFFFF' : colors.textSecondary}
-                    />
                   </View>
                 </View>
-              </View>
+
+                {/* Registration Block Setting - Only for Knowledgers */}
+                <View style={styles.settingsItem(colors)}>
+                  <View style={styles.settingsItemContent}>
+                    <View style={styles.settingsItemLeft}>
+                      <View style={[
+                        styles.settingsIconContainer, 
+                        { backgroundColor: isRegistrationBlocked ? `${colors.error}15` : `${colors.primary}15` }
+                      ]}>
+                        <Ionicons 
+                          name={isRegistrationBlocked ? "lock-closed" : "lock-open"} 
+                          size={24} 
+                          color={colors.primary} 
+                        />
+                      </View>
+                      <View style={styles.settingsTextContainer}>
+                        <Text style={styles.settingsItemTitle(colors)}>Block User Registration</Text>
+                        <Text style={styles.settingsItemSubtitle(colors)}>
+                          {isRegistrationBlocked
+                            ? 'New user registrations are currently blocked'
+                            : 'Toggle to block or allow new user registrations'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.settingsItemRight}>
+                      <Switch
+                        value={isRegistrationBlocked}
+                        onValueChange={handleRegistrationToggle}
+                        disabled={isLoadingRegistration}
+                        size="medium"
+                        activeColor={colors.primary}
+                        inactiveColor={colors.border}
+                        thumbColor={isRegistrationBlocked ? '#FFFFFF' : colors.textSecondary}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </>
             )}
           </View>
         </ScrollView>
@@ -224,6 +320,22 @@ const SettingsScreen = ({ navigation }) => {
         cancelText="Cancel"
         onConfirm={confirmMaintenanceChange}
         onCancel={cancelMaintenanceChange}
+        showCancel={true}
+      />
+
+      {/* Registration Block Confirmation Popup */}
+      <PopUp
+        visible={showRegistrationPopup}
+        type={pendingRegistrationState ? "warning" : "info"}
+        title={pendingRegistrationState ? "Block User Registration" : "Unblock User Registration"}
+        message={pendingRegistrationState
+          ? "This will prevent new users from registering. Are you sure?"
+          : "This will allow new users to register again. Are you sure?"
+        }
+        confirmText={pendingRegistrationState ? "Block" : "Unblock"}
+        cancelText="Cancel"
+        onConfirm={confirmRegistrationChange}
+        onCancel={cancelRegistrationChange}
         showCancel={true}
       />
 

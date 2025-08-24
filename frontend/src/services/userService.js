@@ -91,3 +91,30 @@ export const updateBirthdate = async (userId, birthdate) => {
     throw error;
   }
 };
+
+export const getRegistrationStatus = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.REGISTRATION_STATUS);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const blockRegistration = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.BLOCK_REGISTRATION);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const unblockRegistration = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.UNBLOCK_REGISTRATION);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

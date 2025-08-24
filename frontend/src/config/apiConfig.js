@@ -21,4 +21,7 @@ export const API_ENDPOINTS = {
   MAINTENANCE_STATUS: '/maintenance/status',
   MAINTENANCE_ACTIVATE: '/maintenance/activate',
   MAINTENANCE_DEACTIVATE: '/maintenance/deactivate',
+  REGISTRATION_STATUS: '/maintenance/registration-status',
+  BLOCK_REGISTRATION: '/maintenance/block-registration',
+  UNBLOCK_REGISTRATION: '/maintenance/unblock-registration',
 };
