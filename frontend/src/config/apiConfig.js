@@ -18,4 +18,7 @@ export const API_ENDPOINTS = {
   NOTIFICATIONS_ALL: '/notifications',
   NOTIFICATIONS_MARK_READ: '/notifications',
   NOTIFICATIONS_HAS_UNREAD: '/notifications/has-unread',
+  MAINTENANCE_STATUS: '/maintenance/status',
+  MAINTENANCE_ACTIVATE: '/maintenance/activate',
+  MAINTENANCE_DEACTIVATE: '/maintenance/deactivate',
 };
