@@ -16,7 +16,7 @@ import { useColors } from '../../hooks/useColors';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
 import { useFocusEffect } from '@react-navigation/native';
-import { updateUserStatus } from '../../services/userService';
+import { updateUserStatus, getMe } from '../../services/userService';
 
 import {
   getTimeOfDayImage,
@@ -40,7 +40,8 @@ const HomeScreen = ({ navigation }) => {
 
   // Dropdown/profile logic
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [selectedMode, setSelectedMode] = useState(currentUser?.status || 'ONLINE');
+  const [selectedMode, setSelectedMode] = useState(undefined);
+  const [statusLoaded, setStatusLoaded] = useState(false);
   const [dropdownAnimation] = useState(new Animated.Value(0));
 
   const [hasUnreadNotificationsState, setHasUnreadNotificationsState] = useState(false);
@@ -139,6 +140,27 @@ const HomeScreen = ({ navigation }) => {
       }).start();
     }
   }, [isGuest, allParties]);
+
+  // Add status fetching effect similar to TopField
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      getMe().then(user => {
+        if (isActive && user?.status) {
+          setSelectedMode(user.status);
+          setStatusLoaded(true);
+          // Update user context with fresh data
+          if (setUser && currentUser) {
+            setUser({ ...currentUser, status: user.status });
+          }
+        }
+      }).catch(() => {
+        setSelectedMode('ONLINE');
+        setStatusLoaded(true);
+      });
+      return () => { isActive = false; };
+    }, [currentUser?.id, setUser])
+  );
 
   const fetchDoorData = async () => {
     // Só não faz requests se for guest sem acesso
@@ -306,6 +328,7 @@ const HomeScreen = ({ navigation }) => {
     try {
       await updateUserStatus(mode);
       setSelectedMode(mode);
+      setStatusLoaded(true);
       // Update user context with new status
       if (setUser && currentUser) {
         setUser({ ...currentUser, status: mode });
@@ -504,7 +527,7 @@ const HomeScreen = ({ navigation }) => {
                 <View style={[
                   styles.profileStatusDot,
                   isSmallScreen && styles.profileStatusDotSmall,
-                  { backgroundColor: getCurrentModeInfo().color }
+                  { backgroundColor: statusLoaded ? getCurrentModeInfo().color : '#ccc' }
                 ]} />
               </TouchableOpacity>
             </View>

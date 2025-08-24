@@ -43,7 +43,9 @@ const TopField = ({
   showDarkModeToggle = true,
   onLogout,
   onStatusChange,
-  navigation
+  navigation,
+  setUser, // Add setUser prop
+  currentUser // Add currentUser prop
 }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const colors = useColors();
@@ -140,6 +142,10 @@ const TopField = ({
       setSelectedMode(mode);
       if (onStatusChange) {
         onStatusChange(mode);
+      }
+      // Update user context with new status
+      if (setUser && currentUser) {
+        setUser({ ...currentUser, status: mode });
       }
       toggleDropdown();
     } catch (error) {
