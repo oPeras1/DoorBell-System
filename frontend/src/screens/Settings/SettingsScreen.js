@@ -16,12 +16,24 @@ import TopField from '../../components/TopField';
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 import { useColors } from '../../hooks/useColors';
+import { getMaintenanceStatus, activateMaintenance, deactivateMaintenance } from '../../services/doorService';
+import PopUp from '../../components/PopUp';
+import Message from '../../components/Message';
+import Switch from '../../components/Switch';
 
 const SettingsScreen = ({ navigation }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
+  const [isLoadingMaintenance, setIsLoadingMaintenance] = useState(false);
+  const [showMaintenancePopup, setShowMaintenancePopup] = useState(false);
+  const [pendingMaintenanceState, setPendingMaintenanceState] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
   const colors = useColors();
+
+  const isKnowledger = currentUser?.type === 'KNOWLEDGER';
 
   useEffect(() => {
     Animated.parallel([
@@ -39,6 +51,55 @@ const SettingsScreen = ({ navigation }) => {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (isKnowledger) {
+      fetchMaintenanceStatus();
+    }
+  }, [isKnowledger]);
+
+  const fetchMaintenanceStatus = async () => {
+    try {
+      const status = await getMaintenanceStatus();
+      setIsMaintenanceActive(status);
+    } catch (error) {
+      console.error('Error fetching maintenance status:', error);
+    }
+  };
+
+  const handleMaintenanceToggle = (value) => {
+    setPendingMaintenanceState(value);
+    setShowMaintenancePopup(true);
+  };
+
+  const confirmMaintenanceChange = async () => {
+    try {
+      setIsLoadingMaintenance(true);
+      setShowMaintenancePopup(false);
+      
+      if (pendingMaintenanceState) {
+        await activateMaintenance();
+        setMessage('Maintenance mode activated successfully');
+      } else {
+        await deactivateMaintenance();
+        setMessage('Maintenance mode deactivated successfully');
+      }
+      
+      setIsMaintenanceActive(pendingMaintenanceState);
+      setMessageType('success');
+    } catch (error) {
+      console.error('Error changing maintenance mode:', error);
+      setMessage('Failed to change maintenance mode');
+      setMessageType('error');
+    } finally {
+      setIsLoadingMaintenance(false);
+    }
+  };
+
+  const cancelMaintenanceChange = () => {
+    setShowMaintenancePopup(false);
+    setPendingMaintenanceState(isMaintenanceActive);
+  };
+
   const handlePersonalSettings = () => {
     if (currentUser?.id) {
       navigation.navigate('UserDetails', { userId: currentUser.id });
@@ -52,7 +113,16 @@ const SettingsScreen = ({ navigation }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-      
+
+      {/* Message fix: absolute container at top, like PartyScreen */}
+      <View style={styles.messageContainer}>
+        <Message
+          message={message}
+          type={messageType}
+          onDismiss={() => setMessage('')}
+        />
+      </View>
+
       <TopField 
         greeting={getTimeBasedGreeting()}
         userName={currentUser?.username}
@@ -77,6 +147,7 @@ const SettingsScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.settingsSection}>
+            {/* Personal Account Setting */}
             <TouchableOpacity 
               style={styles.settingsItem(colors)}
               onPress={handlePersonalSettings}
@@ -97,10 +168,65 @@ const SettingsScreen = ({ navigation }) => {
                 </View>
               </View>
             </TouchableOpacity>
+
+            {/* Maintenance Mode Setting - Only for Knowledgers */}
+            {isKnowledger && (
+              <View style={styles.settingsItem(colors)}>
+                <View style={styles.settingsItemContent}>
+                  <View style={styles.settingsItemLeft}>
+                    <View style={[
+                      styles.settingsIconContainer, 
+                      { backgroundColor: isMaintenanceActive ? `${colors.info}15` : `${colors.primary}15` }
+                    ]}>
+                      <Ionicons 
+                        name={isMaintenanceActive ? "information-circle" : "settings-outline"} 
+                        size={24} 
+                        color={colors.primary} 
+                      />
+                    </View>
+                    <View style={styles.settingsTextContainer}>
+                      <Text style={styles.settingsItemTitle(colors)}>Maintenance Mode</Text>
+                      <Text style={styles.settingsItemSubtitle(colors)}>
+                        {isMaintenanceActive 
+                          ? 'System is currently in maintenance mode' 
+                          : 'Toggle system maintenance mode'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.settingsItemRight}>
+                    <Switch
+                      value={isMaintenanceActive}
+                      onValueChange={handleMaintenanceToggle}
+                      disabled={isLoadingMaintenance}
+                      size="medium"
+                      activeColor={colors.primary}
+                      inactiveColor={colors.border}
+                      thumbColor={isMaintenanceActive ? '#FFFFFF' : colors.textSecondary}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         </ScrollView>
       </Animated.View>
-      
+
+      {/* Maintenance Confirmation Popup */}
+      <PopUp
+        visible={showMaintenancePopup}
+        type={pendingMaintenanceState ? "warning" : "info"}
+        title={pendingMaintenanceState ? "Activate Maintenance Mode" : "Deactivate Maintenance Mode"}
+        message={pendingMaintenanceState 
+          ? "This will prevent users from opening the door. Only knowledgers will be able to access the system. Are you sure?"
+          : "This will restore normal door access for all users. Are you sure?"
+        }
+        confirmText={pendingMaintenanceState ? "Activate" : "Deactivate"}
+        cancelText="Cancel"
+        onConfirm={confirmMaintenanceChange}
+        onCancel={cancelMaintenanceChange}
+        showCancel={true}
+      />
+
       <BottomNavBar navigation={navigation} active="Settings" />
     </View>
   );
@@ -181,6 +307,14 @@ const styles = {
   }),
   settingsItemRight: {
     paddingLeft: spacing.medium,
+  },
+  messageContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 25 : 0,
+    left: 0,
+    right: 0,
+    zIndex: 2000,
+    pointerEvents: 'box-none',
   },
 };
 

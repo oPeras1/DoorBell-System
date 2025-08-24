@@ -148,9 +148,14 @@ public class PartyReminderService {
             .filter(party -> party.getDateTime() != null && party.getDateTime().isAfter(twoWeeksAgo))
             .filter(party -> party.getStatus() != Party.PartyStatus.CANCELLED)
             .toList();
+        List<Party> futureCleaningParties = partyRepository.findAll().stream()
+            .filter(party -> party.getType() == Party.PartyType.CLEANING)
+            .filter(party -> party.getDateTime() != null && party.getDateTime().isAfter(now))
+            .filter(party -> party.getStatus() != Party.PartyStatus.CANCELLED)
+            .toList();
 
-        // If no cleaning parties in the last 2 weeks, send urgent notification
-        if (recentCleaningParties.isEmpty()) {
+        // If no cleaning parties in the last 2 weeks or in the future, send urgent notification
+        if (recentCleaningParties.isEmpty() && futureCleaningParties.isEmpty()) {
             sendCleaningUrgentNotification();
         }
     }

@@ -16,6 +16,8 @@ import com.operas.exceptions.DoorPingException;
 import com.operas.security.CustomUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.operas.service.DoorService;
+import com.operas.service.KnowledgerService;
+import com.operas.exceptions.DoorOpenException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
@@ -31,8 +33,15 @@ public class DoorController {
     @Autowired
     private DoorService doorService;
 
+    @Autowired
+    private KnowledgerService knowledgerService;
+
     @PostMapping
     public ResponseEntity<?> openDoor(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (knowledgerService.isMaintenanceActive() &&
+            userDetails.getUser().getType() != com.operas.model.User.UserType.KNOWLEDGER) {
+            throw new DoorOpenException("Door opening is disabled during maintenance mode");
+        }
         return doorService.openDoor(DOORBELL_API_BASE_URL, userDetails.getUser());
     }
 

@@ -10,6 +10,5 @@ import com.operas.model.Log;
 @Repository
 public interface LogRepository extends JpaRepository<Log, Long> {
     Optional<Log> findByMessage(String message);
-    Optional<Log> findById(Long id);
     Optional<Log> findByUser_Id(Long userId);
 }

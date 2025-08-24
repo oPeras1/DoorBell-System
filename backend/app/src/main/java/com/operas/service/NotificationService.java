@@ -162,4 +162,26 @@ public class NotificationService {
         );
         sendNotification(notificationDto);
     }
+
+    public void sendMaintenanceActivatedNotification(List<Long> userIds) {
+        NotificationDto notificationDto = new NotificationDto(
+            "Maintenance Mode Activated",
+            "The system is now in maintenance mode. Door opening is disabled!",
+            userIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        sendNotification(notificationDto);
+    }
+
+    public void sendMaintenanceDeactivatedNotification(List<Long> userIds) {
+        NotificationDto notificationDto = new NotificationDto(
+            "Maintenance Mode Deactivated",
+            "Maintenance mode ended. Door opening is now enabled again!",
+            userIds,
+            Notification.NotificationType.SYSTEM,
+            null
+        );
+        sendNotification(notificationDto);
+    }
 }

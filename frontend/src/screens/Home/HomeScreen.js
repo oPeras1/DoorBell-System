@@ -7,7 +7,7 @@ import { AuthContext } from '../../context/AuthContext';
 import BottomNavBar from '../../components/BottomNavBar';
 import EventsSection from '../../components/PartyEventsCarousel';
 import { hasUnreadNotifications } from '../../services/notificationService';
-import { openDoor, getDoorPing, getDoorEnvironment } from '../../services/doorService';
+import { openDoor, getDoorPing, getDoorEnvironment, getMaintenanceStatus } from '../../services/doorService';
 import { getParties } from '../../services/partyService';
 import { CONNECTION_MODES } from '../../constants/users';
 import { BlurView } from 'expo-blur';
@@ -50,6 +50,9 @@ const HomeScreen = ({ navigation }) => {
   const [isDoorLoading, setIsDoorLoading] = useState(false);
   const [doorPing, setDoorPing] = useState(null);
   const [doorEnvironment, setDoorEnvironment] = useState(null);
+
+  // Maintenance state
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
 
   // Random facts state
   const [currentFact, setCurrentFact] = useState('Did you know the QR Code was invented in Japan?');
@@ -100,6 +103,7 @@ const HomeScreen = ({ navigation }) => {
       }
       fetchRandomFact();
       fetchPartyData();
+      fetchMaintenanceStatus();
 
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
@@ -183,6 +187,16 @@ const HomeScreen = ({ navigation }) => {
     } finally {
       setIsPartiesLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchMaintenanceStatus = async () => {
+    try {
+      const status = await getMaintenanceStatus();
+      setIsMaintenanceActive(status);
+    } catch (error) {
+      console.log('Error fetching maintenance status:', error);
+      setIsMaintenanceActive(false);
     }
   };
 
@@ -385,7 +399,9 @@ const HomeScreen = ({ navigation }) => {
   const verticalOffset = (userNameLineCount - 1) * LINE_HEIGHT;
 
   const isDoorOnline = doorPing && doorPing.status === 'online';
-  const canOpenDoor = !isGuest ? isDoorOnline : canGuestOpenDoor();
+  const canOpenDoor = !isGuest
+    ? isDoorOnline && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER')
+    : canGuestOpenDoor() && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER');
 
   const getGlassBackground = () => {
     if (Platform.OS === 'ios') {
@@ -522,15 +538,17 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons name="key" size={28} color="#fff" />
                 )}
                 <Text style={[styles.doorButtonText, { color: "#fff" }]}>
-                  {isDoorLoading
-                    ? 'Opening...'
-                    : isGuest
-                      ? canGuestOpenDoor()
-                        ? 'Open Door'
-                        : 'Open Door (Not Available)'
-                      : !isDoorOnline
-                        ? 'Open Door (Offline)'
-                        : 'Open Door'
+                  {isMaintenanceActive && currentUser?.type !== 'KNOWLEDGER'
+                    ? 'System in Maintenance'
+                    : isDoorLoading
+                      ? 'Opening...'
+                      : isGuest
+                        ? canGuestOpenDoor()
+                          ? 'Open Door'
+                          : 'Open Door (Not Available)'
+                        : !isDoorOnline
+                          ? 'Open Door (Offline)'
+                          : 'Open Door'
                   }
                 </Text>
               </View>
@@ -542,7 +560,17 @@ const HomeScreen = ({ navigation }) => {
               tint={isDarkMode ? "dark" : "dark"} 
               style={styles.doorStatusCard}
             >
-              {(isGuest && !canGuestOpenDoor()) ? (
+              {(isMaintenanceActive && currentUser?.type !== 'KNOWLEDGER') ? (
+                <View style={styles.guestMessageContainer}>
+                  <View style={styles.guestMessageHeader}>
+                    <Ionicons name="warning" size={24} color={colors.warning} />
+                    <Text style={[styles.guestMessageTitle, { color: "#fff" }]}>Maintenance Mode</Text>
+                  </View>
+                  <Text style={[styles.guestMessageText, { color: "#fff" }]}>
+                    The door system is currently under maintenance. Door opening is temporarily disabled. Thank you for your understanding.
+                  </Text>
+                </View>
+              ) : (isGuest && !canGuestOpenDoor()) ? (
                 <View style={styles.guestMessageContainer}>
                   <View style={styles.guestMessageHeader}>
                     <Ionicons name="information-circle" size={24} color={colors.warning} />
