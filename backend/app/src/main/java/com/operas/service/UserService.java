@@ -15,6 +15,14 @@ import com.operas.security.CustomUserDetails;
 import com.operas.exceptions.UsernameAlreadyExistsException;
 import com.operas.exceptions.UserNotFoundException;
 import com.operas.exceptions.BadRequestException;
+import com.operas.repository.PartyRepository;
+import com.operas.repository.GuestStatusRepository;
+import com.operas.repository.NotificationRepository;
+import com.operas.repository.LogRepository;
+import com.operas.repository.PasswordResetRequestRepository;
+import com.operas.model.Party;
+import com.operas.exceptions.UserDeletionException;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
@@ -24,6 +32,21 @@ public class UserService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private PartyRepository partyRepository;
+
+    @Autowired
+    private GuestStatusRepository guestStatusRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private LogRepository logRepository;
+
+    @Autowired
+    private PasswordResetRequestRepository passwordResetRequestRepository;
     
     public User registerUser(User user) {
         // Check if username already exists
@@ -206,5 +229,40 @@ public class UserService {
         }
 
         return dto;
+    }
+
+    @Transactional
+    public void deleteUser(CustomUserDetails userDetails, Long userIdToDelete) {
+        User requester = userRepository.findById(userDetails.getUser().getId())
+                .orElseThrow(() -> new UserNotFoundException("Requester not found"));
+
+        User userToDelete = userRepository.findById(userIdToDelete)
+                .orElseThrow(() -> new UserNotFoundException("User to delete not found"));
+
+        boolean isSelf = requester.getId().equals(userIdToDelete);
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Authorization checks
+        if (!isSelf && !isKnowledger) {
+            throw new UserDeletionException("You can only delete your own account or be a knowledger to delete others.");
+        }
+
+        if (isKnowledger && !isSelf && userToDelete.getType() == User.UserType.KNOWLEDGER) {
+            throw new UserDeletionException("Knowledgers cannot delete other knowledger accounts.");
+        }
+
+        // Delete related data
+        guestStatusRepository.deleteAll(guestStatusRepository.findByUserId(userIdToDelete));
+
+        List<Party> partiesHosted = partyRepository.findByHostId(userIdToDelete);
+        partyRepository.deleteAll(partiesHosted);
+
+        notificationRepository.deleteAll(notificationRepository.findByUserIdOrderByCreatedAtDesc(userIdToDelete));
+
+        logRepository.deleteAllByUser_Id(userIdToDelete);
+
+        passwordResetRequestRepository.deleteAllByUsername(userToDelete.getUsername());
+
+        userRepository.delete(userToDelete);
     }
 }

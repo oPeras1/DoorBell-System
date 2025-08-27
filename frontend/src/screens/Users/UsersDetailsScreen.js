@@ -23,7 +23,7 @@ import Message from '../../components/Message';
 import PopUp from '../../components/PopUp';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../../constants/users';
 import { getAvatarSource } from '../../constants/functions';
-import { getUserById, updateUserType, updateUsername, updateBirthdate, updateUserMuted } from '../../services/userService';
+import { getUserById, updateUserType, updateUsername, updateBirthdate, updateUserMuted, deleteUser } from '../../services/userService';
 import { useColors } from '../../hooks/useColors';
 
 const GradientBackground = Platform.OS === 'web'
@@ -65,6 +65,7 @@ const UsersDetailsScreen = ({ navigation, route }) => {
   // Popup states
   const [showTypeChangePopup, setShowTypeChangePopup] = useState(false);
   const [showDoorAccessPopup, setShowDoorAccessPopup] = useState(false);
+  const [showDeleteUserPopup, setShowDeleteUserPopup] = useState(false);
   const [showTypeSelectionModal, setShowTypeSelectionModal] = useState(false);
   const [showDoorAccessModal, setShowDoorAccessModal] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState(null);
@@ -89,6 +90,9 @@ const UsersDetailsScreen = ({ navigation, route }) => {
 
   // Can view access control - only Knowledgers can see this section
   const canViewAccessControl = isKnowledger;
+
+  // Can delete user - only Knowledgers can delete other users (but not other Knowledgers or themselves)
+  const canDeleteUser = isKnowledger && !isTargetKnowledger && !isCurrentUser;
 
   useEffect(() => {
     fetchUserDetails();
@@ -221,6 +225,23 @@ const UsersDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    try {
+      await deleteUser(userId);
+      setShowDeleteUserPopup(false);
+      showSuccessMessage('User deleted successfully');
+      // Navigate back to users list after a short delay
+      setTimeout(() => {
+        navigation.goBack();
+      }, 1500);
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to delete user';
+      console.error('Error deleting user:', error);
+      showErrorMessage(msg);
+      setShowDeleteUserPopup(false);
+    }
+  };
+
   const openTypeSelection = () => {
     setSelectedUserType(user.type);
     setShowTypeSelectionModal(true);
@@ -290,11 +311,13 @@ const UsersDetailsScreen = ({ navigation, route }) => {
 
   return (
     <>
-      <Message 
-        message={message} 
-        onDismiss={() => setMessage('')} 
-        type={messageType} 
-      />
+      <View style={styles.messageContainer}>
+        <Message 
+          message={message} 
+          onDismiss={() => setMessage('')} 
+          type={messageType} 
+        />
+      </View>
       
       <PopUp
         visible={showTypeChangePopup}
@@ -316,6 +339,17 @@ const UsersDetailsScreen = ({ navigation, route }) => {
         onConfirm={handleChangeDoorAccess}
         onCancel={() => setShowDoorAccessPopup(false)}
         type="warning"
+      />
+
+      <PopUp
+        visible={showDeleteUserPopup}
+        title="Delete User"
+        message={`Are you sure you want to permanently delete ${user?.username}? This action cannot be undone and will remove all user data including parties, notifications, and logs.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setShowDeleteUserPopup(false)}
+        type="danger"
       />
 
       {/* User Type Selection Modal */}
@@ -772,6 +806,28 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                       Only you can change your connection status from the home screen.
                     </Text>
                   )}
+                </View>
+              )}
+
+              {/* Danger Zone Card - Only visible to Knowledgers when viewing other users */}
+              {canDeleteUser && (
+                <View style={styles.dangerCard(colors)}>
+                  <View style={styles.dangerCardHeader}>
+                    <Ionicons name="warning" size={24} color={colors.danger} />
+                    <Text style={styles.dangerCardTitle(colors)}>Danger Zone</Text>
+                  </View>
+                  
+                  <Text style={styles.dangerCardDescription(colors)}>
+                    Permanently delete this user account. This action cannot be undone and will remove all associated data including parties, notifications, and logs.
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.deleteUserButton(colors)}
+                    onPress={() => setShowDeleteUserPopup(true)}
+                  >
+                    <Ionicons name="trash" size={20} color="white" />
+                    <Text style={styles.deleteUserButtonText}>Delete User</Text>
+                  </TouchableOpacity>
                 </View>
               )}
               
@@ -1520,6 +1576,82 @@ const styles = StyleSheet.create({
     borderRightWidth: type === 'cancel' ? 1 : 0,
     borderRightColor: colors.border,
   }),
+  dangerCard: (colors) => ({
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    gap: spacing.medium,
+    borderWidth: 1,
+    borderColor: colors.danger + '30',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.danger,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: `0 4px 20px ${colors.danger}20`,
+      },
+    }),
+  }),
+  dangerCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginBottom: spacing.small,
+  },
+  dangerCardTitle: (colors) => ({
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.danger,
+  }),
+  dangerCardDescription: (colors) => ({
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.medium,
+  }),
+  deleteUserButton: (colors) => ({
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    borderRadius: borderRadius.medium,
+    gap: spacing.small,
+    alignSelf: 'flex-start',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.danger,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: `0 2px 8px ${colors.danger}40`,
+      },
+    }),
+  }),
+  deleteUserButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  messageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+  },
 });
 
 export default UsersDetailsScreen;

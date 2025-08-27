@@ -129,4 +129,12 @@ public class UserController {
         userService.changeBirthdate(userDetails, id, birthdate);
         return ResponseEntity.ok("Birthdate updated successfully");
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        userService.deleteUser(userDetails, id);
+        return ResponseEntity.ok("User deleted successfully");
+    }
 }

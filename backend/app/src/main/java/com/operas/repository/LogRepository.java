@@ -11,4 +11,5 @@ import com.operas.model.Log;
 public interface LogRepository extends JpaRepository<Log, Long> {
     Optional<Log> findByMessage(String message);
     Optional<Log> findByUser_Id(Long userId);
+    void deleteAllByUser_Id(Long userId);
 }

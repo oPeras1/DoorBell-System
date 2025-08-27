@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -25,6 +25,7 @@ import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 import { USER_TYPE_INFO } from '../../constants/users';
 import { useColors } from '../../hooks/useColors';
+import { useFocusEffect } from '@react-navigation/native';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -38,24 +39,6 @@ const UsersScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const colors = useColors();
-
-  useEffect(() => {
-    fetchUsers();
-    
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: false,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -78,6 +61,26 @@ const UsersScreen = ({ navigation }) => {
       setRefreshing(false);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUsers();
+      
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 50,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

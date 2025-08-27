@@ -118,3 +118,12 @@ export const unblockRegistration = async () => {
     throw error;
   }
 };
+
+export const deleteUser = async (userId) => {
+  try {
+    const response = await api.delete(`${API_ENDPOINTS.USERS}${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface GuestStatusRepository extends JpaRepository<GuestStatus, Long> {
     List<GuestStatus> findByPartyId(Long partyId);
     Optional<GuestStatus> findByPartyIdAndUserId(Long partyId, Long userId);
+    List<GuestStatus> findByUserId(Long userId);
 }

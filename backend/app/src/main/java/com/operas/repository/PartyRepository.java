@@ -20,4 +20,6 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
     List<Party> findConflictingParties(@Param("start") LocalDateTime start,
                                        @Param("end") LocalDateTime end,
                                        @Param("rooms") List<Party.Room> rooms);
+
+    List<Party> findByHostId(Long hostId);
 }
