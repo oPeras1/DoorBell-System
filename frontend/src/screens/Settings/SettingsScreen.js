@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Platform,
   Animated,
-  StatusBar
+  StatusBar,
+  Image,
 } from 'react-native';
 import { spacing, borderRadius } from '../../constants/styles';
 import { AuthContext } from '../../context/AuthContext';
@@ -24,7 +25,8 @@ import {
 import { 
   getRegistrationStatus, 
   blockRegistration, 
-  unblockRegistration 
+  unblockRegistration,
+  deleteUser 
 } from '../../services/userService';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
@@ -42,6 +44,8 @@ const SettingsScreen = ({ navigation }) => {
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(false);
   const [showRegistrationPopup, setShowRegistrationPopup] = useState(false);
   const [pendingRegistrationState, setPendingRegistrationState] = useState(false);
+  const [showDeleteAccountPopup, setShowDeleteAccountPopup] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
   const colors = useColors();
@@ -155,6 +159,41 @@ const SettingsScreen = ({ navigation }) => {
   const cancelRegistrationChange = () => {
     setShowRegistrationPopup(false);
     setPendingRegistrationState(isRegistrationBlocked);
+  };
+
+  const handleDeleteAccount = () => {
+    setShowDeleteAccountPopup(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      setIsDeletingAccount(true);
+      setShowDeleteAccountPopup(false);
+      
+      await deleteUser(currentUser.id);
+      
+      setMessage('Account deleted successfully. Logging out...');
+      setMessageType('success');
+      
+      // Logout and navigate to login after a short delay
+      setTimeout(async () => {
+        await logout();
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'AuthStack' }],
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setMessage('Failed to delete account. Please try again.');
+      setMessageType('error');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const cancelDeleteAccount = () => {
+    setShowDeleteAccountPopup(false);
   };
 
   const handlePersonalSettings = () => {
@@ -331,6 +370,54 @@ const SettingsScreen = ({ navigation }) => {
                 </View>
               </>
             )}
+
+            {/* Delete Account Setting - Danger Zone */}
+            <View style={styles.dangerZoneItem(colors)}>
+              <View style={styles.dangerZoneHeader}>
+                <Ionicons name="warning" size={24} color={colors.danger} />
+                <Text style={styles.dangerZoneTitle(colors)}>Danger Zone</Text>
+              </View>
+              <Text style={styles.dangerZoneDescription(colors)}>
+                Permanently delete your account. This action cannot be undone and will remove all your data including parties, notifications, and logs.
+              </Text>
+              <TouchableOpacity 
+                style={styles.deleteAccountButton(colors)}
+                onPress={handleDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                <Ionicons name="trash" size={20} color="white" />
+                <Text style={styles.deleteAccountButtonText}>
+                  {isDeletingAccount ? 'Deleting...' : 'Delete Account'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* About Section */}
+            <View style={styles.aboutItem(colors)}>
+              <View style={styles.aboutHeader}>
+                <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
+                <Text style={styles.aboutTitle(colors)}>About</Text>
+              </View>
+              <View style={styles.aboutContent}>
+                <View style={styles.aboutRow}>
+                  <Image
+                    source={require('../../../assets/doorbell-logo.png')}
+                    style={styles.aboutLogo}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.aboutTextContainer}>
+                    <Text style={styles.appName(colors)}>DoorBell Access</Text>
+                    <View style={styles.versionContainer}>
+                      <Text style={styles.versionText(colors)}>Version 1.0.0</Text>
+                      <View style={styles.betaChip}>
+                        <Text style={styles.betaText}>BETA</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.lastUpdatedText(colors)}>Last updated: 27/08/2025</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
         </ScrollView>
       </Animated.View>
@@ -364,6 +451,19 @@ const SettingsScreen = ({ navigation }) => {
         cancelText="Cancel"
         onConfirm={confirmRegistrationChange}
         onCancel={cancelRegistrationChange}
+        showCancel={true}
+      />
+
+      {/* Delete Account Confirmation Popup */}
+      <PopUp
+        visible={showDeleteAccountPopup}
+        type="danger"
+        title="Delete Account"
+        message={`Are you sure you want to permanently delete your account (${currentUser?.username})? This action cannot be undone and will remove all associated data including parties, notifications, and logs.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteAccount}
+        onCancel={cancelDeleteAccount}
         showCancel={true}
       />
 
@@ -456,6 +556,162 @@ const styles = {
     zIndex: 2000,
     pointerEvents: 'box-none',
   },
+  dangerZoneItem: (colors) => ({
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    gap: spacing.medium,
+    borderWidth: 1,
+    borderColor: colors.danger + '30',
+    marginTop: spacing.large,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.danger,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: `0 4px 20px ${colors.danger}20`,
+      },
+    }),
+  }),
+  dangerZoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginBottom: spacing.small,
+  },
+  dangerZoneTitle: (colors) => ({
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.danger,
+  }),
+  dangerZoneDescription: (colors) => ({
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.medium,
+  }),
+  deleteAccountButton: (colors) => ({
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    borderRadius: borderRadius.medium,
+    gap: spacing.small,
+    alignSelf: 'flex-start',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.danger,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: `0 2px 8px ${colors.danger}40`,
+      },
+    }),
+  }),
+  deleteAccountButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  aboutItem: (colors) => ({
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    padding: spacing.large,
+    gap: spacing.medium,
+    marginTop: spacing.large,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      },
+    }),
+  }),
+  aboutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginBottom: spacing.small,
+  },
+  aboutTitle: (colors) => ({
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  }),
+  aboutContent: {
+    gap: spacing.small,
+  },
+  aboutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+  },
+  aboutLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  aboutTextContainer: {
+    flex: 1,
+  },
+  appName: (colors) => ({
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'left',
+  }),
+  versionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: spacing.small,
+  },
+  versionText: (colors) => ({
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  }),
+  betaChip: {
+    backgroundColor: '#22C55E',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  betaText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+  lastUpdatedText: (colors) => ({
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'left',
+    fontStyle: 'italic',
+  }),
 };
 
 export default SettingsScreen;
