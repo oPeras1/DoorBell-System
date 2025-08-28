@@ -48,6 +48,10 @@ const SettingsScreen = ({ navigation }) => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
+  const [isDualDoorActive, setIsDualDoorActive] = useState(false);
+  const [isLoadingDualDoor, setIsLoadingDualDoor] = useState(false);
+  const [showDualDoorPopup, setShowDualDoorPopup] = useState(false);
+  const [pendingDualDoorState, setPendingDualDoorState] = useState(false);
   const colors = useColors();
 
   const isKnowledger = currentUser?.type === 'KNOWLEDGER';
@@ -202,6 +206,39 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
+  const handleDualDoorToggle = (value) => {
+    setPendingDualDoorState(value);
+    setShowDualDoorPopup(true);
+  };
+
+  const confirmDualDoorChange = async () => {
+    try {
+      setIsLoadingDualDoor(true);
+      setShowDualDoorPopup(false);
+      
+      if (pendingDualDoorState) {
+        // Logic to activate dual door opening (e.g., request location permission)
+        setMessage('Dual door opening activated successfully');
+      } else {
+        setMessage('Dual door opening deactivated successfully');
+      }
+      
+      setIsDualDoorActive(pendingDualDoorState);
+      setMessageType('success');
+    } catch (error) {
+      console.error('Error changing dual door mode:', error);
+      setMessage('Failed to change dual door mode');
+      setMessageType('error');
+    } finally {
+      setIsLoadingDualDoor(false);
+    }
+  };
+
+  const cancelDualDoorChange = () => {
+    setShowDualDoorPopup(false);
+    setPendingDualDoorState(isDualDoorActive);
+  };
+
   return (
     <View style={styles.container(colors)}>
       <StatusBar
@@ -292,6 +329,43 @@ const SettingsScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
             )}
+
+            {/* Dual Door Opening Setting - Visible to all users */}
+            <View style={styles.settingsItem(colors)}>
+              <View style={styles.settingsItemContent}>
+                <View style={styles.settingsItemLeft}>
+                  <View style={[
+                    styles.settingsIconContainer, 
+                    { backgroundColor: isDualDoorActive ? `${colors.success}15` : `${colors.primary}15` }
+                  ]}>
+                    <Ionicons 
+                      name={isDualDoorActive ? "home" : "home-outline"} 
+                      size={24} 
+                      color={colors.primary} 
+                    />
+                  </View>
+                  <View style={styles.settingsTextContainer}>
+                    <Text style={styles.settingsItemTitle(colors)}>Dual Door Opening</Text>
+                    <Text style={styles.settingsItemSubtitle(colors)}>
+                      {isDualDoorActive 
+                        ? 'Dual door opening is active' 
+                        : 'Opens both doors. Needs to obtain location for security reasons!'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.settingsItemRight}>
+                  <Switch
+                    value={isDualDoorActive}
+                    onValueChange={handleDualDoorToggle}
+                    disabled={isLoadingDualDoor}
+                    size="medium"
+                    activeColor={colors.primary}
+                    inactiveColor={colors.border}
+                    thumbColor={isDualDoorActive ? '#FFFFFF' : colors.textSecondary}
+                  />
+                </View>
+              </View>
+            </View>
 
             {/* Maintenance Mode Setting - Only for Knowledgers */}
             {isKnowledger && (
@@ -451,6 +525,22 @@ const SettingsScreen = ({ navigation }) => {
         cancelText="Cancel"
         onConfirm={confirmRegistrationChange}
         onCancel={cancelRegistrationChange}
+        showCancel={true}
+      />
+
+      {/* Dual Door Confirmation Popup */}
+      <PopUp
+        visible={showDualDoorPopup}
+        type={pendingDualDoorState ? "warning" : "info"}
+        title={pendingDualDoorState ? "Activate Dual Door Opening" : "Deactivate Dual Door Opening"}
+        message={pendingDualDoorState
+          ? "This will open both street and home doors. Location access is required for security. Are you sure?"
+          : "This will disable dual door opening. Are you sure?"
+        }
+        confirmText={pendingDualDoorState ? "Activate" : "Deactivate"}
+        cancelText="Cancel"
+        onConfirm={confirmDualDoorChange}
+        onCancel={cancelDualDoorChange}
         showCancel={true}
       />
 
