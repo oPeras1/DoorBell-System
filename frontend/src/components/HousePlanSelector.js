@@ -17,6 +17,7 @@ import Animated, {
   useAnimatedStyle, 
   withTiming,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import Svg, { Rect, Text as SvgText, G } from 'react-native-svg';
 import { colors } from '../constants/colors';
@@ -39,7 +40,7 @@ const ROOM_MAPPING = {
   BALCONY: 'Balcony',
 };
 
-const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false, viewOnly = false }) => {
+const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = false, viewOnly = false, containerSize }) => {
   const colors = useColors();
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -47,6 +48,14 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
   const positionY = useSharedValue(0);
   const savedPositionX = useSharedValue(0);
   const savedPositionY = useSharedValue(0);
+
+  const CONTENT_WIDTH = 752;
+  const CONTENT_HEIGHT = 430;
+
+  const clamp = (value, min, max) => {
+    'worklet';
+    return Math.max(min, Math.min(value, max));
+  };
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
@@ -59,8 +68,20 @@ const InteractiveHousePlan = ({ selectedRooms = [], onRoomSelect, multiSelect = 
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
-      positionX.value = savedPositionX.value + e.translationX;
-      positionY.value = savedPositionY.value + e.translationY;
+      if (!containerSize) return;
+
+      const scaledContentWidth = CONTENT_WIDTH * scale.value;
+      const scaledContentHeight = CONTENT_HEIGHT * scale.value;
+
+      const newX = savedPositionX.value + e.translationX;
+      const newY = savedPositionY.value + e.translationY;
+
+      // Limites para manter a planta visível
+      const xBound = Math.max(0, (scaledContentWidth - containerSize.width) / 2);
+      const yBound = Math.max(0, (scaledContentHeight - containerSize.height) / 2);
+
+      positionX.value = clamp(newX, -xBound, xBound);
+      positionY.value = clamp(newY, -yBound, yBound);
     })
     .onEnd(() => {
       savedPositionX.value = positionX.value;
@@ -264,6 +285,7 @@ const HousePlanSelector = ({
   const colors = useColors();
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.9);
+  const [containerSize, setContainerSize] = useState(null);
 
   React.useEffect(() => {
     if (visible) {
@@ -318,12 +340,19 @@ const HousePlanSelector = ({
     return (
       <View style={styles.inlineContainer}>
         <GestureHandlerRootView style={styles.inlineGestureContainer}>
-          <View style={styles.inlinePlanContainer}>
+          <View 
+            style={styles.inlinePlanContainer}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setContainerSize({ width, height });
+            }}
+          >
             <InteractiveHousePlan 
               selectedRooms={selectedRooms} 
               onRoomSelect={handleRoomToggle}
               multiSelect={multiSelect}
               viewOnly={viewOnly}
+              containerSize={containerSize}
             />
           </View>
         </GestureHandlerRootView>
@@ -356,12 +385,19 @@ const HousePlanSelector = ({
               </View>
 
               {/* House Plan Container */}
-              <View style={[styles.planContainer, { backgroundColor: colors.background }]}>
+              <View 
+                style={[styles.planContainer, { backgroundColor: colors.background }]}
+                onLayout={(event) => {
+                  const { width, height } = event.nativeEvent.layout;
+                  setContainerSize({ width, height });
+                }}
+              >
                 <InteractiveHousePlan 
                   selectedRooms={selectedRooms} 
                   onRoomSelect={handleRoomToggle}
                   multiSelect={multiSelect}
                   viewOnly={viewOnly}
+                  containerSize={containerSize}
                 />
               </View>
 
