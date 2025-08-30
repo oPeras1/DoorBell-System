@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.operas.model.User;
+import com.operas.model.Log;
 import com.operas.dto.UserDto;
 import com.operas.repository.UserRepository;
 import com.operas.security.CustomUserDetails;
@@ -46,6 +47,9 @@ public class UserService {
     private LogRepository logRepository;
 
     @Autowired
+    private LogService logService;
+
+    @Autowired
     private PasswordResetRequestRepository passwordResetRequestRepository;
     
     public User registerUser(User user) {
@@ -55,7 +59,12 @@ public class UserService {
         }
         
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        // Log the registration
+        logRepository.save(new Log("User registered: " + user.getUsername(), savedUser, "REGISTRATION"));
+        
+        return savedUser;
     }
     
     public User registerUser(User user, String onesignalId) {
@@ -73,7 +82,12 @@ public class UserService {
             user.setOnesignalId(onesignalIds);
         }
         
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        
+        // Log the registration
+        logRepository.save(new Log("User registered: " + user.getUsername(), savedUser, "REGISTRATION"));
+        
+        return savedUser;
     }
     
     public void updateOneSignalId(Long userId, String onesignalId) {
@@ -144,6 +158,10 @@ public class UserService {
             throw new BadRequestException("Cannot update muted status of another Knowledger");
         target.setMuted(muted);
         userRepository.save(target);
+        
+        // Log the muted status change
+        String action = muted ? "muted" : "unmuted";
+        logRepository.save(new Log("Knowledger " + requester.getUsername() + " " + action + " user: " + target.getUsername(), requester, "USER_MANAGEMENT"));
     }
 
     public void changeStatus(CustomUserDetails userDetails, String status) {
@@ -155,6 +173,9 @@ public class UserService {
             User.UserStatus newStatus = User.UserStatus.valueOf(status);
             user.setStatus(newStatus);
             userRepository.save(user);
+            
+            // Log the status change
+            logRepository.save(new Log("User " + user.getUsername() + " changed status to " + newStatus, user, "USER_STATUS"));
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid status value");
         }
@@ -173,8 +194,12 @@ public class UserService {
             throw new BadRequestException("Cannot change type of another Knowledger");
         try {
             User.UserType newType = User.UserType.valueOf(type);
+            User.UserType oldType = target.getType();
             target.setType(newType);
             userRepository.save(target);
+            
+            // Log the type change
+            logRepository.save(new Log("Knowledger " + requester.getUsername() + " changed user " + target.getUsername() + " type from " + oldType + " to " + newType, requester, "USER_MANAGEMENT"));
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Invalid type value");
         }
@@ -193,8 +218,17 @@ public class UserService {
             throw new BadRequestException("Only Knowledger or the user itself can change username");
         if (userRepository.findByUsername(username).isPresent())
             throw new UsernameAlreadyExistsException("Username already exists");
+            
+        String oldUsername = target.getUsername();
         target.setUsername(username);
         userRepository.save(target);
+        
+        // Log the username change
+        if (isSelf) {
+            logRepository.save(new Log("User changed username from " + oldUsername + " to " + username, target, "USER_MANAGEMENT"));
+        } else {
+            logRepository.save(new Log("Knowledger " + requester.getUsername() + " changed user's username from " + oldUsername + " to " + username, requester, "USER_MANAGEMENT"));
+        }
     }
 
     public void changeBirthdate(CustomUserDetails userDetails, Long id, String birthdate) {
@@ -249,6 +283,13 @@ public class UserService {
 
         if (isKnowledger && !isSelf && userToDelete.getType() == User.UserType.KNOWLEDGER) {
             throw new UserDeletionException("Knowledgers cannot delete other knowledger accounts.");
+        }
+        
+        // Log the user deletion before deleting the user
+        if (isSelf) {
+            logService.createLog(requester.getId(), new Log("User deleted their own account: " + userToDelete.getUsername(), requester, "USER_DELETION"));
+        } else {
+            logService.createLog(requester.getId(), new Log("Knowledger " + requester.getUsername() + " deleted user: " + userToDelete.getUsername(), requester, "USER_DELETION"));
         }
 
         // Delete related data

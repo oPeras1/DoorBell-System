@@ -330,6 +330,34 @@ const SettingsScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
 
+            {isKnowledger && (
+              <TouchableOpacity
+                style={styles.settingsItem(colors)}
+                onPress={() => navigation.navigate('Logs')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingsItemContent}>
+                  <View style={styles.settingsItemLeft}>
+                    <View style={[
+                      styles.settingsIconContainer,
+                      { backgroundColor: `${colors.info}15` }
+                    ]}>
+                      <Ionicons name="document-text-outline" size={24} color={colors.info} />
+                    </View>
+                    <View style={styles.settingsTextContainer}>
+                      <Text style={styles.settingsItemTitle(colors)}>System Logs</Text>
+                      <Text style={styles.settingsItemSubtitle(colors)}>
+                        View and filter all system events and user activities
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.settingsItemRight}>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* Dual Door Opening Setting - Visible to all users */}
             <View style={styles.settingsItem(colors)}>
               <View style={styles.settingsItemContent}>

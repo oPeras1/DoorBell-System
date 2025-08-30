@@ -8,7 +8,9 @@ import org.springframework.web.client.RestTemplate;
 
 import com.operas.model.User;
 import com.operas.model.Party;
+import com.operas.model.Log;
 import com.operas.repository.PartyRepository;
+import com.operas.repository.LogRepository;
 import com.operas.exceptions.DoorOpenException;
 
 import java.time.LocalDateTime;
@@ -21,6 +23,9 @@ public class DoorService {
 
     @Autowired
     private PartyService partyService;
+    
+    @Autowired
+    private LogRepository logRepository;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -55,13 +60,19 @@ public class DoorService {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
+                // Log successful door open
+                logRepository.save(new Log("User " + user.getUsername() + " opened the door", user, "DOOR_OPEN"));
                 return ResponseEntity.ok("Door opened successfully: " + response.getBody());
             } else {
+                // Log door open failure
+                logRepository.save(new Log("Door open attempt failed for user " + user.getUsername() + ". Status: " + response.getStatusCode(), user, "DOOR_OPEN_FAILED"));
                 return ResponseEntity.status(response.getStatusCode())
                         .body("Failed to open door. Status: " + response.getStatusCode());
             }
 
         } catch (Exception e) {
+            // Log door open error
+            logRepository.save(new Log("Door open error for user " + user.getUsername() + ": " + e.getMessage(), user, "DOOR_OPEN_ERROR"));
             throw new DoorOpenException("Error contacting doorbell API: " + e.getMessage());
         }
     }

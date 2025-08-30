@@ -14,6 +14,7 @@ import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
 import Notifications from '../screens/Notifications/Notifications';
 import UsersDetailsScreen from '../screens/Users/UsersDetailsScreen';
 import ForgotPasswordScreen from '../screens/Settings/ForgotPasswordScreen';
+import LogsScreen from '../screens/Settings/LogsScreen';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -52,6 +53,7 @@ const AppStack = () => (
     <Stack.Screen name="Notifications" component={Notifications} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="UserDetails" component={UsersDetailsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Logs" component={LogsScreen} options={{ unmountOnBlur: true }} />
   </Stack.Navigator>
 );
 

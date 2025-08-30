@@ -4,12 +4,14 @@ import com.operas.model.Log;
 import com.operas.model.User;
 import com.operas.repository.LogRepository;
 import com.operas.repository.UserRepository;
+import com.operas.dto.LogDto;
+import com.operas.exceptions.BadRequestException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class LogService {
@@ -23,26 +25,29 @@ public class LogService {
         this.userRepository = userRepository;
     }
 
-    public List<Log> getAllLogs() {
-        return logRepository.findAll();
-    }
-
-    public Optional<Log> getLogById(Long id) {
-        return logRepository.findById(id);
-    }
-
-    public Optional<Log> getLogByMessage(String message) {
-        return logRepository.findByMessage(message);
-    }
-
-    public Optional<Log> getLogByUserId(Long userId) {
-        return logRepository.findByUser_Id(userId);
-    }
-
     public Log createLog(Long userId, Log log) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+            .orElseThrow(() -> new BadRequestException("User not found with id: " + userId));
         log.setUser(user);
         return logRepository.save(log);
+    }
+    
+    public Page<LogDto> getPaginatedLogs(User user, int page, int size) {
+        if (user.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("Only Knowledgers can access logs");
+        }
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Log> logs = logRepository.findAllByOrderByTimestampDesc(pageable);
+        
+        return logs.map(LogDto::fromEntity);
+    }
+    
+    public long getTotalLogsCount(User user) {
+        if (user.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("Only Knowledgers can access logs");
+        }
+        
+        return logRepository.count();
     }
 }

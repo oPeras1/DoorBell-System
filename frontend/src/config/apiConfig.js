@@ -30,4 +30,6 @@ export const API_ENDPOINTS = {
   PASSWORD_RESET_REQUESTS: '/maintenance/password-reset-requests',
   APPROVE_PASSWORD_RESET: '/maintenance/password-reset-requests',
   REJECT_PASSWORD_RESET: '/maintenance/password-reset-requests',
+  LOGS_PAGINATED: '/logs/paginated',
+  LOGS_COUNT: '/logs/count',
 };

@@ -11,11 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.operas.model.Party;
 import com.operas.model.User;
+import com.operas.model.Log;
 import com.operas.model.GuestStatus;
 import com.operas.repository.PartyRepository;
 import com.operas.repository.UserRepository;
 import com.operas.repository.GuestStatusRepository;
+import com.operas.repository.LogRepository;
 import com.operas.exceptions.BadRequestException;
+import com.operas.exceptions.UserNotFoundException;
 import com.operas.dto.PartyDto;
 
 @Service
@@ -23,15 +26,18 @@ public class PartyService {
     private final PartyRepository partyRepository;
     private final UserRepository userRepository;
     private final GuestStatusRepository guestStatusRepository;
+    private final LogRepository logRepository;
 
     @Autowired
     private NotificationService notificationService;
 
     @Autowired
-    public PartyService(PartyRepository partyRepository, UserRepository userRepository, GuestStatusRepository guestStatusRepository) {
+    public PartyService(PartyRepository partyRepository, UserRepository userRepository, 
+                       GuestStatusRepository guestStatusRepository, LogRepository logRepository) {
         this.partyRepository = partyRepository;
         this.userRepository = userRepository;
         this.guestStatusRepository = guestStatusRepository;
+        this.logRepository = logRepository;
     }
 
     public List<PartyDto> getParties(User user) {
@@ -140,6 +146,9 @@ public class PartyService {
 
         Party saved = partyRepository.save(party);
 
+        // Log party creation
+        logRepository.save(new Log("User " + user.getUsername() + " created party: " + party.getName() + " (" + party.getType() + ")", user, "PARTY_CREATED"));
+        
         // All guests start as UNDECIDED, ignore any status sent in DTO
         List<GuestStatus> guestStatuses = partyDto.getGuests().stream()
             .map(dto -> {
@@ -182,6 +191,14 @@ public class PartyService {
         if (!party.getHost().getId().equals(user.getId()) && user.getType() != User.UserType.KNOWLEDGER) {
             throw new SecurityException("Only the host or a KNOWLEDGER can delete the party");
         }
+        
+        // Log party deletion
+        String logMessage = user.getType() == User.UserType.KNOWLEDGER && !party.getHost().getId().equals(user.getId()) ?
+            "Knowledger " + user.getUsername() + " deleted party: " + party.getName() + " hosted by " + party.getHost().getUsername() :
+            "User " + user.getUsername() + " deleted their party: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, user, "PARTY_DELETED"));
+        
         partyRepository.deleteById(id);
     }
 
@@ -234,9 +251,17 @@ public class PartyService {
         if (isHost && !isKnowledger && requester.isMuted()) {
             throw new BadRequestException("You are muted and cannot change the party status.");
         }
-
+        
+        Party.PartyStatus oldStatus = party.getStatus();
         party.setStatus(newStatus);
         Party saved = partyRepository.save(party);
+        
+        // Log party status change
+        String logMessage = isKnowledger && !isHost ?
+            "Knowledger " + requester.getUsername() + " changed party status from " + oldStatus + " to " + newStatus + " for party: " + party.getName() :
+            "User " + requester.getUsername() + " changed party status from " + oldStatus + " to " + newStatus + " for party: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, requester, "PARTY_STATUS_CHANGED"));
 
         // Notify host and guests about the status change
         List<Long> recipientIds = new ArrayList<>();
@@ -273,8 +298,25 @@ public class PartyService {
         GuestStatus guestStatus = guestStatusRepository.findByPartyIdAndUserId(partyId, effectiveUserId)
             .orElseThrow(() -> new BadRequestException("User is not a guest of this party."));
         
+        GuestStatus.Status oldStatus = guestStatus.getStatus();
         guestStatus.setStatus(newStatus);
         guestStatus.setUpdatedAt(LocalDateTime.now());
         guestStatusRepository.save(guestStatus);
+        
+        // Get target user
+        User targetUser = userRepository.findById(effectiveUserId)
+                .orElseThrow(() -> new UserNotFoundException("Target user not found"));
+        
+        // Log guest status change
+        String logMessage;
+        if (isSelf) {
+            logMessage = "User " + requester.getUsername() + " changed their status from " + oldStatus + " to " + newStatus + " for party: " + party.getName();
+        } else if (isHost) {
+            logMessage = "Host " + requester.getUsername() + " changed guest " + targetUser.getUsername() + " status from " + oldStatus + " to " + newStatus + " for party: " + party.getName();
+        } else {
+            logMessage = "Knowledger " + requester.getUsername() + " changed user " + targetUser.getUsername() + " status from " + oldStatus + " to " + newStatus + " for party: " + party.getName();
+        }
+        
+        logRepository.save(new Log(logMessage, requester, "GUEST_STATUS_CHANGED"));
     }
 }

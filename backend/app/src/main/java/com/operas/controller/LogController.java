@@ -1,13 +1,14 @@
 package com.operas.controller;
 
-import com.operas.model.Log;
 import com.operas.service.LogService;
+import com.operas.dto.LogDto;
+import com.operas.security.CustomUserDetails;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/logs")
@@ -19,30 +20,20 @@ public class LogController {
     public LogController(LogService logService) {
         this.logService = logService;
     }
-
-    @GetMapping
-    public ResponseEntity<List<Log>> getAllLogs() {
-        return ResponseEntity.ok(logService.getAllLogs());
+    
+    @GetMapping("/paginated")
+    public ResponseEntity<Page<LogDto>> getPaginatedLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        
+        Page<LogDto> logs = logService.getPaginatedLogs(userDetails.getUser(), page, size);
+        return ResponseEntity.ok(logs);
     }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Log> getLogById(@PathVariable Long id) {
-        return logService.getLogById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/message")
-    public ResponseEntity<Log> getLogByMessage(@RequestParam String message) {
-        return logService.getLogByMessage(message)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Log>> getLogsByUserId(@PathVariable Long userId) {
-        return logService.getLogByUserId(userId)
-            .map(log -> ResponseEntity.ok(List.of(log)))
-            .orElse(ResponseEntity.notFound().build());
+    
+    @GetMapping("/count")
+    public ResponseEntity<Long> getTotalLogsCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        long count = logService.getTotalLogsCount(userDetails.getUser());
+        return ResponseEntity.ok(count);
     }
 }

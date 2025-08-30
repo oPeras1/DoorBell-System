@@ -3,9 +3,11 @@ package com.operas.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.operas.model.User;
+import com.operas.model.Log;
 import com.operas.model.PasswordResetRequest;
 import com.operas.repository.UserRepository;
 import com.operas.repository.PasswordResetRequestRepository;
+import com.operas.repository.LogRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
@@ -31,11 +33,18 @@ public class KnowledgerService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private LogRepository logRepository;
+
     public void activateMaintenance(User user) {
         if (user.getType() != User.UserType.KNOWLEDGER) {
             throw new BadRequestException("Only knowledger can activate maintenance");
         }
         maintenanceActive = true;
+        
+        // Log maintenance activation
+        logRepository.save(new Log("Knowledger " + user.getUsername() + " activated maintenance mode", user, "MAINTENANCE"));
+        
         List<Long> userIds = userRepository.findAll().stream()
             .map(User::getId)
             .collect(Collectors.toList());
@@ -47,6 +56,10 @@ public class KnowledgerService {
             throw new BadRequestException("Only knowledger can deactivate maintenance");
         }
         maintenanceActive = false;
+        
+        // Log maintenance deactivation
+        logRepository.save(new Log("Knowledger " + user.getUsername() + " deactivated maintenance mode", user, "MAINTENANCE"));
+        
         List<Long> userIds = userRepository.findAll().stream()
             .map(User::getId)
             .collect(Collectors.toList());
@@ -62,6 +75,10 @@ public class KnowledgerService {
             throw new BadRequestException("Only knowledger can block registration");
         }
         registrationBlocked = true;
+        
+        // Log registration blocking
+        logRepository.save(new Log("Knowledger " + user.getUsername() + " blocked new user registrations", user, "REGISTRATION_MANAGEMENT"));
+        
         List<Long> knowledgerIds = userRepository.findAll().stream()
             .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
             .map(User::getId)
@@ -74,6 +91,10 @@ public class KnowledgerService {
             throw new BadRequestException("Only knowledger can unblock registration");
         }
         registrationBlocked = false;
+        
+        // Log registration unblocking
+        logRepository.save(new Log("Knowledger " + user.getUsername() + " unblocked new user registrations", user, "REGISTRATION_MANAGEMENT"));
+        
         List<Long> knowledgerIds = userRepository.findAll().stream()
             .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
             .map(User::getId)
@@ -135,6 +156,9 @@ public class KnowledgerService {
         request.setStatus(PasswordResetRequest.RequestStatus.APPROVED);
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(knowledger.getId());
+        
+        // Log password reset approval
+        logRepository.save(new Log("Knowledger " + knowledger.getUsername() + " approved password reset request for user: " + request.getUsername(), knowledger, "PASSWORD_RESET"));
 
         return passwordResetRequestRepository.save(request);
     }
@@ -155,6 +179,9 @@ public class KnowledgerService {
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(knowledger.getId());
         request.setRejectionReason(reason);
+        
+        // Log password reset rejection
+        logRepository.save(new Log("Knowledger " + knowledger.getUsername() + " rejected password reset request for user: " + request.getUsername() + " with reason: " + reason, knowledger, "PASSWORD_RESET"));
 
         return passwordResetRequestRepository.save(request);
     }

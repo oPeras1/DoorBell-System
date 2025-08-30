@@ -1,15 +1,19 @@
 package com.operas.repository;
 
-import java.util.Optional;
-
+import com.operas.model.Log;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.operas.model.Log;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LogRepository extends JpaRepository<Log, Long> {
     Optional<Log> findByMessage(String message);
     Optional<Log> findByUser_Id(Long userId);
+    List<Log> findByUser_IdOrderByTimestampDesc(Long userId);
     void deleteAllByUser_Id(Long userId);
+    Page<Log> findAllByOrderByTimestampDesc(Pageable pageable);
 }

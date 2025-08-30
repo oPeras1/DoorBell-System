@@ -15,6 +15,8 @@ import lombok.Setter;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -39,6 +41,10 @@ public class Log {
     // Add a logtype field
     @Column(nullable = false)
     private String logType = "INFO"; // Default log type
+    
+    // Timestamp when the log was created
+    @Column(nullable = false)
+    private LocalDateTime timestamp = LocalDateTime.now();
 
     public Log(String message, User user) {
         this.message = message;
