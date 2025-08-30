@@ -27,6 +27,7 @@ import { PARTY_TYPE_CONFIG, ROOM_CONFIG, STATUS_CONFIG } from '../../constants/p
 import { getTimeBasedGreeting } from '../../constants/functions';
 import BottomNavBar from '../../components/BottomNavBar';
 import { useColors } from '../../hooks/useColors';
+import InputField from '../../components/InputField';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -474,23 +475,17 @@ const PartyScreen = ({ navigation, route }) => {
               </View>
               
               <View style={styles.searchContainer}>
-                <View style={styles.searchInputContainer}>
-                  <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search party name..."
-                    placeholderTextColor={colors.textSecondary}
-                    value={partySearch}
-                    onChangeText={setPartySearch}
-                  />
-                  {partySearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setPartySearch('')}>
-                      <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <InputField
+                  placeholder="Search party name..."
+                  value={partySearch}
+                  onChangeText={setPartySearch}
+                  icon={<Ionicons name="search-outline" size={20} color={colors.textSecondary} />}
+                  showClearButton={true}
+                  onClear={() => setPartySearch('')}
+                  autoCapitalize="none"
+                />
               </View>
-
+              
               <View style={styles.dateFiltersContainer}>
                 <Text style={styles.dateFilterLabel}>Date Range</Text>
                 <View style={styles.dateInputsRow}>
@@ -971,23 +966,6 @@ const getStyles = (colors) => StyleSheet.create({
   },
   searchContainer: {
     marginBottom: spacing.large, 
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.medium,
-    height: 48,
-    gap: spacing.small,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.textPrimary,
-    paddingVertical: 0,
   },
   dateFiltersContainer: {
     gap: spacing.medium, 

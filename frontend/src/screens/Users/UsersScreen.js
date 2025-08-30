@@ -334,15 +334,9 @@ const UsersScreen = ({ navigation }) => {
               onChangeText={setUserSearch}
               icon={<Ionicons name="search-outline" size={20} color={colors.primary} />}
               editable={true}
+              showClearButton={true}
+              onClear={() => setUserSearch('')}
             />
-            {userSearch.length > 0 && (
-              <TouchableOpacity
-                style={{ position: 'absolute', right: 30, top: 18, zIndex: 2 }}
-                onPress={() => setUserSearch('')}
-              >
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
           </View>
           <View style={styles.rolesContainer}>
             {Object.entries(getUsersByRole()).map(([roleType, roleUsers], index) =>

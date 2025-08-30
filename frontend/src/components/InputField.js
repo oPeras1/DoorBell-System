@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons'; // Adicionar import para ícones
 import { spacing, borderRadius } from '../constants/styles';
 import { useColors } from '../hooks/useColors';
 
@@ -14,7 +15,9 @@ const InputField = ({
   autoCapitalize = 'none',
   keyboardType = 'default',
   onBlur,
-  editable = true
+  editable = true,
+  showClearButton = false,
+  onClear
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -59,7 +62,11 @@ const InputField = ({
         {icon && <View style={styles.iconContainer}>{icon}</View>}
         
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            // Remove o contorno azul do navegador apenas no web e quando focado
+            Platform.OS === 'web' && isFocused ? { outline: 'none' } : null
+          ]}
           placeholder={placeholder}
           placeholderTextColor={colors.textSecondary}
           value={value}
@@ -80,6 +87,15 @@ const InputField = ({
             <Text style={styles.visibilityText}>
               {isPasswordVisible ? 'Hide' : 'Show'}
             </Text>
+          </TouchableOpacity>
+        )}
+        
+        {showClearButton && value && value.length > 0 && (
+          <TouchableOpacity 
+            style={styles.clearButton} 
+            onPress={onClear}
+          >
+            <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </Animated.View>
@@ -114,6 +130,8 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     paddingVertical: spacing.medium,
+    outline: 'none',
+    outlineWidth: 0,
   },
   iconContainer: {
     marginRight: spacing.small,
@@ -137,7 +155,10 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: '500',
-  }
+  },
+  clearButton: {
+    padding: spacing.small,
+  },
 });
 
 export default InputField;
