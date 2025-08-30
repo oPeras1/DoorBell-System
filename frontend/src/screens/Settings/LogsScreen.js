@@ -415,7 +415,10 @@ const LogsScreen = ({ navigation }) => {
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>System Logs</Text>
             <Text style={styles.headerSubtitle}>
-              {filteredLogs.length} of {totalLogsCount} logs
+              {getActiveFilterCount() > 0 
+                ? `${filteredLogs.length} filtered of ${totalLogsCount} total logs`
+                : `${totalLogsCount} total logs`
+              }
             </Text>
           </View>
           <View style={styles.headerRight}>
