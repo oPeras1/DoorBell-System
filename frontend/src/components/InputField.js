@@ -17,7 +17,8 @@ const InputField = ({
   onBlur,
   editable = true,
   showClearButton = false,
-  onClear
+  onClear,
+  containerStyle
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -55,6 +56,7 @@ const InputField = ({
       
       <Animated.View style={[
         styles.inputContainer, 
+        containerStyle,
         { borderColor },
         error && styles.inputError,
         !editable && styles.inputDisabled
