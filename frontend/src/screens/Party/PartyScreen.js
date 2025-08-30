@@ -232,6 +232,39 @@ const normalizeString = (str) => {
     .toLowerCase();
 };
 
+const FilterTag = ({ label, onRemove, icon }) => {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [scaleAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 8,
+      tension: 60,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        styles.filterTag,
+        {
+          transform: [{ scale: scaleAnim }],
+          opacity: scaleAnim
+        }
+      ]}
+    >
+      {icon && <Ionicons name={icon} size={14} color={colors.primary} />}
+      <Text style={styles.filterTagText}>{label}</Text>
+      <TouchableOpacity onPress={onRemove}>
+        <Ionicons name="close-circle" size={16} color={colors.primary} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const PartyScreen = ({ navigation, route }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -248,9 +281,61 @@ const PartyScreen = ({ navigation, route }) => {
   const [dateTo, setDateTo] = useState('');
   const [showDateFromPicker, setShowDateFromPicker] = useState(false);
   const [showDateToPicker, setShowDateToPicker] = useState(false);
-
+  
+  // Animation states for filter section
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const filterHeight = useRef(new Animated.Value(0)).current;
+  const filterOpacity = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const filterIconAnim = useRef(new Animated.Value(1)).current;
+  
   const colors = useColors();
   const styles = getStyles(colors);
+
+  const toggleFilters = () => {
+    const newExpanded = !filtersExpanded;
+    setFiltersExpanded(newExpanded);
+    
+    // Animate filter section height and opacity
+    Animated.parallel([
+      Animated.timing(filterHeight, {
+        toValue: newExpanded ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(filterOpacity, {
+        toValue: newExpanded ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+      Animated.timing(rotateAnim, {
+        toValue: newExpanded ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(filterIconAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(filterIconAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ])
+    ]).start();
+  };
+
+  // Animation interpolations
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  const hasActiveFilters = partySearch || dateFrom || dateTo;
 
   const fetchParties = async () => {
     try {
@@ -324,7 +409,39 @@ const PartyScreen = ({ navigation, route }) => {
     } else {
       return 'My Invitations';
     }
-  };  
+  };
+
+  const clearAllFilters = () => {
+    const hasFilters = partySearch || dateFrom || dateTo;
+    
+    if (hasFilters) {
+      // Animate filter clearing
+      Animated.sequence([
+        Animated.timing(filterIconAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(filterIconAnim, {
+          toValue: 1.1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.spring(filterIconAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    
+    // Clear all filters
+    setPartySearch('');
+    setDateFrom('');
+    setDateTo('');
+  };
 
   useEffect(() => {
     fetchParties();
@@ -350,6 +467,13 @@ const PartyScreen = ({ navigation, route }) => {
       navigation.setParams({ successMessage: undefined });
     }
   }, [route?.params?.successMessage]);
+
+  // Auto-expand filters if any are active when component loads
+  useEffect(() => {
+    if (hasActiveFilters && !filtersExpanded) {
+      toggleFilters();
+    }
+  }, []);
 
   const filteredParties = filterParties()
     .filter(party => {
@@ -467,77 +591,192 @@ const PartyScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Search and filters */}
-            <View style={styles.filterSection}>
-              <View style={styles.filterHeader}>
-                <Ionicons name="filter-outline" size={20} color={colors.primary} />
-                <Text style={styles.filterTitle}>Filters</Text>
-              </View>
-              
-              <View style={styles.searchContainer}>
-                <InputField
-                  placeholder="Search party name..."
-                  value={partySearch}
-                  onChangeText={setPartySearch}
-                  icon={<Ionicons name="search-outline" size={20} color={colors.textSecondary} />}
-                  showClearButton={true}
-                  onClear={() => setPartySearch('')}
-                  autoCapitalize="none"
-                />
-              </View>
-              
-              <View style={styles.dateFiltersContainer}>
-                <Text style={styles.dateFilterLabel}>Date Range</Text>
-                <View style={styles.dateInputsRow}>
-                  <View style={styles.dateInputWrapper}>
-                    <TouchableOpacity
-                      style={styles.dateInputContainer}
-                      onPress={() => setShowDateFromPicker(true)}
-                    >
-                      <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-                      <Text style={styles.dateInputText}>
-                        {dateFrom ? formatDate(dateFrom) : 'From'}
+            {/* Animated Filter Toggle Button */}
+            <TouchableOpacity 
+              style={styles.filterToggle}
+              onPress={toggleFilters}
+              activeOpacity={0.9}
+            >
+              <View style={styles.filterToggleContent}>
+                <View style={styles.filterToggleLeft}>
+                  <Animated.View style={{
+                    transform: [{ scale: filterIconAnim }]
+                  }}>
+                    <Ionicons 
+                      name="funnel-outline" 
+                      size={18} 
+                      color={hasActiveFilters ? colors.primary : colors.textSecondary} 
+                    />
+                  </Animated.View>
+                  <Text style={[
+                    styles.filterToggleText,
+                    hasActiveFilters && styles.filterToggleTextActive
+                  ]}>
+                    {hasActiveFilters ? 'Active Filters' : 'Filters'}
+                  </Text>
+                  {hasActiveFilters && (
+                    <View style={styles.filterBadge}>
+                      <Text style={styles.filterBadgeText}>
+                        {(partySearch ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)}
                       </Text>
-                      {dateFrom.length > 0 && (
-                        <TouchableOpacity onPress={() => setDateFrom('')}>
-                          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.dateInputWrapper}>
-                    <TouchableOpacity
-                      style={styles.dateInputContainer}
-                      onPress={() => setShowDateToPicker(true)}
-                    >
-                      <Ionicons name="calendar" size={18} color={colors.textSecondary} />
-                      <Text style={styles.dateInputText}>
-                        {dateTo ? formatDate(dateTo) : 'To'}
-                      </Text>
-                      {dateTo.length > 0 && (
-                        <TouchableOpacity onPress={() => setDateTo('')}>
-                          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-                    </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                
+                <Animated.View style={{
+                  transform: [{ rotate: rotateInterpolate }]
+                }}>
+                  <Ionicons 
+                    name="chevron-down" 
+                    size={18} 
+                    color={hasActiveFilters ? colors.primary : colors.textSecondary} 
+                  />
+                </Animated.View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Active Filter Tags */}
+            {hasActiveFilters && (
+              <View style={styles.filterTagsContainer}>
+                {partySearch && (
+                  <FilterTag 
+                    label={`Name: ${partySearch}`}
+                    icon="search"
+                    onRemove={() => setPartySearch('')}
+                  />
+                )}
+                {dateFrom && (
+                  <FilterTag 
+                    label={`From: ${formatDate(dateFrom)}`}
+                    icon="calendar-outline"
+                    onRemove={() => setDateFrom('')}
+                  />
+                )}
+                {dateTo && (
+                  <FilterTag 
+                    label={`To: ${formatDate(dateTo)}`}
+                    icon="calendar"
+                    onRemove={() => setDateTo('')}
+                  />
+                )}
+              </View>
+            )}
+
+            {/* Animated Collapsible Filter Section */}
+            <Animated.View style={[
+              styles.filterSection,
+              {
+                height: filterHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 280] // adjust based on your content
+                }),
+                opacity: filterOpacity,
+                overflow: 'hidden',
+                marginBottom: filterHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, spacing.large]
+                }),
+              }
+            ]}>
+              <View style={styles.filterContent}>
+                <View style={styles.searchContainer}>
+                  <Text style={styles.filterSectionTitle}>Search by name</Text>
+                  <InputField
+                    placeholder="Search party name..."
+                    value={partySearch}
+                    onChangeText={setPartySearch}
+                    icon={<Ionicons name="search-outline" size={20} color={colors.textSecondary} />}
+                    showClearButton={true}
+                    onClear={() => setPartySearch('')}
+                    autoCapitalize="none"
+                    containerStyle={{
+                      backgroundColor: colors.background,
+                      borderWidth: 1,
+                      marginTop: spacing.small,
+                    }}
+                  />
+                </View>
+                
+                <View style={styles.dateFiltersContainer}>
+                  <Text style={styles.filterSectionTitle}>Date Range</Text>
+                  <View style={styles.dateInputsRow}>
+                    <View style={styles.dateInputWrapper}>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateInputContainer, 
+                          dateFrom && styles.dateInputContainerActive
+                        ]}
+                        onPress={() => setShowDateFromPicker(true)}
+                      >
+                        <Ionicons 
+                          name="calendar-outline" 
+                          size={18} 
+                          color={dateFrom ? colors.primary : colors.textSecondary} 
+                        />
+                        <Text style={[
+                          styles.dateInputText,
+                          dateFrom && styles.dateInputTextActive
+                        ]}>
+                          {dateFrom ? formatDate(dateFrom) : 'From'}
+                        </Text>
+                        {dateFrom && (
+                          <TouchableOpacity 
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setDateFrom('');
+                            }}
+                          >
+                            <Ionicons name="close-circle" size={18} color={colors.primary} />
+                          </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.dateInputWrapper}>
+                      <TouchableOpacity
+                        style={[
+                          styles.dateInputContainer,
+                          dateTo && styles.dateInputContainerActive
+                        ]}
+                        onPress={() => setShowDateToPicker(true)}
+                      >
+                        <Ionicons 
+                          name="calendar" 
+                          size={18} 
+                          color={dateTo ? colors.primary : colors.textSecondary} 
+                        />
+                        <Text style={[
+                          styles.dateInputText,
+                          dateTo && styles.dateInputTextActive
+                        ]}>
+                          {dateTo ? formatDate(dateTo) : 'To'}
+                        </Text>
+                        {dateTo && (
+                          <TouchableOpacity 
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setDateTo('');
+                            }}
+                          >
+                            <Ionicons name="close-circle" size={18} color={colors.primary} />
+                          </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
                 
-                {(partySearch || dateFrom || dateTo) && (
+                {hasActiveFilters && (
                   <TouchableOpacity 
                     style={styles.clearFiltersButton}
-                    onPress={() => {
-                      setPartySearch('');
-                      setDateFrom('');
-                      setDateTo('');
-                    }}
+                    onPress={clearAllFilters}
                   >
-                    <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+                    <Ionicons name="refresh-outline" size={16} color={colors.light} />
                     <Text style={styles.clearFiltersText}>Clear all filters</Text>
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </Animated.View>
 
             {/* Calendars for date filtering */}
             <Calendar
@@ -721,6 +960,167 @@ const getStyles = (colors) => StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  
+  // New or updated filter styles
+  filterToggle: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    marginBottom: spacing.medium,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      },
+    }),
+  },
+  filterToggleContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+  },
+  filterToggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  filterToggleTextActive: {
+    color: colors.primary,
+  },
+  filterBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  filterBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  filterSection: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      },
+    }),
+  },
+  filterContent: {
+    padding: spacing.large,
+    gap: spacing.medium,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  searchContainer: {
+    marginBottom: spacing.small,
+  },
+  dateFiltersContainer: {
+    gap: spacing.small,
+  },
+  dateInputsRow: {
+    flexDirection: 'row',
+    gap: spacing.medium,
+    marginTop: spacing.small,
+  },
+  dateInputWrapper: {
+    flex: 1,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.medium,
+    height: 56,
+    gap: spacing.small,
+  },
+  dateInputContainerActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  dateInputText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    paddingVertical: 0,
+  },
+  dateInputTextActive: {
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.medium,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.medium,
+    marginTop: spacing.small,
+    gap: spacing.small,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.light,
+  },
+  filterTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.medium,
+  },
+  filterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
+  },
+  filterTagText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -901,120 +1301,6 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '500',
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.medium,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    ...(Platform.OS === 'ios'
-      ? {
-          shadowColor: colors.shadow,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        }
-      : {
-          elevation: 8,
-        }),
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    fontSize: 12,
-    marginTop: 4,
-    color: colors.textSecondary,
-  },
-  filterSection: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    padding: spacing.large,
-    marginBottom: spacing.large,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        border: `1.5px solid ${colors.border}`,
-        boxShadow: '0 2px 12px rgba(67,97,238,0.08), 0 1.5px 0px rgba(67,97,238,0.08)',
-      },
-    }),
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.medium,
-  },
-  filterTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginLeft: spacing.small,
-  },
-  searchContainer: {
-    marginBottom: spacing.large, 
-  },
-  dateFiltersContainer: {
-    gap: spacing.medium, 
-  },
-  dateFilterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.small,
-  },
-  dateInputsRow: {
-    flexDirection: 'row',
-    gap: spacing.small,
-  },
-  dateInputWrapper: {
-    flex: 1,
-  },
-  dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.medium,
-    paddingHorizontal: spacing.medium,
-    height: 48,
-    gap: spacing.small,
-  },
-  dateInputText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.textPrimary,
-    paddingVertical: 0,
-  },
-  clearFiltersButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: `${colors.primary}10`,
-    borderRadius: borderRadius.medium,
-    paddingVertical: spacing.small,
-    paddingHorizontal: spacing.medium,
-    marginTop: spacing.small,
-    gap: spacing.small,
-  },
-  clearFiltersText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.primary,
   },
 });
 
