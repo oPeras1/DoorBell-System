@@ -12,6 +12,7 @@ import {
   ScrollView,
   RefreshControl,
   Animated,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../hooks/useColors';
@@ -88,6 +89,29 @@ const LogsScreen = ({ navigation }) => {
   useEffect(() => {
     applyFilters();
   }, [logs, searchText, selectedLogTypes, selectedUsers, selectedDateFilter, customDateStart, customDateEnd]);
+
+  // Add back button handler to close modals before navigating back
+  useEffect(() => {
+    const backAction = () => {
+      if (showTypeFilter) {
+        setShowTypeFilter(false);
+        return true; // Prevent default back navigation
+      }
+      if (showUserFilter) {
+        setShowUserFilter(false);
+        return true;
+      }
+      if (showDateFilter) {
+        setShowDateFilter(false);
+        return true;
+      }
+      return false; // Allow default back navigation if no modal is open
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [showTypeFilter, showUserFilter, showDateFilter]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -429,7 +453,7 @@ const LogsScreen = ({ navigation }) => {
             <FlatList
               data={filteredLogs}
               renderItem={renderLogItem}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item, index) => index.toString()}
               scrollEnabled={false}
               ListFooterComponent={renderFooter}
               onEndReached={handleLoadMore}
@@ -440,9 +464,22 @@ const LogsScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Type Filter Modal */}
-      <Modal visible={showTypeFilter} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+      <Modal 
+        visible={showTypeFilter} 
+        transparent 
+        animationType="slide"
+        onRequestClose={() => setShowTypeFilter(false)} 
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          onPress={() => setShowTypeFilter(false)} 
+          activeOpacity={1}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent} 
+            onPress={() => {}}  // Prevent propagation to overlay
+            activeOpacity={1}
+          >
             <Text style={styles.modalTitle}>Filter by Log Type</Text>
             <ScrollView style={styles.modalScrollView}>
               {LOG_TYPE_OPTIONS.map((type) => {
@@ -474,14 +511,27 @@ const LogsScreen = ({ navigation }) => {
             >
               <Text style={styles.modalCloseButtonText}>Done</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* User Filter Modal */}
-      <Modal visible={showUserFilter} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+      <Modal 
+        visible={showUserFilter} 
+        transparent 
+        animationType="slide"
+        onRequestClose={() => setShowUserFilter(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          onPress={() => setShowUserFilter(false)} 
+          activeOpacity={1}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent} 
+            onPress={() => {}} 
+            activeOpacity={1}
+          >
             <Text style={styles.modalTitle}>Filter by User</Text>
             <ScrollView style={styles.modalScrollView}>
               {users.map((user) => {
@@ -515,14 +565,27 @@ const LogsScreen = ({ navigation }) => {
             >
               <Text style={styles.modalCloseButtonText}>Done</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* Date Filter Modal */}
-      <Modal visible={showDateFilter} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+      <Modal 
+        visible={showDateFilter} 
+        transparent 
+        animationType="slide"
+        onRequestClose={() => setShowDateFilter(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          onPress={() => setShowDateFilter(false)} 
+          activeOpacity={1}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent} 
+            onPress={() => {}} 
+            activeOpacity={1}
+          >
             <Text style={styles.modalTitle}>Filter by Date</Text>
             <ScrollView style={styles.modalScrollView}>
               {DATE_FILTER_OPTIONS.map((option) => {
@@ -564,8 +627,8 @@ const LogsScreen = ({ navigation }) => {
             >
               <Text style={styles.modalCloseButtonText}>Done</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
