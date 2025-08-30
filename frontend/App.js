@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform, Dimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { OneSignal } from 'react-native-onesignal';
@@ -12,6 +12,16 @@ import AppNavigator from './src/navigation/AppNavigator';
 const ONESIGNAL_APP_ID = Constants.expoConfig?.extra?.ONESIGNAL_APP_ID;
 
 export default function App() {
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    
+    return () => subscription?.remove();
+  }, []);
+  
   useEffect(() => {
     if (Platform.OS !== 'web' && ONESIGNAL_APP_ID) {
       OneSignal.initialize(ONESIGNAL_APP_ID);
@@ -19,8 +29,9 @@ export default function App() {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', e => e.getNotification().display());
     }
   }, []);
+  
   return (
-    <View style={styles.appContainer}>
+    <View style={[styles.appContainer, { height: dimensions.height }]}>
       <ThemeProvider>
         <AuthProvider>
             <NavigationContainer>
@@ -37,5 +48,16 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  appContainer: {flex:1,width:'100%',height:'100%',...(Platform.OS==='web'?{minHeight:'100vh',width:'100vw'}:{})},
+  appContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    ...(Platform.OS === 'web' ? {
+      minHeight: '100vh',
+      width: '100vw',
+      maxWidth: '100vw',
+      position: 'relative',
+      overflow: 'hidden'
+    } : {})
+  },
 });
