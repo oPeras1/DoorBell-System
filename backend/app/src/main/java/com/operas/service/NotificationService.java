@@ -1,6 +1,7 @@
 package com.operas.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import com.operas.dto.NotificationDto;
@@ -29,6 +30,7 @@ public class NotificationService {
     private UserRepository userRepository;
 
     @Autowired
+    @Lazy
     private KnowledgerService knowledgerService;
 
     public void sendNotification(NotificationDto notificationDto) {
