@@ -51,7 +51,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/login", "/auth/register", "/auth/forgot-password", "/auth/forgot-password/status/**", "/auth/reset-password").permitAll()
+                .requestMatchers("/auth/login", "/auth/register", "/auth/forgot-password", "/auth/forgot-password/status/**", "/auth/reset-password", "/door/bell-event").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex.authenticationEntryPoint(customAuthenticationEntryPoint))

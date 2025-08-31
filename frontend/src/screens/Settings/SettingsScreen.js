@@ -31,6 +31,7 @@ import {
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Switch from '../../components/Switch';
+import Constants from 'expo-constants'; 
 
 const SettingsScreen = ({ navigation }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
@@ -55,6 +56,8 @@ const SettingsScreen = ({ navigation }) => {
   const colors = useColors();
 
   const isKnowledger = currentUser?.type === 'KNOWLEDGER';
+
+  const currentVersion = Constants.expoConfig?.version || '1.0.0';
 
   useEffect(() => {
     Animated.parallel([
@@ -510,12 +513,12 @@ const SettingsScreen = ({ navigation }) => {
                   <View style={styles.aboutTextContainer}>
                     <Text style={styles.appName(colors)}>DoorBell Access</Text>
                     <View style={styles.versionContainer}>
-                      <Text style={styles.versionText(colors)}>Version 1.0.0</Text>
+                      <Text style={styles.versionText(colors)}>Version {currentVersion}</Text>
                       <View style={styles.betaChip}>
                         <Text style={styles.betaText}>BETA</Text>
                       </View>
                     </View>
-                    <Text style={styles.lastUpdatedText(colors)}>Last updated: 27/08/2025</Text>
+                    <Text style={styles.lastUpdatedText(colors)}>Last updated: 30/08/2025</Text>
                   </View>
                 </View>
               </View>
