@@ -8,6 +8,7 @@ import com.operas.model.Notification;
 import com.operas.model.User;
 import com.operas.model.Party;
 import com.operas.repository.PartyRepository;
+import com.operas.repository.UserRepository;
 
 import java.util.List;
 import java.time.LocalDateTime;
@@ -23,6 +24,12 @@ public class NotificationService {
     
     @Autowired
     private PartyRepository partyRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private KnowledgerService knowledgerService;
 
     public void sendNotification(NotificationDto notificationDto) {
         // Send dashboard notification
@@ -216,5 +223,38 @@ public class NotificationService {
             null
         );
         sendNotification(notificationDto);
+    }
+
+    public void sendDoorOpenedNotification(User user) {
+        String notificationTitle = "🚪 Door Opened";
+        String notificationMessage = "User '" + user.getUsername() + "' has opened the door.";
+        
+        List<Long> targetUserIds;
+        
+        // Check if maintenance mode is active
+        if (knowledgerService.isMaintenanceActive()) {
+            // During maintenance, only notify knowledgers
+            targetUserIds = userRepository.findAll().stream()
+                .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
+                .map(User::getId)
+                .toList();
+        } else {
+            // Normal mode: notify all housers and knowledgers (exclude guests)
+            targetUserIds = userRepository.findAll().stream()
+                .filter(u -> u.getType() == User.UserType.HOUSER || u.getType() == User.UserType.KNOWLEDGER)
+                .map(User::getId)
+                .toList();
+        }
+        
+        if (!targetUserIds.isEmpty()) {
+            NotificationDto notificationDto = new NotificationDto(
+                notificationTitle,
+                notificationMessage,
+                targetUserIds,
+                Notification.NotificationType.DOORBELL,
+                null
+            );
+            sendNotification(notificationDto);
+        }
     }
 }

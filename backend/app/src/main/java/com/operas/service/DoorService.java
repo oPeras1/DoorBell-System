@@ -27,6 +27,9 @@ public class DoorService {
     @Autowired
     private LogRepository logRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -62,6 +65,8 @@ public class DoorService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 // Log successful door open
                 logRepository.save(new Log("User " + user.getUsername() + " opened the door", user, "DOOR_OPEN"));
+                notificationService.sendDoorOpenedNotification(user);
+                
                 return ResponseEntity.ok("Door opened successfully: " + response.getBody());
             } else {
                 // Log door open failure
