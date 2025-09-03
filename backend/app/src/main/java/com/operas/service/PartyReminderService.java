@@ -207,8 +207,8 @@ public class PartyReminderService {
         
         String[] urgentMessages = {
             "It's been 2 weeks since the last cleaning session! The house desperately needs attention. Schedule a cleaning party IMMEDIATELY!",
-            "WARNING: No cleaning has occurred for 2 weeks! This is unacceptable. Organize a mandatory cleaning session NOW!",
-            "CRITICAL ALERT: 2 weeks without proper house cleaning! Health and hygiene standards are at risk. Act immediately!"
+            "No cleaning has occurred for 2 weeks! This is unacceptable. Organize a mandatory cleaning session NOW!",
+            "2 weeks without proper house cleaning! Health and hygiene standards are at risk. Act immediately!"
         };
         
         int messageIndex = random.nextInt(3);

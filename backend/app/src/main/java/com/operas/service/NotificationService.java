@@ -228,7 +228,7 @@ public class NotificationService {
     }
 
     public void sendDoorOpenedNotification(User user) {
-        String notificationTitle = "🚪 Door Opened";
+        String notificationTitle = "Door Opened";
         String notificationMessage = "User '" + user.getUsername() + "' has opened the door.";
         
         List<Long> targetUserIds;
