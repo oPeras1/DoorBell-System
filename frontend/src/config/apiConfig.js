@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
   DOOR: '/door',
   DOOR_PING: '/door/ping',
   DOOR_ENVIRONMENT: '/door/environment',
+  DOOR_ONLINE: '/door/online',
   PARTIES: '/party/',
   CREATE_PARTY: '/party',
   DELETE_PARTY: '/party',

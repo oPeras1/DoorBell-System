@@ -131,4 +131,29 @@ public class DoorController {
             throw new DoorPingException("Error contacting environment service: " + e.getMessage());
         }
     }
+
+    @GetMapping("/online")
+    public ResponseEntity<?> online(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        String url = DOORBELL_API_BASE_URL + "/online";
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            
+            Map<String, Object> body = response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && body != null && 
+                Boolean.TRUE.equals(body.get("online"))) {
+                Map<String, Object> result = Map.of("status", "online");
+                return ResponseEntity.ok(result);
+            } else {
+                Map<String, Object> result = Map.of("status", "offline");
+                return ResponseEntity.status(503).body(result);
+            }
+        } catch (Exception e) {
+            throw new DoorPingException("Error contacting online service: " + e.getMessage());
+        }
+    }
 }

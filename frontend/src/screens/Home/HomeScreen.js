@@ -7,7 +7,7 @@ import { AuthContext } from '../../context/AuthContext';
 import BottomNavBar from '../../components/BottomNavBar';
 import EventsSection from '../../components/PartyEventsCarousel';
 import { hasUnreadNotifications } from '../../services/notificationService';
-import { openDoor, getDoorPing, getDoorEnvironment, getMaintenanceStatus } from '../../services/doorService';
+import { openDoor, getDoorPing, getDoorEnvironment, getMaintenanceStatus, getDoorOnlineStatus } from '../../services/doorService';
 import { getParties } from '../../services/partyService';
 import { CONNECTION_MODES } from '../../constants/users';
 import { BlurView } from 'expo-blur';
@@ -51,6 +51,7 @@ const HomeScreen = ({ navigation }) => {
   const [isDoorLoading, setIsDoorLoading] = useState(false);
   const [doorPing, setDoorPing] = useState(null);
   const [doorEnvironment, setDoorEnvironment] = useState(null);
+  const [doorOnlineStatus, setDoorOnlineStatus] = useState(null);
 
   // Maintenance state
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
@@ -166,14 +167,28 @@ const HomeScreen = ({ navigation }) => {
     // Só não faz requests se for guest sem acesso
     if (isGuest && !canGuestOpenDoor()) return;
     try {
-      const [pingData, envData] = await Promise.all([
-        getDoorPing().catch(() => null),
-        getDoorEnvironment().catch(() => null)
-      ]);
-      setDoorPing(pingData);
-      setDoorEnvironment(envData);
+      // Always fetch online status first
+      const onlineData = await getDoorOnlineStatus().catch(() => ({ status: 'offline' }));
+      setDoorOnlineStatus(onlineData);
+      
+      if (onlineData.status === 'online') {
+        // Only fetch ping and environment if door is online
+        const [pingData, envData] = await Promise.all([
+          getDoorPing().catch(() => null),
+          getDoorEnvironment().catch(() => null)
+        ]);
+        setDoorPing(pingData);
+        setDoorEnvironment(envData);
+      } else {
+        // If offline, don't fetch ping data and set environment to null
+        setDoorPing(null);
+        setDoorEnvironment(null);
+      }
     } catch (error) {
       console.log('Error fetching door data:', error);
+      setDoorOnlineStatus({ status: 'offline' });
+      setDoorPing(null);
+      setDoorEnvironment(null);
     }
   };
 
@@ -369,14 +384,25 @@ const HomeScreen = ({ navigation }) => {
   const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
 
   const getDoorStatusColor = () => {
-    if (doorPing?.status === 'online') return colors.success;
-    if (doorPing?.status === 'offline') return colors.danger;
+    if (doorOnlineStatus?.status === 'online') return colors.success;
+    if (doorOnlineStatus?.status === 'offline') return colors.danger;
     return colors.warning;
   };
 
   const getDoorStatusText = () => {
-    if (!doorPing) return 'Unknown';
-    return doorPing.status === 'online' ? 'Online' : 'Offline';
+    if (!doorOnlineStatus) return 'Unknown';
+    return doorOnlineStatus.status === 'online' ? 'Online' : 'Offline';
+  };
+
+  const getFormattedUptime = (ping) => {
+    if (!ping || typeof ping !== 'object') return 'N/A';
+    
+    const days = ping.uptime_days || 0;
+    const hours = ping.uptime_hours || 0;
+    const minutes = ping.uptime_minutes || 0;
+    const seconds = ping.uptime_seconds || 0;
+    
+    return `${days}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const getFormattedPing = (ping) => {
@@ -421,7 +447,7 @@ const HomeScreen = ({ navigation }) => {
   const LINE_HEIGHT = 46;
   const verticalOffset = (userNameLineCount - 1) * LINE_HEIGHT;
 
-  const isDoorOnline = doorPing && doorPing.status === 'online';
+  const isDoorOnline = doorOnlineStatus && doorOnlineStatus.status === 'online';
   const canOpenDoor = !isGuest
     ? isDoorOnline && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER')
     : canGuestOpenDoor() && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER');
@@ -610,7 +636,7 @@ const HomeScreen = ({ navigation }) => {
                     <View style={styles.doorStatusIndicator}>
                       <View style={[styles.doorStatusDot, { backgroundColor: getDoorStatusColor() }]} />
                       <Text style={[styles.doorStatusText, { color: "#fff" }]}>
-                        {doorPing ? getDoorStatusText() : 'Offline'}
+                        {getDoorStatusText()}
                       </Text>
                     </View>
                   </View>
@@ -618,9 +644,9 @@ const HomeScreen = ({ navigation }) => {
                   <View style={styles.doorStatusContent}>
                     {/* Always show labels, show values only if loaded */}
                     <View style={styles.statusRow}>
-                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Ping:</Text>
+                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Uptime:</Text>
                       <Text style={[styles.statusValue, { color: "#fff" }]}>
-                        {doorPing ? getFormattedPing(doorPing.ping) + 'ms' : '--'}
+                        {doorPing ? getFormattedUptime(doorPing) : '--'}
                       </Text>
                     </View>
                     <View style={styles.statusRow}>

@@ -54,3 +54,12 @@ export const deactivateMaintenance = async () => {
     throw error;
   }
 };
+
+export const getDoorOnlineStatus = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.DOOR_ONLINE);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
