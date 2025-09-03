@@ -35,6 +35,8 @@ public class OneSignalNotificationService {
     }
 
     public void sendNotification(NotificationDto notificationDto) {
+        System.out.println("OneSignalNotificationService: Processing notification for " + notificationDto.getUserIds().size() + " users");
+        
         if (appId.isEmpty() || apiKey.isEmpty()) {
             System.out.println("OneSignal not configured, skipping push notification");
             return;
@@ -42,11 +44,23 @@ public class OneSignalNotificationService {
         
         // Get OneSignal IDs for the specified users, filtering by status and notification type
         List<String> oneSignalIds = notificationDto.getUserIds().stream()
-            .map(userId -> userRepository.findById(userId).orElse(null))
+            .map(userId -> {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    System.out.println("Processing user: " + user.getUsername() + ", OneSignal IDs: " + user.getOnesignalId() + ", Status: " + user.getStatus());
+                }
+                return user;
+            })
             .filter(user -> user != null && user.getOnesignalId() != null && !user.getOnesignalId().isEmpty())
-            .filter(user -> shouldSendNotification(user, notificationDto))
+            .filter(user -> {
+                boolean shouldSend = shouldSendNotification(user, notificationDto);
+                System.out.println("Should send to " + user.getUsername() + ": " + shouldSend);
+                return shouldSend;
+            })
             .flatMap(user -> user.getOnesignalId().stream())
             .collect(Collectors.toList());
+        
+        System.out.println("OneSignal IDs to send to: " + oneSignalIds);
         
         if (!oneSignalIds.isEmpty()) {
             try {
@@ -55,22 +69,27 @@ public class OneSignalNotificationService {
             } catch (Exception e) {
                 System.err.println("Failed to send push notification: " + e.getMessage());
             }
+        } else {
+            System.out.println("No OneSignal IDs found for push notification");
         }
     }
-    
+
     private boolean shouldSendNotification(User user, NotificationDto notificationDto) {
         // If user is not in DONT_DISTURB mode, always send
         if (user.getStatus() != User.UserStatus.DONT_DISTURB) {
+            System.out.println("User " + user.getUsername() + " not in DONT_DISTURB mode, sending notification");
             return true;
         }
         
         // If user is in DONT_DISTURB mode, check exceptions
         Notification.NotificationType type = notificationDto.getType();
+        System.out.println("User " + user.getUsername() + " in DONT_DISTURB mode, checking notification type: " + type);
         
-        // Always send SYSTEM, SECURITY, or VISITOR notifications
+        // Always send SYSTEM, SECURITY, VISITOR, or DOORBELL notifications
         if (type == Notification.NotificationType.SYSTEM || 
             type == Notification.NotificationType.SECURITY || 
             type == Notification.NotificationType.VISITOR) {
+            System.out.println("Priority notification type, sending anyway");
             return true;
         }
         
@@ -78,11 +97,13 @@ public class OneSignalNotificationService {
         if (type == Notification.NotificationType.PARTY && notificationDto.getPartyId() != null) {
             Party party = partyRepository.findById(notificationDto.getPartyId()).orElse(null);
             if (party != null && party.getType() == Party.PartyType.CLEANING) {
+                System.out.println("Cleaning party notification, sending anyway");
                 return true;
             }
         }
         
         // Otherwise, don't send to users in DONT_DISTURB mode
+        System.out.println("User in DONT_DISTURB mode and not priority notification, skipping");
         return false;
     }
     
