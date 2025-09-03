@@ -230,51 +230,32 @@ public class NotificationService {
     public void sendDoorOpenedNotification(User userWhoOpened) {
         boolean isMaintenanceActive = knowledgerService.isMaintenanceActive();
         
-        // Get all users first
-        List<User> allUsers = userRepository.findAll();
-        System.out.println("Total users in database: " + allUsers.size());
-        
         List<Long> userIds;
         if (isMaintenanceActive) {
             // In maintenance mode, only notify knowledgers
-            userIds = allUsers.stream()
-                .filter(u -> {
-                    boolean isKnowledger = u.getType() == User.UserType.KNOWLEDGER;
-                    boolean isNotSameUser = !u.getId().equals(userWhoOpened.getId());
-                    System.out.println("User: " + u.getUsername() + ", Type: " + u.getType() + ", Is Knowledger: " + isKnowledger + ", Not same user: " + isNotSameUser);
-                    return isKnowledger && isNotSameUser;
-                })
+            userIds = userRepository.findAll().stream()
+                .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
+                .filter(u -> !u.getId().equals(userWhoOpened.getId())) // Exclude the user who opened
                 .map(User::getId)
                 .toList();
         } else {
             // Normal mode, notify knowledgers and housers
-            userIds = allUsers.stream()
-                .filter(u -> {
-                    boolean isKnowledgerOrHouser = u.getType() == User.UserType.KNOWLEDGER || u.getType() == User.UserType.HOUSER;
-                    boolean isNotSameUser = !u.getId().equals(userWhoOpened.getId());
-                    System.out.println("User: " + u.getUsername() + ", Type: " + u.getType() + ", Is K/H: " + isKnowledgerOrHouser + ", Not same user: " + isNotSameUser);
-                    return isKnowledgerOrHouser && isNotSameUser;
-                })
+            userIds = userRepository.findAll().stream()
+                .filter(u -> u.getType() == User.UserType.KNOWLEDGER || u.getType() == User.UserType.HOUSER)
+                .filter(u -> !u.getId().equals(userWhoOpened.getId())) // Exclude the user who opened
                 .map(User::getId)
                 .toList();
         }
-        
-        System.out.println("Door opened by: " + userWhoOpened.getUsername() + " (ID: " + userWhoOpened.getId() + ")");
-        System.out.println("Maintenance active: " + isMaintenanceActive);
-        System.out.println("User IDs to notify: " + userIds);
         
         if (!userIds.isEmpty()) {
             NotificationDto notificationDto = new NotificationDto(
                 "Door Opened",
                 "The door was opened by " + userWhoOpened.getUsername(),
                 userIds,
-                Notification.NotificationType.DOORBELL,
+                Notification.NotificationType.SYSTEM,
                 null
             );
-            System.out.println("Sending notification to " + userIds.size() + " users");
             sendNotification(notificationDto);
-        } else {
-            System.out.println("No users to notify for door opening");
         }
     }
 }
