@@ -65,6 +65,8 @@ public class DoorService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 // Log successful door open
                 logRepository.save(new Log("User " + user.getUsername() + " opened the door", user, "DOOR_OPEN"));
+                
+                // Send notification to knowledgers and housers (filtered by maintenance mode)
                 notificationService.sendDoorOpenedNotification(user);
                 
                 return ResponseEntity.ok("Door opened successfully: " + response.getBody());

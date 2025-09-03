@@ -227,33 +227,32 @@ public class NotificationService {
         sendNotification(notificationDto);
     }
 
-    public void sendDoorOpenedNotification(User user) {
-        String notificationTitle = "Door Opened";
-        String notificationMessage = "User '" + user.getUsername() + "' has opened the door.";
+    public void sendDoorOpenedNotification(User userWhoOpened) {
+        boolean isMaintenanceActive = knowledgerService.isMaintenanceActive();
         
-        List<Long> targetUserIds;
-        
-        // Check if maintenance mode is active
-        if (knowledgerService.isMaintenanceActive()) {
-            // During maintenance, only notify knowledgers
-            targetUserIds = userRepository.findAll().stream()
+        List<Long> userIds;
+        if (isMaintenanceActive) {
+            // In maintenance mode, only notify knowledgers
+            userIds = userRepository.findAll().stream()
                 .filter(u -> u.getType() == User.UserType.KNOWLEDGER)
+                .filter(u -> !u.getId().equals(userWhoOpened.getId())) // Exclude the user who opened
                 .map(User::getId)
                 .toList();
         } else {
-            // Normal mode: notify all housers and knowledgers (exclude guests)
-            targetUserIds = userRepository.findAll().stream()
-                .filter(u -> u.getType() == User.UserType.HOUSER || u.getType() == User.UserType.KNOWLEDGER)
+            // Normal mode, notify knowledgers and housers
+            userIds = userRepository.findAll().stream()
+                .filter(u -> u.getType() == User.UserType.KNOWLEDGER || u.getType() == User.UserType.HOUSER)
+                .filter(u -> !u.getId().equals(userWhoOpened.getId())) // Exclude the user who opened
                 .map(User::getId)
                 .toList();
         }
         
-        if (!targetUserIds.isEmpty()) {
+        if (!userIds.isEmpty()) {
             NotificationDto notificationDto = new NotificationDto(
-                notificationTitle,
-                notificationMessage,
-                targetUserIds,
-                Notification.NotificationType.DOORBELL,
+                "Door Opened",
+                "The door was opened by " + userWhoOpened.getUsername(),
+                userIds,
+                Notification.NotificationType.SYSTEM,
                 null
             );
             sendNotification(notificationDto);
