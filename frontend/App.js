@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
+import * as Updates from 'expo-updates';
 import { View, Text, ActivityIndicator, StyleSheet, Platform, Dimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +14,8 @@ const ONESIGNAL_APP_ID = Constants.expoConfig?.extra?.ONESIGNAL_APP_ID;
 
 export default function App() {
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
-  
+  const [isUpdating, setIsUpdating] = useState(false);
+
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
       setDimensions(window);
@@ -29,6 +31,37 @@ export default function App() {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', e => e.getNotification().display());
     }
   }, []);
+  
+  // Check for updates
+  useEffect(() => {
+    async function checkForUpdates() {
+      if (Platform.OS === 'web') return;
+      
+      try {
+        setIsUpdating(true);
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.log('Error checking updates:', e);
+      } finally {
+        setIsUpdating(false);
+      }
+    }
+    
+    checkForUpdates();
+  }, []);
+
+  if (isUpdating) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#b00" />
+        <Text style={styles.loadingText}>Checking updates...</Text>
+      </View>
+    );
+  }
   
   return (
     <View style={[styles.appContainer, { height: dimensions.height }]}>
@@ -59,5 +92,16 @@ const styles = StyleSheet.create({
       position: 'relative',
       overflow: 'hidden'
     } : {})
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#333',
   },
 });
