@@ -9,7 +9,6 @@ import {
   Animated,
   StatusBar,
   KeyboardAvoidingView,
-  TextInput,
   Image
 } from 'react-native';
 import { colors } from '../../constants/colors';
@@ -22,6 +21,7 @@ import HousePlanSelector from '../../components/HousePlanSelector';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Calendar from '../../components/Calendar';
+import InputField from '../../components/InputField';
 import { PARTY_TYPE_CONFIG, ROOMS } from '../../constants/party';
 import { useColors } from '../../hooks/useColors';
 import { getLocalDate, formatLocalISOString } from '../../constants/functions';
@@ -334,32 +334,25 @@ const PartyCreateScreen = ({ navigation, route }) => {
                   <Text style={styles.sectionTitle}>Party Details</Text>
                 </View>
                 
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Party Name *</Text>
-                  <TextInput
-                    style={[styles.textInput, formData.name.trim() && styles.textInputFilled]}
-                    placeholder="Enter party name"
-                    placeholderTextColor={colors.textSecondary}
-                    value={formData.name}
-                    onChangeText={(value) => updateFormData('name', value)}
-                    maxLength={100}
-                  />
-                </View>
+                <InputField
+                  label="Party Name *"
+                  placeholder="Enter party name"
+                  value={formData.name}
+                  onChangeText={(value) => updateFormData('name', value)}
+                  icon={<Ionicons name="create" size={20} color={colors.primary} />}
+                  containerStyle={{ marginBottom: 0, backgroundColor: colors.background }}
+                />
 
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Description</Text>
-                  <TextInput
-                    style={[styles.textInput, styles.textArea, formData.description && styles.textInputFilled]}
-                    placeholder="What's this party about?"
-                    placeholderTextColor={colors.textSecondary}
-                    value={formData.description}
-                    onChangeText={(value) => updateFormData('description', value)}
-                    multiline
-                    numberOfLines={3}
-                    maxLength={500}
-                    textAlignVertical="top"
-                  />
-                </View>
+                <InputField
+                  label="Description"
+                  placeholder="What's this party about?"
+                  value={formData.description}
+                  onChangeText={(value) => updateFormData('description', value)}
+                  icon={<Ionicons name="document-text" size={20} color={colors.primary} />}
+                  multiline={true}
+                  numberOfLines={3}
+                  containerStyle={{ marginBottom: 0, backgroundColor: colors.background }}
+                />
               </View>
 
               {/* Party Type */}
@@ -510,16 +503,17 @@ const PartyCreateScreen = ({ navigation, route }) => {
                     Guests ({formData.guests.length} selected)
                   </Text>
                 </View>
-                {/* Search for guests */}
-                <View style={styles.fieldContainer}>
-                  <TextInput
-                    style={styles.guestSearchInput}
-                    placeholder="Search guests..."
-                    placeholderTextColor={colors.textSecondary}
-                    value={guestSearch}
-                    onChangeText={setGuestSearch}
-                  />
-                </View>
+                
+                <InputField
+                  placeholder="Search guests..."
+                  value={guestSearch}
+                  onChangeText={setGuestSearch}
+                  icon={<Ionicons name="search" size={20} color={colors.primary} />}
+                  showClearButton={true}
+                  onClear={() => setGuestSearch('')}
+                  containerStyle={{ marginBottom: spacing.small, backgroundColor: colors.background }}
+                />
+
                 <View style={styles.guestsList}>
                   {filteredUsers.map((user) => {
                     const isSelected = formData.guests.some(guest => guest.id === user.id);
@@ -765,23 +759,6 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.small,
   },
-  textInput: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.medium,
-    padding: spacing.medium,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  textInputFilled: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}05`,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -989,16 +966,6 @@ const getStyles = (colors) => StyleSheet.create({
   webDateRow: {
     flexDirection: 'column',
     marginBottom: 8,
-  },
-  guestSearchInput: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.medium,
-    padding: spacing.medium,
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginBottom: spacing.small,
   },
   noGuestsText: {
     color: colors.textSecondary,

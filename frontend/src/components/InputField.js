@@ -18,7 +18,9 @@ const InputField = ({
   editable = true,
   showClearButton = false,
   onClear,
-  containerStyle
+  containerStyle,
+  multiline = false,
+  numberOfLines = 1
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -59,13 +61,15 @@ const InputField = ({
         containerStyle,
         { borderColor },
         error && styles.inputError,
-        !editable && styles.inputDisabled
+        !editable && styles.inputDisabled,
+        multiline && styles.inputContainerMultiline
       ]}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
         
         <TextInput
           style={[
             styles.input,
+            multiline && styles.inputMultiline,
             // Remove o contorno azul do navegador apenas no web e quando focado
             Platform.OS === 'web' && isFocused ? { outline: 'none' } : null
           ]}
@@ -79,6 +83,9 @@ const InputField = ({
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
           editable={editable}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          textAlignVertical={multiline ? 'top' : 'center'}
         />
         
         {secureTextEntry && (
@@ -127,6 +134,12 @@ const getStyles = (colors) => StyleSheet.create({
     paddingHorizontal: spacing.medium,
     height: 56,
   },
+  inputContainerMultiline: {
+    height: 'auto',
+    minHeight: 80,
+    alignItems: 'flex-start',
+    paddingVertical: spacing.medium,
+  },
   input: {
     flex: 1,
     fontSize: 16,
@@ -134,6 +147,10 @@ const getStyles = (colors) => StyleSheet.create({
     paddingVertical: spacing.medium,
     outline: 'none',
     outlineWidth: 0,
+  },
+  inputMultiline: {
+    textAlignVertical: 'top',
+    paddingVertical: 0,
   },
   iconContainer: {
     marginRight: spacing.small,
