@@ -65,6 +65,8 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   const [showGuestStatusModal, setShowGuestStatusModal] = useState(false);
   const [selectedGuestForStatus, setSelectedGuestForStatus] = useState(null);
   const [selectedGuestStatus, setSelectedGuestStatus] = useState(null);
+  const [showPartyStatusModal, setShowPartyStatusModal] = useState(false);
+  const [selectedPartyStatus, setSelectedPartyStatus] = useState(null);
 
   const colors = useColors();
   const styles = getStyles(colors);
@@ -261,6 +263,18 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const openPartyStatusSelection = () => {
+    setSelectedPartyStatus(party.status);
+    setShowPartyStatusModal(true);
+  };
+
+  const confirmPartyStatusChange = () => {
+    if (selectedPartyStatus) {
+      handleChangePartyStatus(selectedPartyStatus);
+      setShowPartyStatusModal(false);
+    }
+  };
+
   const renderGuestsSection = () => {
     if (!party || !currentUser) return null;
     const hostAsAttendee = {
@@ -311,7 +325,6 @@ const PartyDetailsScreen = ({ navigation, route }) => {
 
             if (isHost) {
               const editableParty = canEditPartyStatus();
-              const isEditingParty = editingPartyStatus;
               const statusConfigLocal = STATUS_CONFIG[party.status] || STATUS_CONFIG.SCHEDULED;
               return (
                 <View 
@@ -356,52 +369,19 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                     </Text>
                   )}
                   <View style={styles.attendeeInteraction}>
-                    {editableParty && isEditingParty ? (
-                      <View style={styles.editModeContainerMobile}>
-                        <View style={styles.pickerContainerMobile}>
-                          <Picker
-                            selectedValue={partyStatusPicker || party.status}
-                            style={styles.statusPickerMobile}
-                            onValueChange={(itemValue) => setPartyStatusPicker(itemValue)}
-                            dropdownIconColor={colors.primary}
-                          >
-                            {Object.entries(STATUS_CONFIG).map(([statusKey, statusCfg]) => (
-                              <Picker.Item key={statusKey} label={statusCfg.name} value={statusKey} color={statusCfg.color} />
-                            ))}
-                          </Picker>
-                        </View>
-                        <View style={styles.editActions}>
-                          <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingPartyStatus(false)}>
-                            <Ionicons name="close" size={20} color={colors.textSecondary} />
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={styles.updateButton} 
-                            onPress={() => handleChangePartyStatus(partyStatusPicker || party.status)}
-                          >
-                            <Ionicons name="checkmark-done" size={20} color="white" />
-                          </TouchableOpacity>
-                        </View>
+                    {editableParty && (
+                      <View style={[styles.statusDisplayChip, { backgroundColor: `${statusConfigLocal.color}20` }]}>
+                        <Text style={[styles.statusDisplayText, { color: statusConfigLocal.color }]}>{statusConfigLocal.name}</Text>
                       </View>
-                    ) : (
-                      <>
-                        {editableParty && (
-                          <View style={[styles.statusDisplayChip, { backgroundColor: `${statusConfigLocal.color}20` }]}>
-                            <Text style={[styles.statusDisplayText, { color: statusConfigLocal.color }]}>{statusConfigLocal.name}</Text>
-                          </View>
-                        )}
-                        {editableParty && (
-                          <TouchableOpacity 
-                            style={styles.changeStatusButton} 
-                            onPress={() => {
-                              setPartyStatusPicker(party.status);
-                              setEditingPartyStatus(true);
-                            }}
-                          >
-                            <Text style={styles.changeStatusButtonText}>Change Status</Text>
-                            <Ionicons name="create-outline" size={16} color={colors.primary} />
-                          </TouchableOpacity>
-                        )}
-                      </>
+                    )}
+                    {editableParty && (
+                      <TouchableOpacity 
+                        style={styles.changeStatusButton} 
+                        onPress={openPartyStatusSelection}
+                      >
+                        <Text style={styles.changeStatusButtonText}>Change Status</Text>
+                        <Ionicons name="create-outline" size={16} color={colors.primary} />
+                      </TouchableOpacity>
                     )}
                   </View>
                   {party.updatedAt && (
@@ -626,7 +606,79 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                 onPress={confirmGuestStatusChange}
                 disabled={!selectedGuestStatus}
               >
-                <Text style={styles.modalConfirmText}>Update Status</Text>
+                <Text style={styles.modalConfirmText}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Party Status Selection Modal */}
+      <Modal
+        visible={showPartyStatusModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPartyStatusModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Party Status</Text>
+              <TouchableOpacity 
+                onPress={() => setShowPartyStatusModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalContent}>
+              {Object.entries(STATUS_CONFIG).map(([statusKey, statusInfo]) => (
+                <TouchableOpacity
+                  key={statusKey}
+                  style={[
+                    styles.statusOption,
+                    selectedPartyStatus === statusKey && styles.statusOptionSelected
+                  ]}
+                  onPress={() => setSelectedPartyStatus(statusKey)}
+                >
+                  <View style={[styles.statusOptionIcon, { backgroundColor: statusInfo.color + '15' }]}>
+                    <Ionicons name={statusInfo.icon} size={24} color={statusInfo.color} />
+                  </View>
+                  <View style={styles.statusOptionContent}>
+                    <Text style={[styles.statusOptionTitle, { color: statusInfo.color }]}>
+                      {statusInfo.name}
+                    </Text>
+                    <Text style={styles.statusOptionDescription}>
+                      {statusKey === 'SCHEDULED' && 'Party is scheduled and planned'}
+                      {statusKey === 'IN_PROGRESS' && 'Party is currently happening'}
+                      {statusKey === 'COMPLETED' && 'Party has ended'}
+                      {statusKey === 'CANCELLED' && 'Party has been cancelled'}
+                    </Text>
+                  </View>
+                  {selectedPartyStatus === statusKey && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setShowPartyStatusModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.modalConfirmButton,
+                  !selectedPartyStatus && styles.modalConfirmButtonDisabled
+                ]}
+                onPress={confirmPartyStatusChange}
+                disabled={!selectedPartyStatus}
+              >
+                <Text style={styles.modalConfirmText}>Update</Text>
               </TouchableOpacity>
             </View>
           </View>
