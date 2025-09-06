@@ -24,6 +24,10 @@ const Stack = createStackNavigator();
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
+// Improved detection for mobile web browsers
+const isMobileWeb = isWeb && screenWidth < 768;
+const isDesktopWeb = isWeb && screenWidth >= 768;
+
 const AuthStack = () => (
   <Stack.Navigator
     screenOptions={{
@@ -60,11 +64,14 @@ const AppStack = () => (
 const AppNavigator = () => {
   const { userToken } = useContext(AuthContext);
 
-  // For web, wrap in a container with proper centering
+  // For web, wrap in a container with proper responsive layout
   if (isWeb) {
     return (
       <View style={styles.webContainer}>
-        <View style={styles.webAppContainer}>
+        <View style={[
+          styles.webAppContainer,
+          isMobileWeb && styles.webAppContainerMobile
+        ]}>
           <StatusBar translucent={false} barStyle="light-content" />
           <Stack.Navigator
             screenOptions={{
@@ -115,30 +122,54 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary, // Status bar background color
+    backgroundColor: colors.primary,
   },
+  
   // Web-specific styles
   webContainer: {
     flex: 1,
     backgroundColor: colors.background,
+    height: '100%',
     minHeight: '100vh',
-    width: '100vw',
+    width: '100%',
     position: 'relative',
-    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    overflow: 'auto',
+    paddingBottom: 0,
   },
   webAppContainer: {
     flex: 1,
-    maxWidth: Platform.OS === 'web' ? Math.min(screenWidth, 480) : '100%',
+    maxWidth: isDesktopWeb ? Math.min(screenWidth, 480) : '100%',
     width: '100%',
     alignSelf: 'center',
     backgroundColor: colors.background,
+    height: '100%',
     minHeight: '100vh',
-    ...(Platform.OS === 'web' && {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    ...(isDesktopWeb && {
       boxShadow: '0 0 20px rgba(0, 0, 0, 0.1)',
-      borderRadius: screenWidth > 768 ? 12 : 0,
-      margin: screenWidth > 768 ? 20 : 0,
-      minHeight: screenWidth > 768 ? 'calc(100vh - 40px)' : '100vh',
+      borderRadius: 12,
+      margin: 20,
+      minHeight: 'calc(100vh - 40px)',
+      maxHeight: 'calc(100vh - 40px)',
     }),
+  },
+  webAppContainerMobile: {
+    margin: 0,
+    maxWidth: '100%',
+    width: '100%',
+    borderRadius: 0,
+    boxShadow: 'none',
+    minHeight: '100vh',
+    maxHeight: '100%',
+    height: 'auto',
+    paddingBottom: 55,
+    overflow: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
 });
 
