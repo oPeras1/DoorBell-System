@@ -425,6 +425,21 @@ const HomeScreen = ({ navigation }) => {
     return 'N/A';
   };
 
+  const getFormattedPressure = (pressure) => {
+    if (typeof pressure === 'number') return pressure.toFixed(1);
+    if (typeof pressure === 'string' && !isNaN(Number(pressure))) return Number(pressure).toFixed(1);
+    return 'N/A';
+  };
+
+  const getAirQualityText = (aqi) => {
+    if (typeof aqi === 'number' && aqi >= 1 && aqi <= 5) return aqi.toString();
+    if (typeof aqi === 'string' && !isNaN(Number(aqi))) {
+      const num = Number(aqi);
+      if (num >= 1 && num <= 5) return num.toString();
+    }
+    return 'N/A';
+  };
+
   // Helper to split long usernames
   const getFormattedUserName = (username) => {
     if (!username) return '';
@@ -642,24 +657,48 @@ const HomeScreen = ({ navigation }) => {
                   </View>
                   
                   <View style={styles.doorStatusContent}>
-                    {/* Always show labels, show values only if loaded */}
-                    <View style={styles.statusRow}>
-                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Uptime:</Text>
-                      <Text style={[styles.statusValue, { color: "#fff" }]}>
-                        {doorPing ? getFormattedUptime(doorPing) : '--'}
-                      </Text>
-                    </View>
-                    <View style={styles.statusRow}>
-                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Temperature:</Text>
-                      <Text style={[styles.statusValue, { color: "#fff" }]}>
-                        {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
-                      </Text>
-                    </View>
-                    <View style={styles.statusRow}>
-                      <Text style={[styles.statusLabel, { color: "#fff" }]}>Humidity:</Text>
-                      <Text style={[styles.statusValue, { color: "#fff" }]}>
-                        {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
-                      </Text>
+                    <View style={styles.statusGrid}>
+                      <View style={styles.statusColumn}>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>Uptime:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorPing ? getFormattedUptime(doorPing) : '--'}
+                          </Text>
+                        </View>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>Temperature:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
+                          </Text>
+                        </View>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>Humidity:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.separator} />
+                      <View style={styles.statusColumn}>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>Pressure:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorEnvironment ? getFormattedPressure(doorEnvironment.pressure) + ' hPa' : '--'}
+                          </Text>
+                        </View>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>Air Quality:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorEnvironment ? getAirQualityText(doorEnvironment.air_quality_index) : '--'}
+                          </Text>
+                        </View>
+                        <View style={styles.statusRow}>
+                          <Text style={[styles.statusLabel, { color: "#fff" }]}>TVOC:</Text>
+                          <Text style={[styles.statusValue, { color: "#fff" }]}>
+                            {doorEnvironment ? (doorEnvironment.tvoc_ppb || 'N/A') + ' ppb' : '--'}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
                   </View>
                 </>
@@ -1065,18 +1104,27 @@ const styles = StyleSheet.create({
   doorStatusContent: {
     gap: spacing.small,
   },
+  statusGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  statusColumn: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  separator: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: spacing.small,
+    height: '100%',
+  },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statusValue: {
-    fontSize: 14,
-    fontWeight: '600',
+    paddingVertical: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
 
   // Guest message styles
