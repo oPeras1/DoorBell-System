@@ -30,13 +30,17 @@ public class DoorService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private RoutingService routingService;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user) {
-        String url = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
+    public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user, Double latitude, Double longitude) {
+        String urlOut = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
+        String urlIn = DOORBELL_API_BASE_URL + "/servo?key=" + jwtSecret;
 
         if (user.isMuted() && user.getType() != User.UserType.KNOWLEDGER) {
             throw new DoorOpenException("You are muted and cannot open the door.");
@@ -60,21 +64,60 @@ public class DoorService {
         }
 
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                // Log successful door open
-                logRepository.save(new Log("User " + user.getUsername() + " opened the door", user, "DOOR_OPEN"));
+            // Always open the outer door
+            ResponseEntity<String> outerResponse = restTemplate.getForEntity(urlOut, String.class);
+            boolean outerDoorSuccess = outerResponse.getStatusCode().is2xxSuccessful();
+            
+            StringBuilder responseMessage = new StringBuilder();
+            boolean shouldOpenInnerDoor = false;
+            
+            if (outerDoorSuccess) {
+                responseMessage.append("Outer door opened successfully");
+                logRepository.save(new Log("User " + user.getUsername() + " opened the outer door", user, "DOOR_OPEN"));
                 
-                // Send notification to knowledgers and housers (filtered by maintenance mode)
+                // Check if we should attempt to open inner door
+                if (user.isMultipleDoorOpen() && latitude != null && longitude != null) {
+                    try {
+                        Double travelTime = routingService.getTravelTime(latitude, longitude);
+                        if (travelTime != null && travelTime < 60.0) { // Less than 1 minute (60 seconds)
+                            shouldOpenInnerDoor = true;
+                            logRepository.save(new Log("User " + user.getUsername() + " qualified for inner door opening (travel time: " + String.format("%.1f", travelTime) + "s)", user, "DOOR_OPEN"));
+                        } else {
+                            logRepository.save(new Log("User " + user.getUsername() + " did not qualify for inner door opening (travel time: " + (travelTime != null ? String.format("%.1f", travelTime) + "s" : "unknown") + ")", user, "DOOR_OPEN"));
+                        }
+                    } catch (Exception routingError) {
+                        logRepository.save(new Log("Failed to calculate travel time for user " + user.getUsername() + ": " + routingError.getMessage(), user, "DOOR_OPEN_ERROR"));
+                    }
+                }
+                
+                // Attempt to open inner door if conditions are met
+                if (shouldOpenInnerDoor) {
+                    try {
+                        ResponseEntity<String> innerResponse = restTemplate.getForEntity(urlIn, String.class);
+                        if (innerResponse.getStatusCode().is2xxSuccessful()) {
+                            responseMessage.append(" and inner door opened successfully");
+                            logRepository.save(new Log("User " + user.getUsername() + " opened both outer and inner doors", user, "DOOR_OPEN"));
+                        } else {
+                            responseMessage.append(" but inner door failed to open");
+                            logRepository.save(new Log("Inner door opening failed for user " + user.getUsername() + ". Status: " + innerResponse.getStatusCode(), user, "DOOR_OPEN_FAILED"));
+                        }
+                    } catch (Exception innerDoorError) {
+                        responseMessage.append(" but inner door encountered an error");
+                        logRepository.save(new Log("Inner door error for user " + user.getUsername() + ": " + innerDoorError.getMessage(), user, "DOOR_OPEN_ERROR"));
+                    }
+                } else if (user.isMultipleDoorOpen()) {
+                    responseMessage.append(" (inner door not opened - location/timing requirements not met)");
+                }
+                
+                // Send notification to knowledgers and housers
                 notificationService.sendDoorOpenedNotification(user);
                 
-                return ResponseEntity.ok("Door opened successfully: " + response.getBody());
+                return ResponseEntity.ok(responseMessage.toString());
             } else {
-                // Log door open failure
-                logRepository.save(new Log("Door open attempt failed for user " + user.getUsername() + ". Status: " + response.getStatusCode(), user, "DOOR_OPEN_FAILED"));
-                return ResponseEntity.status(response.getStatusCode())
-                        .body("Failed to open door. Status: " + response.getStatusCode());
+                // Log outer door failure
+                logRepository.save(new Log("Outer door opening failed for user " + user.getUsername() + ". Status: " + outerResponse.getStatusCode(), user, "DOOR_OPEN_FAILED"));
+                return ResponseEntity.status(outerResponse.getStatusCode())
+                        .body("Failed to open outer door. Status: " + outerResponse.getStatusCode());
             }
 
         } catch (Exception e) {
@@ -82,5 +125,10 @@ public class DoorService {
             logRepository.save(new Log("Door open error for user " + user.getUsername() + ": " + e.getMessage(), user, "DOOR_OPEN_ERROR"));
             throw new DoorOpenException("Error contacting doorbell API: " + e.getMessage());
         }
+    }
+
+    // Keep the old method signature for backward compatibility
+    public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user) {
+        return openDoor(DOORBELL_API_BASE_URL, user, null, null);
     }
 }

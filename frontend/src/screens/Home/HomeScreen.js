@@ -17,6 +17,7 @@ import HousePlanSelector from '../../components/HousePlanSelector';
 import Message from '../../components/Message';
 import { useFocusEffect } from '@react-navigation/native';
 import { updateUserStatus, getMe } from '../../services/userService';
+import * as Location from 'expo-location';
 
 import {
   getTimeOfDayImage,
@@ -269,9 +270,43 @@ const HomeScreen = ({ navigation }) => {
   const handleOpenDoor = async () => {
     try {
       setIsDoorLoading(true);
-      await openDoor();
-      setMessage('Door opened successfully!');
+      
+      let coordinates = null;
+      
+      // Check if multipleDoorOpen is true and get location
+      if (currentUser?.multipleDoorOpen) {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+              timeout: 5000,
+            });
+            coordinates = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            };
+          } else {
+            setMessage('Location access denied. Only outer door will be opened.');
+            setMessageType('warning');
+          }
+        } catch (locationError) {
+          console.log('Location error:', locationError);
+          setMessage('Could not access location. Only outer door will be opened.');
+          setMessageType('warning');
+        }
+      }
+      
+      // Call openDoor service with coordinates if available
+      const result = await openDoor(coordinates);
+      
+      if (currentUser?.multipleDoorOpen && coordinates) {
+        setMessage('Door operation completed! Check system logs for details.');
+      } else {
+        setMessage('Door opened successfully!');
+      }
       setMessageType('success');
+      
       if (!isGuest) {
         setTimeout(fetchDoorData, 1000);
       }
@@ -608,11 +643,11 @@ const HomeScreen = ({ navigation }) => {
                       ? 'Opening...'
                       : isGuest
                         ? canGuestOpenDoor()
-                          ? 'Open Door'
-                          : 'Open Door (Not Available)'
+                          ? currentUser?.multipleDoorOpen ? 'Open Doors (IO)' : 'Open Door'
+                          : currentUser?.multipleDoorOpen ? 'Open Doors (IO) (Not Available)' : 'Open Door (Not Available)'
                         : !isDoorOnline
-                          ? 'Open Door (Offline)'
-                          : 'Open Door'
+                          ? currentUser?.multipleDoorOpen ? 'Open Doors (IO) (Offline)' : 'Open Door (Offline)'
+                          : currentUser?.multipleDoorOpen ? 'Open Doors (IO)' : 'Open Door'
                   }
                 </Text>
               </View>

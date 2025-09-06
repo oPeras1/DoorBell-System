@@ -1,9 +1,14 @@
 import api from './api';
 import { API_ENDPOINTS } from '../config/apiConfig';
 
-export const openDoor = async () => {
+export const openDoor = async (coordinates = null) => {
   try {
-    const response = await api.post(API_ENDPOINTS.DOOR);
+    const requestBody = coordinates ? {
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude
+    } : {};
+    
+    const response = await api.post(API_ENDPOINTS.DOOR, requestBody);
     return response.data;
   } catch (error) {
     throw error;

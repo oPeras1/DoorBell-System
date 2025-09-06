@@ -37,12 +37,27 @@ public class DoorController {
     private KnowledgerService knowledgerService;
 
     @PostMapping
-    public ResponseEntity<?> openDoor(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> openDoor(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody(required = false) Map<String, Object> requestBody) {
         if (knowledgerService.isMaintenanceActive() &&
             userDetails.getUser().getType() != com.operas.model.User.UserType.KNOWLEDGER) {
             throw new DoorOpenException("Door opening is disabled during maintenance mode");
         }
-        return doorService.openDoor(DOORBELL_API_BASE_URL, userDetails.getUser());
+        
+        // Extract coordinates if provided
+        Double latitude = null;
+        Double longitude = null;
+        if (requestBody != null) {
+            if (requestBody.containsKey("latitude")) {
+                latitude = ((Number) requestBody.get("latitude")).doubleValue();
+            }
+            if (requestBody.containsKey("longitude")) {
+                longitude = ((Number) requestBody.get("longitude")).doubleValue();
+            }
+        }
+        
+        return doorService.openDoor(DOORBELL_API_BASE_URL, userDetails.getUser(), latitude, longitude);
     }
 
     @PostMapping("/bell-event")
