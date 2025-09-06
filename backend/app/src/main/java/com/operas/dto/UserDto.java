@@ -26,6 +26,7 @@ public class UserDto {
     private LocalDateTime createdAt;
     private Boolean muted;
     private User.UserStatus status;
+    private Boolean multipleDoorOpen;
     private List<String> onesignalId;
 
     public static UserDto fromEntity(User user, User.UserType requesterType) {
@@ -41,6 +42,7 @@ public class UserDto {
             dto.muted = user.isMuted();
             dto.status = user.getStatus();
             dto.onesignalId = user.getOnesignalId();
+            dto.multipleDoorOpen = user.isMultipleDoorOpen();
         } else {
             dto.expirationDate = null;
             dto.muted = null;

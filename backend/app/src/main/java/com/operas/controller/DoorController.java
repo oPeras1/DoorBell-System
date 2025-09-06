@@ -121,7 +121,11 @@ public class DoorController {
             if (response.getStatusCode().is2xxSuccessful() && body != null) {
                 Map<String, Object> result = Map.of(
                     "temperature", body.get("temperature"),
-                    "humidity", body.get("humidity")
+                    "humidity", body.get("humidity"),
+                    "pressure", body.get("pressure"),
+                    "air_quality_index", body.get("air_quality_index"),
+                    "tvoc_ppb", body.get("tvoc_ppb"),
+                    "eco2_ppm", body.get("eco2_ppm")
                 );
                 return ResponseEntity.ok(result);
             } else {

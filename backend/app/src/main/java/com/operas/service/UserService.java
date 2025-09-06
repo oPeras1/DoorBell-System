@@ -140,6 +140,7 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("The user does not exist"));
         UserDto dto = UserDto.fromEntity(user, user.getType());
         dto.setStatus(user.getStatus());
+        dto.setMultipleDoorOpen(user.isMultipleDoorOpen());
         return dto;
     }
 
@@ -305,5 +306,19 @@ public class UserService {
         passwordResetRequestRepository.deleteAllByUsername(userToDelete.getUsername());
 
         userRepository.delete(userToDelete);
+    }
+    
+    public void updateMultipleDoorOpen(CustomUserDetails userDetails, Boolean multiple) {
+        if (multiple == null) {
+            throw new BadRequestException("Multiple value is required");
+        }
+        User user = userRepository.findById(userDetails.getUser().getId())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        user.setMultipleDoorOpen(multiple);
+        userRepository.save(user);
+        
+        // Log the multiple door open change
+        String action = multiple ? "enabled" : "disabled";
+        logRepository.save(new Log("User " + user.getUsername() + " " + action + " multiple door open", user, "USER_MANAGEMENT"));
     }
 }

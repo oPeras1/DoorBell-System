@@ -66,6 +66,21 @@ public class UserController {
         return ResponseEntity.ok("Status updated successfully");
     }
 
+    @PutMapping("/me/multipledoors")
+    public ResponseEntity<?> updateMultipleDoors(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Object> request) {
+        Boolean multiple = null;
+        if (request.containsKey("multiple")) {
+            multiple = (Boolean) request.get("multiple");
+        }
+        if (multiple == null) {
+            return ResponseEntity.badRequest().body("Multiple value is required");
+        }
+        userService.updateMultipleDoorOpen(userDetails, multiple);
+        return ResponseEntity.ok("Multiple door open updated successfully");
+    }
+
     @PutMapping("/muted")
     public ResponseEntity<?> updateMuted(
             @AuthenticationPrincipal CustomUserDetails userDetails,

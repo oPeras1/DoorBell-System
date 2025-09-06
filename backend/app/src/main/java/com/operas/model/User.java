@@ -79,4 +79,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ONLINE;
+
+    // Multiple door open
+    @Column(nullable = false)
+    private boolean multipleDoorOpen = false; 
 }
