@@ -127,3 +127,12 @@ export const deleteUser = async (userId) => {
     throw error;
   }
 };
+
+export const updateMultipleDoorOpen = async (multiple) => {
+  try {
+    const response = await api.put(`${API_ENDPOINTS.USER_ME}/multipledoors`, { multiple });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

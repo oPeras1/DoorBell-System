@@ -26,12 +26,14 @@ import {
   getRegistrationStatus, 
   blockRegistration, 
   unblockRegistration,
-  deleteUser 
+  deleteUser,
+  updateMultipleDoorOpen 
 } from '../../services/userService';
 import PopUp from '../../components/PopUp';
 import Message from '../../components/Message';
 import Switch from '../../components/Switch';
 import Constants from 'expo-constants'; 
+import * as Location from 'expo-location';
 
 const SettingsScreen = ({ navigation }) => {
   const { user: currentUser, logout } = useContext(AuthContext);
@@ -80,7 +82,11 @@ const SettingsScreen = ({ navigation }) => {
       fetchMaintenanceStatus();
       fetchRegistrationStatus();
     }
-  }, [isKnowledger]);
+    // Initialize dual door state from user data
+    if (currentUser?.multipleDoorOpen !== undefined) {
+      setIsDualDoorActive(currentUser.multipleDoorOpen);
+    }
+  }, [isKnowledger, currentUser]);
 
   const fetchMaintenanceStatus = async () => {
     try {
@@ -220,13 +226,20 @@ const SettingsScreen = ({ navigation }) => {
       setShowDualDoorPopup(false);
       
       if (pendingDualDoorState) {
-        // Logic to activate dual door opening (e.g., request location permission)
-        setMessage('Dual door opening activated successfully');
-      } else {
-        setMessage('Dual door opening deactivated successfully');
+        // Request location permission when activating
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setMessage('Location permission is required to activate dual door opening');
+          setMessageType('error');
+          setIsLoadingDualDoor(false);
+          return;
+        }
       }
       
+      await updateMultipleDoorOpen(pendingDualDoorState);
+      
       setIsDualDoorActive(pendingDualDoorState);
+      setMessage(pendingDualDoorState ? 'Dual door opening activated successfully' : 'Dual door opening deactivated successfully');
       setMessageType('success');
     } catch (error) {
       console.error('Error changing dual door mode:', error);
@@ -379,7 +392,7 @@ const SettingsScreen = ({ navigation }) => {
                     <Text style={styles.settingsItemTitle(colors)}>Dual Door Opening</Text>
                     <Text style={styles.settingsItemSubtitle(colors)}>
                       {isDualDoorActive 
-                        ? 'Dual door opening is active' 
+                        ? 'Dual door opening is now active. Your location will be used for security.' 
                         : 'Opens both doors. Needs to obtain location for security reasons!'}
                     </Text>
                   </View>
