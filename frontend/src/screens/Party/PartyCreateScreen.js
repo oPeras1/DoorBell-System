@@ -718,9 +718,9 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 120 : 140,
+    paddingTop: 100,
     paddingHorizontal: spacing.large,
-    paddingBottom: spacing.xxLarge + 40,
+    paddingBottom: spacing.small,
   },
   formContainer: {
     gap: spacing.large,

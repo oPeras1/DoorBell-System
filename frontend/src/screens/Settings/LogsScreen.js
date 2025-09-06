@@ -805,6 +805,7 @@ const getStyles = (colors) => StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingVertical: spacing.xxlarge,
+    paddingTop: spacing.xxlarge * 2,
   },
   emptyTitle: {
     fontSize: 18,

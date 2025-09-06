@@ -110,6 +110,20 @@ export const LOG_TYPES = {
     icon: 'information-circle',
     color: '#3B82F6',
     bgColor: '#DBEAFE'
+  },
+  GUEST_ADDED: {
+    key: 'GUEST_ADDED',
+    name: 'Guest Add.',
+    icon: 'person-add',
+    color: '#10B981',
+    bgColor: '#D1FAE5'
+  },
+  GUEST_REMOVED: {
+    key: 'GUEST_REMOVED',
+    name: 'Guest Remv.',
+    icon: 'person-remove',
+    color: '#EF4444',
+    bgColor: '#FEE2E2'
   }
 };
 

@@ -453,7 +453,7 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: spacing.xxlarge,
+    paddingVertical: 120,
     paddingHorizontal: spacing.large,
     minHeight: 300,
     alignSelf: 'center',

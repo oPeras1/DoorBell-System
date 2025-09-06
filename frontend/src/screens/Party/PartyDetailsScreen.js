@@ -863,9 +863,9 @@ const getStyles = (colors) => StyleSheet.create({
 
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 120 : 140,
+    paddingTop: 100,
     paddingHorizontal: spacing.large,
-    paddingBottom: spacing.large,
+    paddingBottom: spacing.small,
   },
 
   heroCard: {
