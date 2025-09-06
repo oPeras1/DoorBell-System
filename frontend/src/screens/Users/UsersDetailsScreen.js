@@ -801,6 +801,18 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                     </View>
                   </View>
                   
+                  {/* OneSignal IDs Field */}
+                  <View style={styles.infoRow(colors)}>
+                    <View style={styles.infoLabelContainer}>
+                      <Text style={styles.infoLabel(colors)}>OneSignal IDs</Text>
+                    </View>
+                    <View style={styles.infoValueContainer}>
+                      <Text style={styles.infoValue(colors)}>
+                        {user.onesignalId && user.onesignalId.length > 0 ? user.onesignalId.join(', ') : 'None'}
+                      </Text>
+                    </View>
+                  </View>
+                  
                   {isCurrentUser && (
                     <Text style={styles.noticeText(colors)}>
                       Only you can change your connection status from the home screen.
