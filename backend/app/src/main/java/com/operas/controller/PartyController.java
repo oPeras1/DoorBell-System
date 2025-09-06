@@ -71,4 +71,25 @@ public class PartyController {
         PartyDto updatedParty = partyService.updatePartyStatus(partyId, userDetails.getUser(), status);
         return ResponseEntity.ok(updatedParty);
     }
+
+    @PostMapping("/{partyId}/guests")
+    public ResponseEntity<Void> addGuestToParty(
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Long> body
+    ) {
+        Long guestUserId = body.get("userId");
+        partyService.addGuestToParty(partyId, userDetails.getUser(), guestUserId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{partyId}/guests/{guestUserId}")
+    public ResponseEntity<Void> removeGuestFromParty(
+            @PathVariable Long partyId,
+            @PathVariable Long guestUserId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        partyService.removeGuestFromParty(partyId, userDetails.getUser(), guestUserId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -12,11 +12,12 @@ import {
   KeyboardAvoidingView,
   RefreshControl,
   Image,
+  Modal,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { getPartyById, updateGuestStatus, updatePartyStatus } from '../../services/partyService';
+import { getPartyById, updateGuestStatus, updatePartyStatus, addGuestToParty, removeGuestFromParty } from '../../services/partyService';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PARTY_TYPE_CONFIG, STATUS_CONFIG, GUEST_STATUS_CONFIG } from '../../constants/party';
@@ -24,6 +25,8 @@ import { AuthContext } from '../../context/AuthContext';
 import Message from '../../components/Message';
 import { Picker } from '@react-native-picker/picker';
 import { useColors } from '../../hooks/useColors';
+import AddGuestModal from '../../components/AddGuestModal';
+import PopUp from '../../components/PopUp';
 
 const GradientBackground = Platform.OS === 'web'
   ? ({ children, colors: gradientColors, style }) => (
@@ -56,6 +59,12 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   const [partyStatusError, setPartyStatusError] = useState('');
   const [editingPartyStatus, setEditingPartyStatus] = useState(false);
   const [partyStatusPicker, setPartyStatusPicker] = useState('');
+  const [addGuestModalVisible, setAddGuestModalVisible] = useState(false);
+  const [removeGuestConfirm, setRemoveGuestConfirm] = useState({ visible: false, guestId: null, guestName: '' });
+  const [guestManagementLoading, setGuestManagementLoading] = useState(false);
+  const [showGuestStatusModal, setShowGuestStatusModal] = useState(false);
+  const [selectedGuestForStatus, setSelectedGuestForStatus] = useState(null);
+  const [selectedGuestStatus, setSelectedGuestStatus] = useState(null);
 
   const colors = useColors();
   const styles = getStyles(colors);
@@ -104,7 +113,7 @@ const PartyDetailsScreen = ({ navigation, route }) => {
         return { ...currentParty, guests: updatedGuests };
       });
       setMessage('Guest status updated successfully!');
-      setEditingGuestId(null);
+      setShowGuestStatusModal(false);
     } catch (err) {
       setGuestStatusError(prev => ({ ...prev, [guestUserId]: 'Error updating status.' }));
       setMessage('Error updating guest status.');
@@ -194,6 +203,64 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     return require('../../../assets/Avatar/avatarguest.jpeg');
   };
 
+  const canManageGuests = () => {
+    if (!party || !currentUser) return false;
+    const isHost = party.host?.id === currentUser.id;
+    const isKnowledger = currentUser.type === 'KNOWLEDGER';
+    return (isHost || isKnowledger) && (!currentUser.muted || isKnowledger);
+  };
+
+  const handleAddGuest = async (guestUserId) => {
+    setGuestManagementLoading(true);
+    try {
+      await addGuestToParty(party.id, guestUserId);
+      await fetchPartyDetails(); // Refresh party data
+      setMessage('Guest added successfully!');
+    } catch (error) {
+      console.error('Error adding guest:', error);
+      setMessage('Error adding guest. Please try again.');
+    } finally {
+      setGuestManagementLoading(false);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleRemoveGuest = async (guestUserId) => {
+    setGuestManagementLoading(true);
+    try {
+      await removeGuestFromParty(party.id, guestUserId);
+      await fetchPartyDetails(); // Refresh party data
+      setMessage('Guest removed successfully!');
+      setRemoveGuestConfirm({ visible: false, guestId: null, guestName: '' });
+    } catch (error) {
+      console.error('Error removing guest:', error);
+      setMessage('Error removing guest. Please try again.');
+    } finally {
+      setGuestManagementLoading(false);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const confirmRemoveGuest = (guestId, guestName) => {
+    setRemoveGuestConfirm({
+      visible: true,
+      guestId,
+      guestName
+    });
+  };
+
+  const openGuestStatusSelection = (guest) => {
+    setSelectedGuestForStatus(guest);
+    setSelectedGuestStatus(guest.status);
+    setShowGuestStatusModal(true);
+  };
+
+  const confirmGuestStatusChange = () => {
+    if (selectedGuestForStatus && selectedGuestStatus) {
+      handleChangeGuestStatus(selectedGuestForStatus.user.id, selectedGuestStatus);
+    }
+  };
+
   const renderGuestsSection = () => {
     if (!party || !currentUser) return null;
     const hostAsAttendee = {
@@ -203,6 +270,7 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     };
     const allAttendees = [hostAsAttendee, ...(party.guests || [])];
     const totalAttendees = allAttendees.length;
+    const canManage = canManageGuests();
 
     return (
       <View style={styles.attendeesSection}>
@@ -214,6 +282,16 @@ const PartyDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.attendeesSubtitle}>{totalAttendees} person(s) at the party</Text>
             </View>
           </View>
+          {canManage && (
+            <TouchableOpacity 
+              style={styles.addGuestButton} 
+              onPress={() => setAddGuestModalVisible(true)}
+              disabled={guestManagementLoading}
+            >
+              <Ionicons name="person-add" size={20} color={colors.primary} />
+              <Text style={styles.addGuestButtonText}>Add Guest</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.attendeesGridMobile}>
           {allAttendees.map((attendee) => {
@@ -222,7 +300,7 @@ const PartyDetailsScreen = ({ navigation, route }) => {
             const guestStatus = isHost ? null : (GUEST_STATUS_CONFIG[guest.status] || GUEST_STATUS_CONFIG.UNDECIDED);
             const isSelf = currentUser?.id === guest.user?.id;
             const editableGuest = !isHost && canEditGuestStatus(guest.user?.id);
-            const isEditingGuest = editingGuestId === guest.user?.id;
+            const canRemoveGuest = canManage && !isHost && !isSelf;
 
             let hostInfoText = '';
             if (isHost && isSelf) {
@@ -344,12 +422,26 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                   { borderColor: isHost ? colors.primary : guestStatus.color }
                 ]}
               >
-                {(guestStatusLoading[guest.user?.id] || guestStatusError[guest.user?.id]) && (
+                {(guestStatusLoading[guest.user?.id] || guestStatusError[guest.user?.id] || guestManagementLoading) && (
                   <View style={styles.attendeeCardOverlay}>
-                    {guestStatusLoading[guest.user?.id] && <ActivityIndicator size="large" color={colors.primary} />}
+                    {(guestStatusLoading[guest.user?.id] || guestManagementLoading) && <ActivityIndicator size="large" color={colors.primary} />}
                     {guestStatusError[guest.user?.id] && <Ionicons name="alert-circle" size={48} color={colors.danger} />}
                   </View>
                 )}
+                
+                {canRemoveGuest && (
+                  <TouchableOpacity 
+                    style={styles.removeGuestButton}
+                    onPress={() => confirmRemoveGuest(guest.user.id, guest.user.username)}
+                    disabled={guestManagementLoading}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.removeGuestButtonInner}>
+                      <Ionicons name="trash" size={16} color="white" />
+                    </View>
+                  </TouchableOpacity>
+                )}
+
                 {isHost && (
                   <View style={styles.hostBanner}>
                     <Ionicons name="star" size={12} color="#fff" />
@@ -379,53 +471,21 @@ const PartyDetailsScreen = ({ navigation, route }) => {
                     {hostInfoText}
                   </Text>
                 )}
+
                 <View style={styles.attendeeInteraction}>
-                  {editableGuest && isEditingGuest ? (
-                    <View style={styles.editModeContainerMobile}>
-                      <View style={styles.pickerContainerMobile}>
-                        <Picker
-                          selectedValue={guestStatusPicker[guest.user?.id] || guest.status}
-                          style={styles.statusPickerMobile}
-                          onValueChange={(itemValue) => setGuestStatusPicker(prev => ({...prev, [guest.user?.id]: itemValue}))}
-                          dropdownIconColor={colors.primary}
-                        >
-                          {Object.entries(GUEST_STATUS_CONFIG).map(([statusKey, statusCfg]) => (
-                            <Picker.Item key={statusKey} label={statusCfg.name} value={statusKey} color={statusCfg.color} />
-                          ))}
-                        </Picker>
-                      </View>
-                      <View style={styles.editActions}>
-                        <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingGuestId(null)}>
-                          <Ionicons name="close" size={20} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.updateButton} 
-                          onPress={() => handleChangeGuestStatus(guest.user?.id, guestStatusPicker[guest.user?.id] || guest.status)}
-                        >
-                          <Ionicons name="checkmark-done" size={20} color="white" />
-                        </TouchableOpacity>
-                      </View>
+                  {!isHost && (
+                    <View style={[styles.statusDisplayChip, { backgroundColor: `${guestStatus.color}20` }]}>
+                      <Text style={[styles.statusDisplayText, { color: guestStatus.color }]}>{guestStatus.name}</Text>
                     </View>
-                  ) : (
-                    <>
-                      {!isHost && (
-                        <View style={[styles.statusDisplayChip, { backgroundColor: `${guestStatus.color}20` }]}>
-                          <Text style={[styles.statusDisplayText, { color: guestStatus.color }]}>{guestStatus.name}</Text>
-                        </View>
-                      )}
-                      {editableGuest && !isHost && (
-                        <TouchableOpacity 
-                          style={styles.changeStatusButton} 
-                          onPress={() => {
-                            setGuestStatusPicker(prev => ({...prev, [guest.user.id]: guest.status}));
-                            setEditingGuestId(guest.user.id);
-                          }}
-                        >
-                          <Text style={styles.changeStatusButtonText}>Change Status</Text>
-                          <Ionicons name="create-outline" size={16} color={colors.primary} />
-                        </TouchableOpacity>
-                      )}
-                    </>
+                  )}
+                  {editableGuest && !isHost && (
+                    <TouchableOpacity 
+                      style={styles.changeStatusButton} 
+                      onPress={() => openGuestStatusSelection(guest)}
+                    >
+                      <Text style={styles.changeStatusButtonText}>Change Status</Text>
+                      <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    </TouchableOpacity>
                   )}
                 </View>
                 {guest.updatedAt && (
@@ -437,11 +497,13 @@ const PartyDetailsScreen = ({ navigation, route }) => {
             );
           })}
         </View>
-        {!party.guests || party.guests.length === 0 && (
+        {(!party.guests || party.guests.length === 0) && (
           <View style={styles.noGuestsContainer}>
             <Ionicons name="person-add-outline" size={48} color={colors.textSecondary} />
             <Text style={styles.noGuestsTitle}>No guests yet</Text>
-            <Text style={styles.noGuestsSubtitle}>Be the first to be invited!</Text>
+            <Text style={styles.noGuestsSubtitle}>
+              {canManage ? 'Tap "Add Guest" to invite people!' : 'Be the first to be invited!'}
+            </Text>
           </View>
         )}
       </View>
@@ -480,7 +542,97 @@ const PartyDetailsScreen = ({ navigation, route }) => {
 
   return (
     <>
-      <Message message={message} onDismiss={() => setMessage('')} type={message.includes('Erro') ? 'error' : 'success'} />
+      <Message message={message} onDismiss={() => setMessage('')} type={message.includes('Error') || message.includes('Erro') ? 'error' : 'success'} />
+      <AddGuestModal
+        visible={addGuestModalVisible}
+        onClose={() => setAddGuestModalVisible(false)}
+        onAddGuest={handleAddGuest}
+        existingGuestIds={party?.guests?.map(g => g.user.id) || []}
+        hostId={party?.host?.id}
+      />
+      <PopUp
+        visible={removeGuestConfirm.visible}
+        title="Remove Guest"
+        message={`Are you sure you want to remove ${removeGuestConfirm.guestName} from this party?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        onConfirm={() => handleRemoveGuest(removeGuestConfirm.guestId)}
+        onCancel={() => setRemoveGuestConfirm({ visible: false, guestId: null, guestName: '' })}
+        type="danger"
+      />
+
+      {/* Guest Status Selection Modal */}
+      <Modal
+        visible={showGuestStatusModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowGuestStatusModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Guest Status</Text>
+              <TouchableOpacity 
+                onPress={() => setShowGuestStatusModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalContent}>
+              
+              {Object.entries(GUEST_STATUS_CONFIG).map(([statusKey, statusInfo]) => (
+                <TouchableOpacity
+                  key={statusKey}
+                  style={[
+                    styles.statusOption,
+                    selectedGuestStatus === statusKey && styles.statusOptionSelected
+                  ]}
+                  onPress={() => setSelectedGuestStatus(statusKey)}
+                >
+                  <View style={[styles.statusOptionIcon, { backgroundColor: statusInfo.color + '15' }]}>
+                    <Ionicons name={statusInfo.icon} size={24} color={statusInfo.color} />
+                  </View>
+                  <View style={styles.statusOptionContent}>
+                    <Text style={[styles.statusOptionTitle, { color: statusInfo.color }]}>
+                      {statusInfo.name}
+                    </Text>
+                    <Text style={styles.statusOptionDescription}>
+                      {statusKey === 'GOING' && 'Will attend the party'}
+                      {statusKey === 'NOT_GOING' && 'Will not attend the party'}
+                      {statusKey === 'UNDECIDED' && 'Has not decided yet'}
+                    </Text>
+                  </View>
+                  {selectedGuestStatus === statusKey && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setShowGuestStatusModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.modalConfirmButton,
+                  !selectedGuestStatus && styles.modalConfirmButtonDisabled
+                ]}
+                onPress={confirmGuestStatusChange}
+                disabled={!selectedGuestStatus}
+              >
+                <Text style={styles.modalConfirmText}>Update Status</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
         <Animated.View style={[ styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] } ]}>
@@ -1068,10 +1220,6 @@ const getStyles = (colors) => StyleSheet.create({
     borderRadius: 16,
     gap: 6,
   },
-  statusPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
 
   // Guests Section
   attendeesSection: {
@@ -1311,6 +1459,7 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginTop: -spacing.small,
   },
 
   locationCard: {
@@ -1466,6 +1615,188 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.card,
     fontWeight: '600',
     fontSize: 16,
+  },
+  addGuestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+  },
+  addGuestButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  removeGuestButton: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 5,
+  },
+  removeGuestButtonInner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.danger,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: `0 2px 8px ${colors.danger}40`,
+      },
+    }),
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.large,
+  },
+  modalContainer: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.large,
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.25,
+        shadowRadius: 40,
+      },
+      android: {
+        elevation: 16,
+      },
+      web: {
+        boxShadow: `${colors.cardShadow} 0px 12px 40px, ${colors.cardShadow} 0px 4px 16px`,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.large,
+    paddingBottom: spacing.medium,
+    borderBottomWidth: 0,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  modalCloseButton: {
+    padding: spacing.small,
+    borderRadius: borderRadius.small,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.large,
+    textAlign: 'center',
+  },
+  modalContent: {
+    paddingHorizontal: spacing.large,
+    paddingBottom: spacing.medium,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: spacing.large,
+    paddingTop: spacing.medium,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.medium,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    borderRadius: borderRadius.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    marginRight: spacing.small,
+  },
+  modalCancelText: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
+    borderRadius: borderRadius.medium,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    marginLeft: spacing.small,
+  },
+  modalConfirmButtonDisabled: {
+    backgroundColor: colors.disabled,
+  },
+  modalConfirmText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+
+  // Status option styles
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: spacing.medium,
+    borderRadius: borderRadius.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    gap: spacing.medium,
+    marginBottom: spacing.small,
+  },
+  statusOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+    borderWidth: 2,
+  },
+  statusOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.small / 2,
+  },
+  statusOptionContent: {
+    flex: 1,
+    paddingRight: spacing.medium,
+  },
+  statusOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statusOptionDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });
 

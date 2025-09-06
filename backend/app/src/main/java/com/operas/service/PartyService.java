@@ -319,4 +319,97 @@ public class PartyService {
         
         logRepository.save(new Log(logMessage, requester, "GUEST_STATUS_CHANGED"));
     }
+
+    @Transactional
+    public void addGuestToParty(Long partyId, User requester, Long guestUserId) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new IllegalArgumentException("Party not found"));
+        
+        User guestUser = userRepository.findById(guestUserId)
+            .orElseThrow(() -> new UserNotFoundException("Guest user not found"));
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only host or KNOWLEDGER can add guests
+        if (!isHost && !isKnowledger) {
+            throw new BadRequestException("Only the host or a KNOWLEDGER can add guests to the party.");
+        }
+        if (isHost && !isKnowledger && requester.isMuted()) {
+            throw new BadRequestException("You are muted and cannot add guests to the party.");
+        }
+
+        // Check if user is already a guest or the host
+        if (party.getHost().getId().equals(guestUserId)) {
+            throw new BadRequestException("The host is automatically part of the party.");
+        }
+        
+        boolean alreadyGuest = party.getGuests().stream()
+            .anyMatch(gs -> gs.getUser().getId().equals(guestUserId));
+        
+        if (alreadyGuest) {
+            throw new BadRequestException("User is already a guest of this party.");
+        }
+
+        // Create new guest status
+        GuestStatus guestStatus = new GuestStatus();
+        guestStatus.setParty(party);
+        guestStatus.setUser(guestUser);
+        guestStatus.setStatus(GuestStatus.Status.UNDECIDED);
+        guestStatusRepository.save(guestStatus);
+
+        // Log guest addition
+        String logMessage = isKnowledger && !isHost ?
+            "Knowledger " + requester.getUsername() + " added guest " + guestUser.getUsername() + " to party: " + party.getName() :
+            "Host " + requester.getUsername() + " added guest " + guestUser.getUsername() + " to party: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, requester, "GUEST_ADDED"));
+
+        // Send invitation notification to the new guest
+        List<Long> guestUserIds = List.of(guestUserId);
+        notificationService.sendPartyInvitationNotification(
+            party.getName(),
+            party.getDateTime(),
+            guestUserIds,
+            party.getId()
+        );
+    }
+
+    @Transactional
+    public void removeGuestFromParty(Long partyId, User requester, Long guestUserId) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new IllegalArgumentException("Party not found"));
+
+        User guestUser = userRepository.findById(guestUserId)
+            .orElseThrow(() -> new UserNotFoundException("Guest user not found"));
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only host or KNOWLEDGER can remove guests
+        if (!isHost && !isKnowledger) {
+            throw new BadRequestException("Only the host or a KNOWLEDGER can remove guests from the party.");
+        }
+        if (isHost && !isKnowledger && requester.isMuted()) {
+            throw new BadRequestException("You are muted and cannot remove guests from the party.");
+        }
+
+        // Cannot remove the host
+        if (party.getHost().getId().equals(guestUserId)) {
+            throw new BadRequestException("Cannot remove the host from the party.");
+        }
+
+        // Find and remove guest status
+        GuestStatus guestStatus = guestStatusRepository.findByPartyIdAndUserId(partyId, guestUserId)
+            .orElseThrow(() -> new BadRequestException("User is not a guest of this party."));
+
+        guestStatusRepository.delete(guestStatus);
+
+        // Log guest removal
+        String logMessage = isKnowledger && !isHost ?
+            "Knowledger " + requester.getUsername() + " removed guest " + guestUser.getUsername() + " from party: " + party.getName() :
+            "Host " + requester.getUsername() + " removed guest " + guestUser.getUsername() + " from party: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, requester, "GUEST_REMOVED"));
+    }
 }

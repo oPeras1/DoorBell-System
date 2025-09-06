@@ -58,3 +58,19 @@ export const updatePartyStatus = async (partyId, status) => {
     throw error;
   }
 };
+
+export const addGuestToParty = async (partyId, userId) => {
+  try {
+    await api.post(`${API_ENDPOINTS.PARTIES}${partyId}/guests`, { userId });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const removeGuestFromParty = async (partyId, guestUserId) => {
+  try {
+    await api.delete(`${API_ENDPOINTS.PARTIES}${partyId}/guests/${guestUserId}`);
+  } catch (error) {
+    throw error;
+  }
+};

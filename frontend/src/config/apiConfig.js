@@ -15,6 +15,8 @@ export const API_ENDPOINTS = {
   CREATE_PARTY: '/party',
   DELETE_PARTY: '/party',
   UPDATE_GUEST_STATUS: '/party/',
+  ADD_GUEST_TO_PARTY: '/party/',
+  REMOVE_GUEST_FROM_PARTY: '/party/',
   NOTIFICATIONS_UNREAD: '/notifications/unread',
   NOTIFICATIONS_ALL: '/notifications',
   NOTIFICATIONS_MARK_READ: '/notifications',
