@@ -778,6 +778,31 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                     </View>
                   </View>
                   
+                  {/* Multiple Door Open Field */}
+                  <View style={styles.infoRow(colors)}>
+                    <View style={styles.infoLabelContainer}>
+                      <Text style={styles.infoLabel(colors)}>Multiple Door Open</Text>
+                    </View>
+                    <View style={styles.infoValueContainer}>
+                      <View style={[
+                        styles.accessBadge, 
+                        { backgroundColor: user.multipleDoorOpen ? colors.success + '15' : colors.danger + '15' }
+                      ]}>
+                        <Ionicons 
+                          name={user.multipleDoorOpen ? "lock-open" : "lock-closed"} 
+                          size={16} 
+                          color={user.multipleDoorOpen ? colors.success : colors.danger} 
+                        />
+                        <Text style={[
+                          styles.accessBadgeText, 
+                          { color: user.multipleDoorOpen ? colors.success : colors.danger }
+                        ]}>
+                          {user.multipleDoorOpen ? 'Enabled' : 'Disabled'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  
                   {/* Connection Status Field */}
                   <View style={styles.infoRow(colors)}>
                     <View style={styles.infoLabelContainer}>
