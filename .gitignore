@@ -3,3 +3,4 @@
 **/apiConfig.js
 docker-compose.yml
 **/Dockerfile
+data/map/**
