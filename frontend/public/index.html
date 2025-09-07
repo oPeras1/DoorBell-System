@@ -12,57 +12,18 @@
       OneSignal.init({
         appId: "e0df0227-e2e9-484a-9760-d9308407dbc9",
         notifyButton: {
-          enable: true, // Shows bell icon for permission prompt
-          size: 'medium',
-          position: 'bottom-right',
-          offset: '10px'
+          enable: false // Disable bell icon
         },
-        allowLocalhostAsSecureOrigin: true // For dev testing
+        allowLocalhostAsSecureOrigin: true,
+        autoRegister: false, // Don't auto-register, we'll handle this manually
+        autoResubscribe: true
       });
 
-      // Sync user ID after login
-      window.addEventListener('userLoggedIn', async function(event) {
-        const userId = event.detail.userId; // Your app must dispatch this
-        if (userId) {
-          try {
-            await OneSignal.login(userId); // Links subscription to user
-            const playerId = await OneSignal.getUserId();
-            if (playerId) {
-              // Send to your backend
-              fetch('https://doorbell-backend.houseofknowledge.pt/users/me/onesignal', {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': 'Bearer ' + localStorage.getItem('userToken') // Match AsyncStorage
-                },
-                body: JSON.stringify({ onesignalId: playerId })
-              }).catch(err => console.error('Failed to update OneSignal ID:', err));
-            }
-          } catch (err) {
-            console.error('OneSignal login failed:', err);
-          }
-        }
-      });
-
-      // Clean up on logout
-      window.addEventListener('userLoggedOut', async function() {
-        try {
-          const playerId = await OneSignal.getUserId();
-          if (playerId) {
-            await fetch('https://doorbell-backend.houseofknowledge.pt/users/me/onesignal', {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('userToken')
-              },
-              body: JSON.stringify({ onesignalId: playerId })
-            });
-          }
-          await OneSignal.logout();
-        } catch (err) {
-          console.error('OneSignal logout failed:', err);
-        }
-      });
+      // Make OneSignal available globally
+      window.OneSignal = OneSignal;
+      
+      // Dispatch event when OneSignal is ready
+      window.dispatchEvent(new CustomEvent('onesignalReady'));
     });
   </script>
   <!-- Expo meta tags (optional, customize as needed) -->
