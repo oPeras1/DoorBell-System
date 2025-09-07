@@ -24,6 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 370;
+const isLargeScreen = SCREEN_WIDTH > 768; // Define large screen threshold
 
 const getAvatarSource = (userType) => {
   if (userType === 'KNOWLEDGER') {
@@ -185,7 +186,7 @@ const TopField = ({
   const getUserTypeInfo = () => USER_TYPE_INFO[userType] || USER_TYPE_INFO.GUEST;
   const getCurrentModeInfo = () => CONNECTION_MODES[selectedMode] || CONNECTION_MODES.ONLINE;
 
-  const styles = createStyles(colors, isDarkMode);
+  const styles = createStyles(colors, isDarkMode, isLargeScreen);
 
   return (
     <>
@@ -326,78 +327,88 @@ const TopField = ({
         transparent={true}
         animationType="none"
         onRequestClose={toggleDropdown}
+        statusBarTranslucent={true}
       >
-        <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
-          <Animated.View style={[
-            styles.dropdownContainer,
-            Platform.OS === 'web' && styles.dropdownContainerWeb,
-            {
-              opacity: dropdownAnimation,
-              transform: [{
-                translateY: dropdownAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-20, 0]
-                })
-              }, {
-                scale: dropdownAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.9, 1]
-                })
-              }]
-            }
-          ]}>
-            {/* Header */}
-            <View style={styles.dropdownHeader}>
-              <Text style={styles.dropdownTitle}>User Status</Text>
-              <TouchableOpacity onPress={toggleDropdown} style={styles.closeButton}>
-                <Ionicons name="close" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Connection Modes */}
-            <View style={styles.modesContainer}>
-              {Object.entries(CONNECTION_MODES).map(([key, mode]) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.modeItem,
-                    selectedMode === key && styles.selectedModeItem
-                  ]}
-                  onPress={() => handleModeSelect(key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.modeIconContainer, { backgroundColor: mode.bgColor }]}>
-                    <Ionicons name={mode.icon} size={18} color={mode.color} />
-                  </View>
-                  <View style={styles.modeContent}>
-                    <Text style={[styles.modeTitle, { color: mode.color }]}>{mode.title}</Text>
-                    <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
-                  </View>
-                  {selectedMode === key && (
-                    <Ionicons name="checkmark-circle" size={20} color={mode.color} />
-                  )}
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          onPress={toggleDropdown}
+          activeOpacity={1}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Animated.View style={[
+              styles.dropdownContainer,
+              Platform.OS === 'web' && styles.dropdownContainerWeb,
+              {
+                opacity: dropdownAnimation,
+                transform: [{
+                  translateY: dropdownAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }, {
+                  scale: dropdownAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.9, 1]
+                  })
+                }]
+              }
+            ]}>
+              {/* Header */}
+              <View style={styles.dropdownHeader}>
+                <Text style={styles.dropdownTitle}>User Status</Text>
+                <TouchableOpacity onPress={toggleDropdown} style={styles.closeButton}>
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
-              ))}
-            </View>
-            {/* Divider */}
-            <View style={styles.dropdownDivider} />
-
-            {/* Logout Button */}
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
-              <View style={styles.logoutIconContainer}>
-                <Ionicons name="log-out-outline" size={18} color={colors.danger} />
               </View>
-              <Text style={styles.logoutText}>Logout</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.danger} />
-            </TouchableOpacity>
-          </Animated.View>
-        </Pressable>
+
+              {/* Connection Modes */}
+              <View style={styles.modesContainer}>
+                {Object.entries(CONNECTION_MODES).map(([key, mode]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.modeItem,
+                      selectedMode === key && styles.selectedModeItem
+                    ]}
+                    onPress={() => handleModeSelect(key)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.modeIconContainer, { backgroundColor: mode.bgColor }]}>
+                      <Ionicons name={mode.icon} size={18} color={mode.color} />
+                    </View>
+                    <View style={styles.modeContent}>
+                      <Text style={[styles.modeTitle, { color: mode.color }]}>{mode.title}</Text>
+                      <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
+                    </View>
+                    {selectedMode === key && (
+                      <Ionicons name="checkmark-circle" size={20} color={mode.color} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {/* Divider */}
+              <View style={styles.dropdownDivider} />
+
+              {/* Logout Button */}
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+                <View style={styles.logoutIconContainer}>
+                  <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+                </View>
+                <Text style={styles.logoutText}>Logout</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.danger} />
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </>
   );
 };
 
-const createStyles = (colors, isDarkMode) => StyleSheet.create({
+const createStyles = (colors, isDarkMode, isLargeScreen) => StyleSheet.create({
   topField: {
     position: 'absolute',
     top: 0,
@@ -623,30 +634,42 @@ const createStyles = (colors, isDarkMode) => StyleSheet.create({
     flex: 1,
     backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'flex-start',
-    alignItems: Platform.OS === 'web' ? 'flex-end' : 'flex-end',
-    paddingTop: Platform.OS === 'android' ? 80 : 95,
-    paddingRight: spacing.large,
+    alignItems: 'flex-end',
+    paddingTop: Platform.OS === 'web' ? 60 : Platform.OS === 'android' ? 80 : 95,
+    paddingRight: Platform.OS === 'web' ? 20 : spacing.large,
+    ...(isLargeScreen && {
+      alignItems: 'stretch', // Allow absolute positioning for dropdown
+    }),
   },
   dropdownContainer: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.large,
-    minWidth: 280,
-    maxWidth: 320,
+    minWidth: Platform.OS === 'web' ? 300 : 280,
+    maxWidth: Platform.OS === 'web' ? 350 : 320,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: isDarkMode ? 0.5 : 0.25,
     shadowRadius: 16,
     elevation: 12,
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: isDarkMode 
+          ? '0 8px 32px rgba(0,0,0,0.5)' 
+          : '0 8px 32px rgba(0,0,0,0.18)',
+        zIndex: 9999,
+      },
+    }),
+    ...(isLargeScreen && {
+      position: 'absolute',
+      top: 40, 
+      right: 630,
+      alignSelf: 'auto', // Override flex alignment
+    }),
   },
   dropdownContainerWeb: {
-    position: 'absolute',
-    top: 100, 
-    right: 520, 
-    zIndex: 1001,
-    boxShadow: isDarkMode 
-      ? '0 8px 32px rgba(0,0,0,0.5)' 
-      : '0 8px 32px rgba(0,0,0,0.18)',
+    // For large screens, absolute positioning is handled above
+    ...(isLargeScreen ? {} : { alignSelf: 'flex-end' }),
   },
   dropdownHeader: {
     flexDirection: 'row',
