@@ -5,12 +5,23 @@ import { OneSignal } from 'react-native-onesignal';
 import { Platform } from 'react-native';
 
 const getOneSignalPlayerId = async () => {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.OneSignal) {
+        const playerId = await window.OneSignal.User.getOnesignalId();
+        return playerId;
+      }
+    } catch (error) {
+      console.warn('Failed to get OneSignal ID on web:', error);
+    }
+    return null;
+  }
   
   try {
     const playerId = await OneSignal.User.getOnesignalId();
     return playerId;
   } catch (error) {
+    console.warn('Failed to get OneSignal ID:', error);
     return null;
   }
 };

@@ -22,16 +22,97 @@ export const getMe = async () => {
   }
 };
 
-export const updateOneSignalId = async () => {
-  if (Platform.OS === 'web') return;
+const getOneSignalId = async () => {
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.OneSignal) {
+        const onesignalId = await window.OneSignal.User.getOnesignalId();
+        return onesignalId;
+      }
+    } catch (error) {
+      console.warn('Failed to get OneSignal ID on web:', error);
+    }
+    return null;
+  }
 
   try {
     const onesignalId = await OneSignal.User.getOnesignalId();
+    return onesignalId;
+  } catch (error) {
+    console.warn('Failed to get OneSignal ID:', error);
+    return null;
+  }
+};
+
+export const updateOneSignalId = async () => {
+  try {
+    const onesignalId = await getOneSignalId();
     if (onesignalId) {
       await api.put(`${API_ENDPOINTS.USER_ME}/onesignal`, { onesignalId });
+      console.log('OneSignal ID updated successfully');
     }
   } catch (error) {
     console.warn('Failed to update OneSignal ID:', error);
+  }
+};
+
+export const requestNotificationPermission = async () => {
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.OneSignal) {
+        // Wait for OneSignal to be ready if it isn't already
+        if (!window.OneSignal.Notifications) {
+          await new Promise(resolve => {
+            const checkReady = () => {
+              if (window.OneSignal.Notifications) {
+                resolve();
+              } else {
+                setTimeout(checkReady, 100);
+              }
+            };
+            checkReady();
+          });
+        }
+
+        const permission = await window.OneSignal.Notifications.requestPermission();
+        if (permission) {
+          // Wait a bit for OneSignal to process the permission and get the ID
+          setTimeout(async () => {
+            await updateOneSignalId();
+          }, 1500);
+        }
+        return permission;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to request notification permission on web:', error);
+      return false;
+    }
+  }
+
+  try {
+    const permission = await OneSignal.Notifications.requestPermission(true);
+    if (permission) {
+      await updateOneSignalId();
+    }
+    return permission;
+  } catch (error) {
+    console.warn('Failed to request notification permission:', error);
+    return false;
+  }
+};
+
+export const removeOneSignalId = async () => {
+  try {
+    const onesignalId = await getOneSignalId();
+    if (onesignalId) {
+      await api.delete(`${API_ENDPOINTS.USER_ME}/onesignal`, {
+        data: { onesignalId }
+      });
+      console.log('OneSignal ID removed successfully');
+    }
+  } catch (error) {
+    console.warn('Failed to remove OneSignal ID:', error);
   }
 };
 
@@ -62,77 +143,26 @@ export const updateUserMuted = async (userId, muted) => {
   }
 };
 
-export const updateUserType = async (userId, type) => {
-  try {
-    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/type`, { type });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const updateUsername = async (userId, username) => {
-  try {
-    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/username`, { username });
-    if (response.data.token) {
-      await AsyncStorage.setItem('userToken', response.data.token);
+// Check if user has notification permission (for checking if we should show the prompt)
+export const checkNotificationPermission = async () => {
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.OneSignal && window.OneSignal.Notifications) {
+        const permission = await window.OneSignal.Notifications.getPermission();
+        return permission;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Failed to check notification permission on web:', error);
+      return false;
     }
-    return response.data;
-  } catch (error) {
-    throw error;
   }
-};
 
-export const updateBirthdate = async (userId, birthdate) => {
   try {
-    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/birthdate`, { birthdate });
-    return response.data;
+    const permission = await OneSignal.Notifications.getPermission();
+    return permission;
   } catch (error) {
-    throw error;
-  }
-};
-
-export const getRegistrationStatus = async () => {
-  try {
-    const response = await api.get(API_ENDPOINTS.REGISTRATION_STATUS);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const blockRegistration = async () => {
-  try {
-    const response = await api.post(API_ENDPOINTS.BLOCK_REGISTRATION);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const unblockRegistration = async () => {
-  try {
-    const response = await api.post(API_ENDPOINTS.UNBLOCK_REGISTRATION);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const deleteUser = async (userId) => {
-  try {
-    const response = await api.delete(`${API_ENDPOINTS.USERS}${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const updateMultipleDoorOpen = async (multiple) => {
-  try {
-    const response = await api.put(`${API_ENDPOINTS.USER_ME}/multipledoors`, { multiple });
-    return response.data;
-  } catch (error) {
-    throw error;
+    console.warn('Failed to check notification permission:', error);
+    return false;
   }
 };
