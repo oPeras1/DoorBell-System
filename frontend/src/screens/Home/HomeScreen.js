@@ -703,7 +703,7 @@ const HomeScreen = ({ navigation }) => {
                         <View style={styles.statusRow}>
                           <Text style={[styles.statusLabel, { color: "#fff" }]}>Temperature:</Text>
                           <Text style={[styles.statusValue, { color: "#fff" }]}>
-                            {doorEnvironment ? (doorEnvironment.temperature || 'N/A') + '°C' : '--'}
+                            {doorEnvironment ? (typeof doorEnvironment.temperature === 'number' ? doorEnvironment.temperature.toFixed(1) : 'N/A') + '°C' : '--'}
                           </Text>
                         </View>
                         <View style={styles.statusRow}>
