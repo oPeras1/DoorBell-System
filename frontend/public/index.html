@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>House DoorBell</title>
+  <!-- OneSignal SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(function(OneSignal) {
+      OneSignal.init({
+        appId: "e0df0227-e2e9-484a-9760-d9308407dbc9",
+        notifyButton: {
+          enable: true, // Shows bell icon for permission prompt
+          size: 'medium',
+          position: 'bottom-right',
+          offset: '10px'
+        },
+        allowLocalhostAsSecureOrigin: true // For dev testing
+      });
+
+      // Sync user ID after login
+      window.addEventListener('userLoggedIn', async function(event) {
+        const userId = event.detail.userId; // Your app must dispatch this
+        if (userId) {
+          try {
+            await OneSignal.login(userId); // Links subscription to user
+            const playerId = await OneSignal.getUserId();
+            if (playerId) {
+              // Send to your backend
+              fetch('https://doorbell-backend.houseofknowledge.pt/users/me/onesignal', {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + localStorage.getItem('userToken') // Match AsyncStorage
+                },
+                body: JSON.stringify({ onesignalId: playerId })
+              }).catch(err => console.error('Failed to update OneSignal ID:', err));
+            }
+          } catch (err) {
+            console.error('OneSignal login failed:', err);
+          }
+        }
+      });
+
+      // Clean up on logout
+      window.addEventListener('userLoggedOut', async function() {
+        try {
+          const playerId = await OneSignal.getUserId();
+          if (playerId) {
+            await fetch('https://doorbell-backend.houseofknowledge.pt/users/me/onesignal', {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('userToken')
+              },
+              body: JSON.stringify({ onesignalId: playerId })
+            });
+          }
+          await OneSignal.logout();
+        } catch (err) {
+          console.error('OneSignal logout failed:', err);
+        }
+      });
+    });
+  </script>
+  <!-- Expo meta tags (optional, customize as needed) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+</head>
+<body>
+  <div id="root"></div>
+  <!-- Expo will inject the app here -->
+</body>
+</html>
