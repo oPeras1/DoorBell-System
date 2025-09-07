@@ -12,7 +12,7 @@ import com.operas.exceptions.BadRequestException;
 @Service
 public class RoutingService {
 
-    private static final String OSRM_BASE_URL = "http://10.0.0.33:5000";
+    private static final String OSRM_BASE_URL = "http://host.docker.internal:5000";
 
     @Value("${routing.destination.lat}")
     private double destinationLat;
