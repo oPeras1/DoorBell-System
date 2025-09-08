@@ -152,6 +152,33 @@ export const updateUserType = async (userId, type) => {
   }
 };
 
+export const updateUsername = async (userId, username) => {
+  try {
+    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/username`, { username });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateBirthdate = async (userId, birthdate) => {
+  try {
+    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/birthdate`, { birthdate });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteUser = async (userId) => {
+  try {
+    const response = await api.delete(`${API_ENDPOINTS.USERS}${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Check if user has notification permission (for checking if we should show the prompt)
 export const checkNotificationPermission = async () => {
   if (Platform.OS === 'web') {
