@@ -143,6 +143,15 @@ export const updateUserMuted = async (userId, muted) => {
   }
 };
 
+export const updateUserType = async (userId, type) => {
+  try {
+    const response = await api.put(`${API_ENDPOINTS.USERS}${userId}/type`, { type });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Check if user has notification permission (for checking if we should show the prompt)
 export const checkNotificationPermission = async () => {
   if (Platform.OS === 'web') {
