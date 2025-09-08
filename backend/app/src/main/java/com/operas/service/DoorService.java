@@ -39,6 +39,13 @@ public class DoorService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user, Double latitude, Double longitude) {
+        // Check for slowdown: limit to 2 door opens per 10 seconds
+        LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
+        List<Log> recentLogs = logRepository.findByUser_IdAndLogTypeAndTimestampAfter(user.getId(), "DOOR_OPEN", tenSecondsAgo);
+        if (recentLogs.size() >= 2) {
+            throw new DoorOpenException("Too many door opens in the last 10 seconds. Please wait.");
+        }
+
         String urlOut = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
         String urlIn = DOORBELL_API_BASE_URL + "/servo?key=" + jwtSecret;
 
