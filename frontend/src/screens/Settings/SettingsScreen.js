@@ -20,12 +20,13 @@ import { useColors } from '../../hooks/useColors';
 import { 
   getMaintenanceStatus, 
   activateMaintenance, 
-  deactivateMaintenance 
-} from '../../services/doorService';
-import { 
-  getRegistrationStatus, 
-  blockRegistration, 
+  deactivateMaintenance,
+  blockRegistration,
   unblockRegistration,
+  getRegistrationStatus
+
+} from '../../services/knowledgerService';
+import { 
   deleteUser,
   updateMultipleDoorOpen 
 } from '../../services/userService';

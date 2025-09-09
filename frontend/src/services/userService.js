@@ -170,6 +170,15 @@ export const updateBirthdate = async (userId, birthdate) => {
   }
 };
 
+export const updateMultipleDoorOpen = async (multiple) => {
+  try {
+    const response = await api.put(`${API_ENDPOINTS.USER_ME}/multipledoors`, { multiple });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const deleteUser = async (userId) => {
   try {
     const response = await api.delete(`${API_ENDPOINTS.USERS}${userId}`);

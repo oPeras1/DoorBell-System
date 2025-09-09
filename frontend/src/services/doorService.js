@@ -42,24 +42,6 @@ export const getMaintenanceStatus = async () => {
   }
 };
 
-export const activateMaintenance = async () => {
-  try {
-    const response = await api.post(API_ENDPOINTS.MAINTENANCE_ACTIVATE);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const deactivateMaintenance = async () => {
-  try {
-    const response = await api.post(API_ENDPOINTS.MAINTENANCE_DEACTIVATE);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
 export const getDoorOnlineStatus = async () => {
   try {
     const response = await api.get(API_ENDPOINTS.DOOR_ONLINE);

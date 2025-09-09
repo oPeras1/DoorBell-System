@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
 
       const hasPermission = await checkNotificationPermission();
       if (!hasPermission) {
-        // Show permission request
+        // Show permission request only on web
         if (Platform.OS === 'web') {
           // For web, show a custom confirmation
           const userWantsNotifications = window.confirm(
@@ -92,24 +92,6 @@ export const AuthProvider = ({ children }) => {
           if (userWantsNotifications) {
             await requestNotificationPermission();
           }
-        } else {
-          // For mobile, show native Alert
-          Alert.alert(
-            'Enable Notifications',
-            'Would you like to receive notifications for door access and events?',
-            [
-              {
-                text: 'Not Now',
-                style: 'cancel',
-              },
-              {
-                text: 'Enable',
-                onPress: async () => {
-                  await requestNotificationPermission();
-                },
-              },
-            ]
-          );
         }
       }
     } catch (error) {

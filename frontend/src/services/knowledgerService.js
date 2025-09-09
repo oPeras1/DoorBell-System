@@ -27,3 +27,57 @@ export const rejectPasswordResetRequest = async (requestId, reason) => {
     throw error;
   }
 };
+
+export const getMaintenanceStatus = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.MAINTENANCE_STATUS);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const activateMaintenance = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.MAINTENANCE_ACTIVATE);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deactivateMaintenance = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.MAINTENANCE_DEACTIVATE);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getRegistrationStatus = async () => {
+  try {
+    const response = await api.get(API_ENDPOINTS.REGISTRATION_STATUS);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const blockRegistration = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.BLOCK_REGISTRATION);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const unblockRegistration = async () => {
+  try {
+    const response = await api.post(API_ENDPOINTS.UNBLOCK_REGISTRATION);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
