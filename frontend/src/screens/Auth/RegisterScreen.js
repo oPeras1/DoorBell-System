@@ -206,6 +206,23 @@ const RegisterScreen = ({ navigation }) => {
 
   const themeColors = useColors();
 
+  const previousBirthdateRef = useRef('');
+
+  const formatBirthdate = (text, previous) => {
+    let cleaned = text.replace(/\D/g, '');
+    cleaned = cleaned.slice(0, 8);
+    if (text.replace(/\D/g, '') === previous.replace(/\D/g, '') && text.replace(/\d/g, '').length < previous.replace(/\d/g, '').length) {
+      return text;
+    }
+    if (cleaned.length >= 2) {
+      cleaned = cleaned.slice(0, 2) + '-' + cleaned.slice(2);
+    }
+    if (cleaned.length >= 5) {
+      cleaned = cleaned.slice(0, 5) + '-' + cleaned.slice(5);
+    }
+    return cleaned;
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: themeColors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44 }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle={themeColors.background === '#23283A' ? 'light-content' : 'dark-content'} />
@@ -254,7 +271,11 @@ const RegisterScreen = ({ navigation }) => {
               label="Birthdate"
               placeholder="DD-MM-YYYY"
               value={birthdate}
-              onChangeText={setBirthdate}
+              onChangeText={(text) => {
+                const formatted = formatBirthdate(text, previousBirthdateRef.current);
+                setBirthdate(formatted);
+                previousBirthdateRef.current = formatted;
+              }}
               icon={<Ionicons name="calendar-outline" size={22} color={themeColors.primary} />}
               error={errors.birthdate}
               keyboardType="numeric"

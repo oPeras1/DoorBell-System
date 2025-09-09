@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -94,6 +94,23 @@ const UsersDetailsScreen = ({ navigation, route }) => {
   // Can delete user - only Knowledgers can delete other users (but not other Knowledgers or themselves)
   const canDeleteUser = isKnowledger && !isTargetKnowledger && !isCurrentUser;
 
+  const previousBirthdateRef = useRef('');
+
+  const formatBirthdate = (text, previous) => {
+    let cleaned = text.replace(/\D/g, '');
+    cleaned = cleaned.slice(0, 8);
+    if (text.replace(/\D/g, '') === previous.replace(/\D/g, '') && text.replace(/\d/g, '').length < previous.replace(/\d/g, '').length) {
+      return text;
+    }
+    if (cleaned.length >= 2) {
+      cleaned = cleaned.slice(0, 2) + '-' + cleaned.slice(2);
+    }
+    if (cleaned.length >= 5) {
+      cleaned = cleaned.slice(0, 5) + '-' + cleaned.slice(5);
+    }
+    return cleaned;
+  };
+
   useEffect(() => {
     fetchUserDetails();
     Animated.parallel([
@@ -107,8 +124,13 @@ const UsersDetailsScreen = ({ navigation, route }) => {
       setLoading(true);
       const userData = await getUserById(userId);
       setUser(userData);
+      // Convert YYYY-MM-DD to DD-MM-YYYY for display
+      const convertedBirthdate = userData.birthdate ? (() => {
+        const [year, month, day] = userData.birthdate.split('-');
+        return `${day}-${month}-${year}`;
+      })() : '';
       setNewUsername(userData.username);
-      setNewBirthdate(userData.birthdate || '');
+      setNewBirthdate(convertedBirthdate);
       setDoorAccessValue(userData.muted);
     } catch (error) {
       console.error('Error fetching user details:', error);
@@ -178,14 +200,20 @@ const UsersDetailsScreen = ({ navigation, route }) => {
 
   const handleSaveBirthdate = async () => {
     // Basic date validation
-    if (newBirthdate && !/^\d{4}-\d{2}-\d{2}$/.test(newBirthdate)) {
-      showErrorMessage('Please use YYYY-MM-DD format');
+    if (newBirthdate && !/^\d{2}-\d{2}-\d{4}$/.test(newBirthdate)) {
+      showErrorMessage('Please use DD-MM-YYYY format');
       return;
     }
 
     try {
-      await updateBirthdate(userId, newBirthdate);
-      setUser(prev => ({...prev, birthdate: newBirthdate}));
+      // Convert DD-MM-YYYY to YYYY-MM-DD for backend
+      const formattedBirthdate = newBirthdate ? (() => {
+        const [day, month, year] = newBirthdate.split('-');
+        return `${year}-${month}-${day}`;
+      })() : '';
+      await updateBirthdate(userId, formattedBirthdate);
+      // Update user state with converted format
+      setUser(prev => ({...prev, birthdate: formattedBirthdate}));
       setEditingBirthdate(false);
       showSuccessMessage('Birthdate updated successfully');
     } catch (error) {
@@ -660,10 +688,16 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                         <TextInput
                           style={styles.editFieldImproved(colors)}
                           value={newBirthdate}
-                          onChangeText={setNewBirthdate}
-                          placeholder="YYYY-MM-DD"
+                          onChangeText={(text) => {
+                            const formatted = formatBirthdate(text, previousBirthdateRef.current);
+                            setNewBirthdate(formatted);
+                            previousBirthdateRef.current = formatted;
+                          }}
+                          placeholder="DD-MM-YYYY"
                           placeholderTextColor={colors.textSecondary}
                           autoFocus
+                          keyboardType="numeric"
+                          maxLength={10}
                         />
                         <View style={styles.editActionsImproved(colors)}>
                           <TouchableOpacity style={styles.editActionButtonImproved(colors, 'cancel')} onPress={() => setEditingBirthdate(false)}>
@@ -683,7 +717,12 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                           <TouchableOpacity 
                             style={styles.editButton(colors)} 
                             onPress={() => {
-                              setNewBirthdate(user.birthdate || '');
+                              // Convert YYYY-MM-DD to DD-MM-YYYY for editing
+                              const converted = user.birthdate ? (() => {
+                                const [year, month, day] = user.birthdate.split('-');
+                                return `${day}-${month}-${year}`;
+                              })() : '';
+                              setNewBirthdate(converted);
                               setEditingBirthdate(true);
                             }}
                           >
