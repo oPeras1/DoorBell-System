@@ -8,7 +8,7 @@ const getOneSignalPlayerId = async () => {
   if (Platform.OS === 'web') {
     try {
       if (typeof window !== 'undefined' && window.OneSignal) {
-        const playerId = await window.OneSignal.User.getOnesignalId();
+        const playerId = window.OneSignal.User?.onesignalId || null;
         return playerId;
       }
     } catch (error) {

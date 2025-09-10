@@ -26,7 +26,8 @@ const getOneSignalId = async () => {
   if (Platform.OS === 'web') {
     try {
       if (typeof window !== 'undefined' && window.OneSignal) {
-        const onesignalId = await window.OneSignal.User.getOnesignalId();
+        // Web v16: property, não método
+        const onesignalId = window.OneSignal.User?.onesignalId || null;
         return onesignalId;
       }
     } catch (error) {
@@ -60,28 +61,46 @@ export const requestNotificationPermission = async () => {
   if (Platform.OS === 'web') {
     try {
       if (typeof window !== 'undefined' && window.OneSignal) {
-        // Wait for OneSignal to be ready if it isn't already
+        // Garantir que Notifications existe
         if (!window.OneSignal.Notifications) {
           await new Promise(resolve => {
-            const checkReady = () => {
-              if (window.OneSignal.Notifications) {
-                resolve();
-              } else {
-                setTimeout(checkReady, 100);
-              }
-            };
-            checkReady();
+            const tick = () =>
+              window.OneSignal?.Notifications ? resolve() : setTimeout(tick, 100);
+            tick();
           });
         }
 
-        const permission = await window.OneSignal.Notifications.requestPermission();
-        if (permission) {
-          // Wait a bit for OneSignal to process the permission and get the ID
-          setTimeout(async () => {
-            await updateOneSignalId();
-          }, 1500);
-        }
-        return permission;
+        // Ask permission
+        await window.OneSignal.Notifications.requestPermission();
+
+        // Wait for subscription to be created (id + optedIn)
+        await new Promise(resolve => {
+          let timeoutId;
+          const ready = () => {
+            const id = window.OneSignal?.User?.PushSubscription?.id;
+            const opted = window.OneSignal?.User?.PushSubscription?.optedIn;
+            return Boolean(id && opted);
+          };
+          const done = () => { clearTimeout(timeoutId); resolve(); };
+          // Already ready?
+          if (ready()) return resolve();
+          const onChange = (ev) => {
+            if (ev?.current?.id && ev?.current?.optedIn) {
+              try { window.OneSignal.User.PushSubscription.removeEventListener('change', onChange); } catch {}
+              done();
+            }
+          };
+          try { window.OneSignal.User.PushSubscription.addEventListener('change', onChange); } catch {}
+          // Timeout
+          timeoutId = setTimeout(() => {
+            try { window.OneSignal.User.PushSubscription.removeEventListener('change', onChange); } catch {}
+            resolve();
+          }, 5000);
+        });
+
+        // Sync with backend
+        await updateOneSignalId();
+        return !!window.OneSignal.Notifications.permission;
       }
       return false;
     } catch (error) {
@@ -192,9 +211,9 @@ export const deleteUser = async (userId) => {
 export const checkNotificationPermission = async () => {
   if (Platform.OS === 'web') {
     try {
-      if (typeof window !== 'undefined' && window.OneSignal && window.OneSignal.Notifications) {
-        const permission = await window.OneSignal.Notifications.getPermission();
-        return permission;
+      if (typeof window !== 'undefined' && window.OneSignal?.Notifications) {
+        // Web v16: property boolean
+        return !!window.OneSignal.Notifications.permission;
       }
       return false;
     } catch (error) {

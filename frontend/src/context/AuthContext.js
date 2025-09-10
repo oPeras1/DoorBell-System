@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, checkAuthStatus } from '../services/auth';
-import { getMe, requestNotificationPermission, checkNotificationPermission, removeOneSignalId } from '../services/userService';
+import { getMe, requestNotificationPermission, checkNotificationPermission, removeOneSignalId, updateOneSignalId } from '../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
 
@@ -63,35 +63,50 @@ export const AuthProvider = ({ children }) => {
 
   const checkAndRequestNotifications = async () => {
     try {
-      // Wait for OneSignal to be ready on web
+      // Esperar OneSignal na Web
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && !window.OneSignal) {
-          // Wait for OneSignal to load
           await new Promise(resolve => {
-            const checkOneSignal = () => {
-              if (window.OneSignal) {
-                resolve();
-              } else {
-                setTimeout(checkOneSignal, 100);
-              }
-            };
+            const ready = () => (window.OneSignal ? resolve() : setTimeout(ready, 100));
             window.addEventListener('onesignalReady', resolve, { once: true });
-            checkOneSignal();
+            ready();
           });
         }
       }
 
-      const hasPermission = await checkNotificationPermission();
-      if (!hasPermission) {
-        // Show permission request only on web
-        if (Platform.OS === 'web') {
-          // For web, show a custom confirmation
-          const userWantsNotifications = window.confirm(
-            'Would you like to receive notifications for door access and events?'
-          );
-          if (userWantsNotifications) {
-            await requestNotificationPermission();
+      // Sync OneSignal ID with backend
+      if (Platform.OS === 'web') {
+        try {
+          const storedUser = user || JSON.parse(await AsyncStorage.getItem('user'));
+          if (storedUser?.id && window.OneSignal?.login) {
+            await window.OneSignal.login(String(storedUser.id));
           }
+        } catch {}
+      }
+
+      const hasPermission = await checkNotificationPermission();
+      if (Platform.OS === 'web') {
+        const FLAG_KEY = 'onesignal_web_prompt_shown_v1';
+        const alreadyPrompted = typeof localStorage !== 'undefined' && localStorage.getItem(FLAG_KEY) === '1';
+
+        if (!alreadyPrompted && !hasPermission) {
+          try {
+            if (typeof localStorage !== 'undefined') localStorage.setItem(FLAG_KEY, '1');
+          } catch {}
+          await requestNotificationPermission();
+        } else if (hasPermission) {
+          await updateOneSignalId();
+        }
+
+        if (!window.__ONE_SIGNAL_SUB_LISTENER__) {
+          window.__ONE_SIGNAL_SUB_LISTENER__ = true;
+          try {
+            window.OneSignal?.User?.PushSubscription?.addEventListener?.('change', async (ev) => {
+              if (ev?.current?.id && ev?.current?.optedIn) {
+                await updateOneSignalId();
+              }
+            });
+          } catch {}
         }
       }
     } catch (error) {
