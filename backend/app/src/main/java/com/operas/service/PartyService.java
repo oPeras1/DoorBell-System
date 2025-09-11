@@ -518,4 +518,56 @@ public class PartyService {
         }
     }
 
+    @Transactional
+    public PartyDto updatePartyRooms(Long partyId, User requester, List<Party.Room> newRooms) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new BadRequestException("Party not found"));
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only the host or KNOWLEDGER can change party rooms
+        if (!isHost && !isKnowledger) {
+            throw new BadRequestException("Only the host or a KNOWLEDGER can change the party rooms.");
+        }
+        if (isHost && !isKnowledger && requester.isMuted()) {
+            throw new BadRequestException("You are muted and cannot change the party rooms.");
+        }
+
+        // Validate that at least one room is selected
+        if (newRooms == null || newRooms.isEmpty()) {
+            throw new BadRequestException("A party must have at least one room.");
+        }
+
+        // Check for conflicts with other parties in the new rooms
+        List<Party> conflictingParties = partyRepository.findConflictingPartiesExcluding(
+            party.getDateTime(), 
+            party.getEndDateTime(), 
+            newRooms, 
+            partyId
+        );
+        if (!conflictingParties.isEmpty()) {
+            throw new BadRequestException("There are conflicting parties in the selected rooms during the party time.");
+        }
+
+        // Store old rooms for logging
+        List<Party.Room> oldRooms = new ArrayList<>(party.getRooms());
+
+        // Update the rooms
+        party.setRooms(new ArrayList<>(newRooms));
+        Party saved = partyRepository.save(party);
+
+        // Log room change
+        String oldRoomsStr = oldRooms.stream().map(Enum::name).collect(java.util.stream.Collectors.joining(", "));
+        String newRoomsStr = newRooms.stream().map(Enum::name).collect(java.util.stream.Collectors.joining(", "));
+        
+        String logMessage = isKnowledger && !isHost ?
+            "Knowledger " + requester.getUsername() + " changed party rooms from [" + oldRoomsStr + "] to [" + newRoomsStr + "] for party: " + party.getName() :
+            "Host " + requester.getUsername() + " changed party rooms from [" + oldRoomsStr + "] to [" + newRoomsStr + "] for party: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, requester, "PARTY_ROOMS_CHANGED"));
+
+        return PartyDto.fromEntity(saved);
+    }
+
 }

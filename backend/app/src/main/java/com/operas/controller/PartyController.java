@@ -110,4 +110,20 @@ public class PartyController {
         PartyDto updatedParty = partyService.updatePartySchedule(partyId, userDetails.getUser(), startDateTime, endDateTime);
         return ResponseEntity.ok(updatedParty);
     }
+
+    @PatchMapping("/{partyId}/rooms")
+    public ResponseEntity<PartyDto> updatePartyRooms(
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Object> body
+    ) {
+        @SuppressWarnings("unchecked")
+        List<String> roomsStr = (List<String>) body.get("rooms");
+        List<Party.Room> rooms = roomsStr.stream()
+                .map(Party.Room::valueOf)
+                .toList();
+        
+        PartyDto updatedParty = partyService.updatePartyRooms(partyId, userDetails.getUser(), rooms);
+        return ResponseEntity.ok(updatedParty);
+    }
 }

@@ -280,7 +280,10 @@ const HousePlanSelector = ({
   onRoomsSelect, 
   onClose, 
   multiSelect = false,
-  viewOnly = false
+  viewOnly = false,
+  onConfirm = null,
+  loading = false,
+  error = ''
 }) => {
   const colors = useColors();
   const fadeAnim = useSharedValue(0);
@@ -322,7 +325,11 @@ const HousePlanSelector = ({
 
   const handleConfirmAndClose = () => {
     if (selectedRooms.length > 0) {
-      onClose();
+      if (onConfirm) {
+        onConfirm();
+      } else {
+        onClose();
+      }
     }
   };
 
@@ -403,32 +410,39 @@ const HousePlanSelector = ({
 
               {/* Room Selection List - Hide in view-only mode */}
               {!viewOnly && (
-                <View style={[styles.roomsList, { borderTopColor: colors.border }]}>
-                  <View style={styles.roomsListHeader}>
-                    {Platform.OS === 'web'
-                      ? (multiSelect && selectedRooms.length > 0 && (
+                <View style={[styles.roomsList, { borderTopColor: colors.border }]}>  
+                  {Platform.OS === 'web' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 0 }}>
+                      {multiSelect && selectedRooms.length > 0 ? (
+                        <TouchableOpacity 
+                          style={styles.clearButton}
+                          onPress={() => onRoomsSelect([])}
+                        >
+                          <Text style={[styles.clearButtonText, { color: colors.primary }]}>Clear All</Text>
+                        </TouchableOpacity>
+                      ) : <View />}
+                      {error ? (
+                        <Text style={{ color: colors.danger, fontWeight: '600', marginLeft: 16, marginBottom: 0, marginRight: 0, textAlign: 'right' }}>{error}</Text>
+                      ) : <View />}
+                    </View>
+                  ) : (
+                    <>
+                      <View style={styles.roomsListHeader}>
+                        <Text style={[styles.roomsListTitle, { color: colors.textPrimary }]}>Quick Selection:</Text>
+                        {multiSelect && selectedRooms.length > 0 && (
                           <TouchableOpacity 
                             style={styles.clearButton}
                             onPress={() => onRoomsSelect([])}
                           >
-                            <Text style={[styles.clearButtonText, { color: colors.primary }]}>Clear All</Text>
+                            <Text style={[styles.clearButtonText, { color: colors.primary, top: -6.5 }]}>Clear All</Text>
                           </TouchableOpacity>
-                        ))
-                      : (
-                        <>
-                          <Text style={[styles.roomsListTitle, { color: colors.textPrimary }]}>Quick Selection:</Text>
-                          {multiSelect && selectedRooms.length > 0 && (
-                            <TouchableOpacity 
-                              style={styles.clearButton}
-                              onPress={() => onRoomsSelect([])}
-                            >
-                              <Text style={[styles.clearButtonText, { color: colors.primary }]}>Clear All</Text>
-                            </TouchableOpacity>
-                          )}
-                        </>
-                      )
-                    }
-                  </View>
+                        )}
+                      </View>
+                      {error ? (
+                        <Text style={{ color: colors.danger, textAlign: 'center',  fontWeight: '600', top: -20 }}>{error}</Text>
+                      ) : null}
+                    </>
+                  )}
                   {Platform.OS !== 'web' && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={styles.roomChips}>
@@ -465,7 +479,8 @@ const HousePlanSelector = ({
 
               {/* Footer - Hide confirm button in view-only mode */}
               {!viewOnly && (
-                <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
+                <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>  
+                  {Platform.OS !== 'web' && error ? null : null}
                   <TouchableOpacity 
                     style={[
                       styles.confirmButton, 
@@ -473,14 +488,14 @@ const HousePlanSelector = ({
                       selectedRooms.length === 0 && { backgroundColor: colors.border }
                     ]} 
                     onPress={handleConfirmAndClose}
-                    disabled={selectedRooms.length === 0}
+                    disabled={selectedRooms.length === 0 || loading}
                   >
                     <Text style={[
                       styles.confirmButtonText,
                       { color: '#FFF' },
                       selectedRooms.length === 0 && { color: colors.textSecondary }
                     ]}>
-                      {formatSelectedCount()}
+                      {loading ? 'Updating...' : formatSelectedCount()}
                     </Text>
                   </TouchableOpacity>
                 </View>

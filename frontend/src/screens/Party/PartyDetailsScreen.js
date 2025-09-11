@@ -17,8 +17,17 @@ import {
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { getPartyById, updateGuestStatus, updatePartyStatus, addGuestToParty, removeGuestFromParty, updatePartySchedule } from '../../services/partyService';
+import { 
+  getPartyById, 
+  updateGuestStatus, 
+  updatePartyStatus, 
+  addGuestToParty, 
+  removeGuestFromParty,
+  updatePartySchedule,
+  updatePartyRooms
+} from '../../services/partyService';
 import HousePlanSelector from '../../components/HousePlanSelector';
+import EditRoomsModal from '../../components/EditRoomsModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PARTY_TYPE_CONFIG, STATUS_CONFIG, GUEST_STATUS_CONFIG } from '../../constants/party';
 import { AuthContext } from '../../context/AuthContext';
@@ -71,6 +80,9 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   const [selectedPartyStatus, setSelectedPartyStatus] = useState(null);
   const [isEditScheduleModalVisible, setIsEditScheduleModalVisible] = useState(false);
   const [scheduleUpdateLoading, setScheduleUpdateLoading] = useState(false);
+  const [isEditRoomsModalVisible, setIsEditRoomsModalVisible] = useState(false);
+  const [roomsUpdateLoading, setRoomsUpdateLoading] = useState(false);
+  const [roomsUpdateError, setRoomsUpdateError] = useState('');
 
   const colors = useColors();
   const styles = getStyles(colors);
@@ -223,6 +235,13 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     return (isHost || isKnowledger) && (!currentUser.muted || isKnowledger);
   };
 
+  const canEditRooms = () => {
+    if (!party || !currentUser) return false;
+    const isHost = party.host?.id === currentUser.id;
+    const isKnowledger = currentUser.type === 'KNOWLEDGER';
+    return (isHost || isKnowledger) && (!currentUser.muted || isKnowledger);
+  };
+
   const handleAddGuest = async (guestUserId) => {
     setGuestManagementLoading(true);
     try {
@@ -268,6 +287,24 @@ const PartyDetailsScreen = ({ navigation, route }) => {
       throw error;
     } finally {
       setScheduleUpdateLoading(false);
+    }
+  };
+
+  const handleUpdateRooms = async (newRooms) => {
+    setRoomsUpdateLoading(true);
+    setRoomsUpdateError('');
+    try {
+      await updatePartyRooms(party.id, newRooms);
+      setIsEditRoomsModalVisible(false);
+      setMessage('Rooms updated successfully!');
+      await fetchPartyDetails(); // Reload party details
+    } catch (error) {
+      console.error('Error updating rooms:', error);
+      setRoomsUpdateError(error?.response?.data?.message || 'Error updating rooms. Please try again.');
+      throw error;
+    } finally {
+      setRoomsUpdateLoading(false);
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -557,6 +594,14 @@ const PartyDetailsScreen = ({ navigation, route }) => {
         onSave={handleUpdateSchedule}
         party={party}
       />
+      <EditRoomsModal
+        visible={isEditRoomsModalVisible}
+        onClose={() => setIsEditRoomsModalVisible(false)}
+        onSave={handleUpdateRooms}
+        currentRooms={party?.rooms || []}
+        loading={roomsUpdateLoading}
+        error={roomsUpdateError}
+      />
       <AddGuestModal
         visible={addGuestModalVisible}
         onClose={() => setAddGuestModalVisible(false)}
@@ -843,11 +888,22 @@ const PartyDetailsScreen = ({ navigation, route }) => {
               {/* Location Card */}
               <View style={styles.locationCard}>
                 <View style={styles.locationHeader}>
-                  <Ionicons name="home" size={24} color={colors.primary} />
-                  <View style={styles.locationHeaderText}>
-                    <Text style={styles.locationTitle}>Location</Text>
-                    <Text style={styles.locationSubtitle}>{formatRooms()}</Text>
+                  <View style={styles.locationHeaderLeft}>
+                    <Ionicons name="home" size={24} color={colors.primary} />
+                    <View style={styles.locationHeaderText}>
+                      <Text style={styles.locationTitle}>Location</Text>
+                      <Text style={styles.locationSubtitle}>{formatRooms()}</Text>
+                    </View>
                   </View>
+                  {canEditRooms() && (
+                    <TouchableOpacity 
+                      style={styles.editRoomsButton} 
+                      onPress={() => setIsEditRoomsModalVisible(true)}
+                    >
+                      <Ionicons name="pencil" size={16} color={colors.primary} />
+                      <Text style={styles.editRoomsButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
                 <View style={styles.housePlanContainer}>
@@ -1603,7 +1659,17 @@ const getStyles = (colors) => StyleSheet.create({
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%', // garantir que ocupa toda a largura
+    gap: spacing.small, // igual ao timelineHeader
+    marginBottom: 0, // garantir consistência
+  },
+  locationHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.medium,
+    flex: 1, // garantir que o texto ocupa o espaço disponível
+    minWidth: 0, // evitar overflow
   },
   locationHeaderText: { flex: 1 },
   locationTitle: {
@@ -1615,6 +1681,20 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  editRoomsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+  },
+  editRoomsButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   housePlanContainer: {
     height: 320,

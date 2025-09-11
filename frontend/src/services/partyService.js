@@ -84,3 +84,13 @@ export const updatePartySchedule = async (partyId, dateTime, endDateTime) => {
     throw error;
   }
 };
+
+export const updatePartyRooms = async (partyId, rooms) => {
+  try {
+    const payload = { rooms };
+    const response = await api.patch(`${API_ENDPOINTS.PARTIES}${partyId}/rooms`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

@@ -55,6 +55,13 @@ export const LOG_TYPES = {
     color: '#F59E0B',
     bgColor: '#FEF3C7'
   },
+  PARTY_ROOMS_CHANGED: {
+    key: 'PARTY_ROOMS_CHANGED',
+    name: 'Party Room C.',
+    icon: 'home',
+    color: '#3B82F6',
+    bgColor: '#DBEAFE'
+  },
   GUEST_STATUS_CHANGED: {
     key: 'GUEST_STATUS_CHANGED',
     name: 'G. Status Changed',
