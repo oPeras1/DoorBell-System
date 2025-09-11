@@ -915,8 +915,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={[
               styles.factsCard, 
               { 
-                backgroundColor: colors.card,
-                shadowColor: colors.shadow 
+                backgroundColor: colors.card
               }
             ]}>
               <View style={styles.factsHeader}>
@@ -1305,6 +1304,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+    }),
   },
   factsHeader: {
     flexDirection: 'row',

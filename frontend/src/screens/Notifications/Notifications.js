@@ -22,11 +22,12 @@ import { useColors } from '../../hooks/useColors';
 
 const { width } = Dimensions.get('window');
 
-// O componente NotificationCard permanece inalterado.
-const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
+const NotificationCard = ({ notification, index, onPress, onDismiss, navigation }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [animatedHeight] = useState(new Animated.Value(0));
 
   const notificationType = notificationTypes[notification.type] || notificationTypes.system;
   const timeAgo = getTimeAgo(notification.createdAt);
@@ -50,15 +51,35 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
     ]).start();
   }, []);
 
+  const toggleExpanded = () => {
+    const toValue = isExpanded ? 0 : 1;
+    
+    Animated.timing(animatedHeight, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleCardPress = async () => {
+    if (isLongMessage) {
+      toggleExpanded();
+    } else {
+      if (onPress) await onPress(notification);
+    }
+  };
+
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, gestureState) => {
-      return Math.abs(gestureState.dx) > 20;
+      return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 50;
     },
     onPanResponderMove: (_, gestureState) => {
       swipeAnim.setValue(gestureState.dx);
     },
     onPanResponderRelease: (_, gestureState) => {
-      if (Math.abs(gestureState.dx) > width * 0.3) {
+      if (Math.abs(gestureState.dx) > width * 0.25) {
         Animated.timing(swipeAnim, {
           toValue: gestureState.dx > 0 ? width : -width,
           duration: 200,
@@ -72,6 +93,10 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
       }
     },
   });
+
+  // Check if message is potentially truncated (rough estimation)
+  const isLongMessage = (notification.message || '').length > 80;
+  const isPartyNotification = notification.type === 'PARTY' && notification.partyId;
 
   return (
     <Animated.View
@@ -88,40 +113,105 @@ const NotificationCard = ({ notification, index, onPress, onDismiss }) => {
       {...panResponder.panHandlers}
     >
       <TouchableOpacity
-        style={[styles.cardContent, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={async () => {
-          try {
-            await markNotificationAsRead(notification.id);
-          } catch (error) {
-            console.error('Error marking as read:', error);
+        style={[
+          styles.cardContent, 
+          { 
+            backgroundColor: colors.card, 
+            borderColor: isExpanded ? colors.primary : colors.border,
+            borderWidth: isExpanded ? 2 : 1,
+            ...(isExpanded && {
+              shadowColor: colors.primary,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 3,
+            }),
           }
-          if (onPress) onPress(notification);
-        }}
-        activeOpacity={0.8}
+        ]}
+        onPress={handleCardPress}
+        activeOpacity={0.7}
       >
         {notification.priority === 'high' && (
           <View style={[styles.priorityIndicator, { backgroundColor: colors.danger }]} />
         )}
-        <View style={[styles.iconContainer, { backgroundColor: notificationType.bgColor }]}>
-          <Text style={styles.iconText}>{notificationType.icon}</Text>
-        </View>
-        <View style={styles.cardTextContent}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.notificationTypeText, { color: colors.primary }]}>{notificationType.title}</Text>
+        <View style={styles.leftSection}>
+          <View style={[styles.iconContainer, { backgroundColor: notificationType.bgColor }]}>
+            <Ionicons name={notificationType.icon || 'notifications'} size={24} color={notificationType.color} />
           </View>
-          <Text style={[styles.notificationTitle, { color: colors.textPrimary }]} numberOfLines={2}>
-            {notification.title}
-          </Text>
-          <Text style={[styles.notificationMessage, { color: colors.textSecondary }]} numberOfLines={2}>
-            {notification.message}
-          </Text>
+          <View style={styles.cardTextContent}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.notificationTypeText, { color: colors.primary }]}>
+                {notificationType.title}
+              </Text>
+              {isPartyNotification && (
+                <TouchableOpacity
+                  style={[styles.partyButton, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]}
+                  onPress={async () => {
+                    try {
+                      await markNotificationAsRead(notification.id);
+                      navigation.navigate('PartyDetails', { partyId: notification.partyId });
+                    } catch (error) {
+                      console.error('Error navigating to party:', error);
+                    }
+                  }}
+                >
+                  <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+                  <Text style={[styles.partyButtonText, { color: colors.primary }]}>Go to Party</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.notificationTitle, { color: colors.textPrimary }]}>
+              {notification.title}
+            </Text>
+            <Text 
+              style={[styles.notificationMessage, { color: colors.textSecondary }]} 
+              numberOfLines={isExpanded ? undefined : 2}
+            >
+              {notification.message}
+            </Text>
+            <View style={styles.metaContainer}>
+              <Text style={[styles.username, { color: colors.primary }]}>
+                System
+              </Text>
+              <Text style={[styles.separator, { color: colors.textSecondary }]}>•</Text>
+              <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
+                {timeAgo}
+              </Text>
+              {isLongMessage && (
+                <>
+                  <Text style={[styles.separator, { color: colors.textSecondary }]}>•</Text>
+                  <Text style={[styles.expandHint, { color: colors.primary }]}>
+                    {isExpanded ? 'tap to collapse' : 'tap to expand'}
+                  </Text>
+                </>
+              )}
+            </View>
+            <Text style={[styles.fullDate, { color: colors.textSecondary }]}>
+              {new Date(notification.createdAt).toLocaleString()}
+            </Text>
+          </View>
         </View>
-        <View style={styles.statusTimeContainer}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: notification.read ? colors.textSecondary : notificationType.color }
-          ]} />
-          <Text style={[styles.timeAgoText, { color: colors.textSecondary }]}>{timeAgo}</Text>
+        <View style={styles.rightSection}>
+          {isLongMessage && (
+            <View style={styles.expandIcon}>
+              <Animated.View
+                style={{
+                  transform: [{
+                    rotate: animatedHeight.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '180deg'],
+                    })
+                  }]
+                }}
+              >
+                <Ionicons 
+                  name="chevron-down" 
+                  size={16} 
+                  color={colors.textSecondary} 
+                />
+              </Animated.View>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -325,6 +415,7 @@ const Notifications = ({ notificationsPollingInterval = 30000, navigation }) => 
                 index={index}
                 onPress={handleNotificationPress}
                 onDismiss={handleDismiss}
+                navigation={navigation}
               />
             ))}
           </ScrollView>
@@ -557,6 +648,11 @@ const styles = StyleSheet.create({
   notificationCard: {
     marginBottom: spacing.medium,
   },
+  leftSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
   iconContainer: {
     width: 60,
     height: 60,
@@ -574,7 +670,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
     padding: spacing.medium,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     ...shadows.medium,
     position: 'relative',
     borderWidth: 1,
@@ -602,6 +698,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.tiny,
     gap: spacing.small,
   },
+  partyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.small,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+  },
+  partyButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
   notificationTypeText: {
     fontSize: 12,
     fontWeight: '600',
@@ -622,7 +731,42 @@ const styles = StyleSheet.create({
   notificationMessage: {
     fontSize: 14,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
+    marginBottom: spacing.small,
+  },
+  metaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    flexWrap: 'wrap',
+  },
+  username: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  separator: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginHorizontal: spacing.small,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  expandHint: {
+    fontSize: 11,
+    color: colors.primary,
+    fontStyle: 'italic',
+    opacity: 0.8,
+  },
+  fullDate: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  rightSection: {
+    alignItems: 'flex-end',
   },
   statusTimeContainer: {
     flexDirection: 'column',
@@ -636,6 +780,11 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginBottom: spacing.tiny,
+  },
+  expandIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.small,
   },
   emptyState: {
     flex: 1,
