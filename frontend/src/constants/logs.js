@@ -131,6 +131,13 @@ export const LOG_TYPES = {
     icon: 'person-remove',
     color: '#EF4444',
     bgColor: '#FEE2E2'
+  },
+  PARTY_SCHEDULE_CHANGED: {
+    key: 'PARTY_SCHEDULE_CHANGED',
+    name: 'Party Sch. C.',
+    icon: 'calendar',
+    color: '#F59E0B',
+    bgColor: '#FEF3C7'
   }
 };
 
