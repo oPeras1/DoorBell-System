@@ -17,7 +17,7 @@ import {
 import { colors } from '../../constants/colors';
 import { spacing, borderRadius } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { getPartyById, updateGuestStatus, updatePartyStatus, addGuestToParty, removeGuestFromParty } from '../../services/partyService';
+import { getPartyById, updateGuestStatus, updatePartyStatus, addGuestToParty, removeGuestFromParty, updatePartySchedule } from '../../services/partyService';
 import HousePlanSelector from '../../components/HousePlanSelector';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PARTY_TYPE_CONFIG, STATUS_CONFIG, GUEST_STATUS_CONFIG } from '../../constants/party';
@@ -27,6 +27,8 @@ import { Picker } from '@react-native-picker/picker';
 import { useColors } from '../../hooks/useColors';
 import AddGuestModal from '../../components/AddGuestModal';
 import PopUp from '../../components/PopUp';
+import EditScheduleModal from '../../components/EditScheduleModal';
+import { formatLocalISOString } from '../../constants/functions';
 
 const GradientBackground = Platform.OS === 'web'
   ? ({ children, colors: gradientColors, style }) => (
@@ -67,6 +69,8 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   const [selectedGuestStatus, setSelectedGuestStatus] = useState(null);
   const [showPartyStatusModal, setShowPartyStatusModal] = useState(false);
   const [selectedPartyStatus, setSelectedPartyStatus] = useState(null);
+  const [isEditScheduleModalVisible, setIsEditScheduleModalVisible] = useState(false);
+  const [scheduleUpdateLoading, setScheduleUpdateLoading] = useState(false);
 
   const colors = useColors();
   const styles = getStyles(colors);
@@ -212,6 +216,13 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     return (isHost || isKnowledger) && (!currentUser.muted || isKnowledger);
   };
 
+  const canEditSchedule = () => {
+    if (!party || !currentUser) return false;
+    const isHost = party.host?.id === currentUser.id;
+    const isKnowledger = currentUser.type === 'KNOWLEDGER';
+    return (isHost || isKnowledger) && (!currentUser.muted || isKnowledger);
+  };
+
   const handleAddGuest = async (guestUserId) => {
     setGuestManagementLoading(true);
     try {
@@ -240,6 +251,23 @@ const PartyDetailsScreen = ({ navigation, route }) => {
     } finally {
       setGuestManagementLoading(false);
       setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const handleUpdateSchedule = async (newStartDate, newEndDate) => {
+    setScheduleUpdateLoading(true);
+    try {
+      const start = formatLocalISOString(newStartDate);
+      const end = formatLocalISOString(newEndDate);
+      await updatePartySchedule(party.id, start, end);
+      setIsEditScheduleModalVisible(false);
+      setMessage('Schedule updated successfully!');
+      await fetchPartyDetails(); // Reload party details
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      throw error;
+    } finally {
+      setScheduleUpdateLoading(false);
     }
   };
 
@@ -523,6 +551,12 @@ const PartyDetailsScreen = ({ navigation, route }) => {
   return (
     <>
       <Message message={message} onDismiss={() => setMessage('')} type={message.includes('Error') || message.includes('Erro') ? 'error' : 'success'} />
+      <EditScheduleModal
+        visible={isEditScheduleModalVisible}
+        onClose={() => setIsEditScheduleModalVisible(false)}
+        onSave={handleUpdateSchedule}
+        party={party}
+      />
       <AddGuestModal
         visible={addGuestModalVisible}
         onClose={() => setAddGuestModalVisible(false)}
@@ -763,8 +797,19 @@ const PartyDetailsScreen = ({ navigation, route }) => {
               {/* Timeline card */}
               <View style={styles.timelineCard}>
                 <View style={styles.timelineHeader}>
-                  <Ionicons name="calendar" size={24} color={colors.primary} />
-                  <Text style={styles.timelineTitle}>Schedule</Text>
+                  <View style={styles.timelineHeaderContent}>
+                    <Ionicons name="calendar" size={24} color={colors.primary} />
+                    <Text style={styles.timelineTitle}>Schedule</Text>
+                  </View>
+                  {canEditSchedule() && (
+                    <TouchableOpacity 
+                      style={styles.editScheduleButton} 
+                      onPress={() => setIsEditScheduleModalVisible(true)}
+                    >
+                      <Ionicons name="pencil" size={16} color={colors.primary} />
+                      <Text style={styles.editScheduleButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <View style={styles.timelineContainer}>
                   <View style={styles.timelinePoint}>
@@ -1005,7 +1050,27 @@ const getStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     gap: spacing.small,
     marginBottom: spacing.large,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  timelineHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.medium,
+  },
+  editScheduleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    borderRadius: borderRadius.medium,
+  },
+  editScheduleButtonText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   timelineTitle: {
     fontSize: 18,
@@ -1296,7 +1361,7 @@ const getStyles = (colors) => StyleSheet.create({
     gap: spacing.medium,
   },
   attendeesTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
   },

@@ -20,6 +20,14 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
     List<Party> findConflictingParties(@Param("start") LocalDateTime start,
                                        @Param("end") LocalDateTime end,
                                        @Param("rooms") List<Party.Room> rooms);
+    
+    @Query("SELECT p FROM Party p JOIN p.rooms r "
+         + "WHERE p.id != :excludePartyId AND "
+         + "p.endDateTime > :startDateTime AND p.dateTime < :endDateTime AND r IN :rooms")
+    List<Party> findConflictingPartiesExcluding(@Param("startDateTime") LocalDateTime startDateTime,
+                                            @Param("endDateTime") LocalDateTime endDateTime,
+                                            @Param("rooms") List<Party.Room> rooms,
+                                            @Param("excludePartyId") Long excludePartyId);
 
     List<Party> findByHostId(Long hostId);
 }

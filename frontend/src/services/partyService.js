@@ -74,3 +74,13 @@ export const removeGuestFromParty = async (partyId, guestUserId) => {
     throw error;
   }
 };
+
+export const updatePartySchedule = async (partyId, dateTime, endDateTime) => {
+  try {
+    const payload = { dateTime, endDateTime };
+    const response = await api.patch(`${API_ENDPOINTS.PARTIES}${partyId}/schedule`, payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

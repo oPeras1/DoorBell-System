@@ -12,6 +12,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -91,5 +93,21 @@ public class PartyController {
     ) {
         partyService.removeGuestFromParty(partyId, userDetails.getUser(), guestUserId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{partyId}/schedule")
+    public ResponseEntity<PartyDto> updatePartySchedule(
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Object> body
+    ) {
+        String startDateTimeStr = (String) body.get("dateTime");
+        String endDateTimeStr = (String) body.get("endDateTime");
+        
+        LocalDateTime startDateTime = LocalDateTime.parse(startDateTimeStr);
+        LocalDateTime endDateTime = LocalDateTime.parse(endDateTimeStr);
+        
+        PartyDto updatedParty = partyService.updatePartySchedule(partyId, userDetails.getUser(), startDateTime, endDateTime);
+        return ResponseEntity.ok(updatedParty);
     }
 }

@@ -412,4 +412,110 @@ public class PartyService {
         
         logRepository.save(new Log(logMessage, requester, "GUEST_REMOVED"));
     }
+
+    @Transactional
+    public PartyDto updatePartySchedule(Long partyId, User requester, LocalDateTime newStartDateTime, LocalDateTime newEndDateTime) {
+        Party party = partyRepository.findById(partyId)
+            .orElseThrow(() -> new BadRequestException("Party not found"));
+
+        boolean isHost = party.getHost().getId().equals(requester.getId());
+        boolean isKnowledger = requester.getType() == User.UserType.KNOWLEDGER;
+
+        // Only the host or KNOWLEDGER can change party schedule
+        if (!isHost && !isKnowledger) {
+            throw new BadRequestException("Only the host or a KNOWLEDGER can change the party schedule.");
+        }
+        if (isHost && !isKnowledger && requester.isMuted()) {
+            throw new BadRequestException("You are muted and cannot change the party schedule.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Validate new schedule
+        if (!newStartDateTime.isAfter(now)) {
+            throw new BadRequestException("Party start date/time must be in the future.");
+        }
+        if (!newEndDateTime.isAfter(newStartDateTime)) {
+            throw new BadRequestException("End date/time must be after start date/time.");
+        }
+        if (java.time.Duration.between(newStartDateTime, newEndDateTime).toHours() > 24) {
+            throw new BadRequestException("Party duration cannot exceed 24 hours.");
+        }
+        if (java.time.Duration.between(newStartDateTime, newEndDateTime).toMinutes() < 20) {
+            throw new BadRequestException("Party duration must be at least 20 minutes.");
+        }
+
+        // Check for conflicts with other parties
+        List<Party> conflictingParties = partyRepository.findConflictingPartiesExcluding(newStartDateTime, newEndDateTime, party.getRooms(), partyId);
+        if (!conflictingParties.isEmpty()) {
+            throw new BadRequestException("There are conflicting parties in the selected rooms during the specified time.");
+        }
+
+        // Store old dates for notification
+        LocalDateTime oldStartDateTime = party.getDateTime();
+        LocalDateTime oldEndDateTime = party.getEndDateTime();
+
+        // Update the schedule
+        party.setDateTime(newStartDateTime);
+        party.setEndDateTime(newEndDateTime);
+
+        // Reset notification flags based on new schedule
+        resetNotificationFlags(party, now);
+
+        Party saved = partyRepository.save(party);
+
+        // Log schedule change
+        String logMessage = isKnowledger && !isHost ?
+            "Knowledger " + requester.getUsername() + " changed party schedule for: " + party.getName() :
+            "Host " + requester.getUsername() + " changed party schedule for: " + party.getName();
+        
+        logRepository.save(new Log(logMessage, requester, "PARTY_SCHEDULE_CHANGED"));
+
+        // Notify host and guests about the schedule change
+        List<Long> recipientIds = new ArrayList<>();
+        recipientIds.add(saved.getHost().getId());
+        if (saved.getGuests() != null) {
+            recipientIds.addAll(
+                saved.getGuests().stream()
+                    .map(gs -> gs.getUser().getId())
+                    .filter(id -> !id.equals(saved.getHost().getId()))
+                    .toList()
+            );
+        }
+
+        notificationService.sendPartyScheduleChangedNotification(saved, oldStartDateTime, oldEndDateTime, recipientIds);
+
+        return PartyDto.fromEntity(saved);
+    }
+
+    private void resetNotificationFlags(Party party, LocalDateTime now) {
+        LocalDateTime newStartDateTime = party.getDateTime();
+        LocalDateTime newEndDateTime = party.getEndDateTime();
+
+        // Reset 3 days reminder if new start time is more than 3 days away
+        if (newStartDateTime.isAfter(now.plusDays(3))) {
+            party.setReminder3DaysSent(false);
+        }
+
+        // Reset 24 hours reminder if new start time is more than 24 hours away
+        if (newStartDateTime.isAfter(now.plusHours(24))) {
+            party.setReminder24HoursSent(false);
+        }
+
+        // Reset 1 hour reminder if new start time is more than 1 hour away
+        if (newStartDateTime.isAfter(now.plusHours(1))) {
+            party.setReminder1HourSent(false);
+        }
+
+        // Reset start notification if party hasn't started yet
+        if (newStartDateTime.isAfter(now)) {
+            party.setStartNotificationSent(false);
+        }
+
+        // Reset end notification if party hasn't ended yet
+        if (newEndDateTime.isAfter(now)) {
+            party.setEndNotificationSent(false);
+        }
+    }
+
 }

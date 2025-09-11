@@ -258,4 +258,33 @@ public class NotificationService {
             sendNotification(notificationDto);
         }
     }
+
+    public void sendPartyScheduleChangedNotification(Party party, LocalDateTime oldStartDateTime, LocalDateTime oldEndDateTime, List<Long> userIds) {
+        boolean isCleaning = party.getType() == Party.PartyType.CLEANING;
+        
+        String formattedOldDateTime = oldStartDateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String formattedNewDateTime = party.getDateTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        
+        String notificationTitle;
+        String notificationMessage;
+        
+        if (isCleaning) {
+            notificationTitle = "🧹 CLEANING SCHEDULE CHANGED";
+            notificationMessage = "MANDATORY cleaning session '" + party.getName() + "' has been rescheduled from " + 
+                formattedOldDateTime + " to " + formattedNewDateTime + ". Update your schedule!";
+        } else {
+            notificationTitle = "Party schedule updated";
+            notificationMessage = "The party '" + party.getName() + "' has been rescheduled from " + 
+                formattedOldDateTime + " to " + formattedNewDateTime + ". Check the new details.";
+        }
+
+        NotificationDto notificationDto = new NotificationDto(
+            notificationTitle,
+            notificationMessage,
+            userIds,
+            Notification.NotificationType.PARTY,
+            party.getId()
+        );
+        sendNotification(notificationDto);
+    }
 }
