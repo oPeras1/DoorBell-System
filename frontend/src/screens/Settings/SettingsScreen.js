@@ -532,7 +532,7 @@ const SettingsScreen = ({ navigation }) => {
                         <Text style={styles.betaText}>BETA</Text>
                       </View>
                     </View>
-                    <Text style={styles.lastUpdatedText(colors)}>Last updated: 30/08/2025</Text>
+                    <Text style={styles.lastUpdatedText(colors)}>Last updated: 12/09/2025</Text>
                   </View>
                 </View>
               </View>

@@ -125,6 +125,20 @@ public class UserService {
         }
     }
     
+    public void removeAllOneSignalIds(CustomUserDetails userDetails, Long userId) {
+        User requester = userRepository.findById(userDetails.getUser().getId())
+                .orElseThrow(() -> new UserNotFoundException("Requester not found"));
+        if (requester.getType() != User.UserType.KNOWLEDGER) {
+            throw new BadRequestException("Only Knowledger can remove all OneSignal IDs");
+        }
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Target user not found"));
+        target.setOnesignalId(new ArrayList<>());
+        userRepository.save(target);
+        // Log the removal
+        logRepository.save(new Log("Knowledger " + requester.getUsername() + " removed all OneSignal IDs from user: " + target.getUsername(), requester, "USER_MANAGEMENT"));
+    }
+    
     public Optional<User> findByUsername(String username){
         return userRepository.findByUsername(username);
     }

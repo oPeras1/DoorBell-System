@@ -57,6 +57,14 @@ public class UserController {
         return ResponseEntity.ok("OneSignal ID removed successfully");
     }
 
+    @DeleteMapping("/{id}/onesignal")
+    public ResponseEntity<?> removeAllOneSignalIds(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        userService.removeAllOneSignalIds(userDetails, id);
+        return ResponseEntity.ok("All OneSignal IDs removed successfully");
+    }
+
     @PutMapping("/me/status")
     public ResponseEntity<?> changeStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails,

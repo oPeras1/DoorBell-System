@@ -24,6 +24,7 @@ import PopUp from '../../components/PopUp';
 import { USER_TYPE_INFO, CONNECTION_MODES } from '../../constants/users';
 import { getAvatarSource } from '../../constants/functions';
 import { getUserById, updateUserType, updateUsername, updateBirthdate, updateUserMuted, deleteUser } from '../../services/userService';
+import { removeAllOneSignalIds } from '../../services/userService';
 import { useColors } from '../../hooks/useColors';
 
 const GradientBackground = Platform.OS === 'web'
@@ -70,6 +71,7 @@ const UsersDetailsScreen = ({ navigation, route }) => {
   const [showDoorAccessModal, setShowDoorAccessModal] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState(null);
   const [doorAccessValue, setDoorAccessValue] = useState(null);
+  const [showRemoveAllOneSignalPopup, setShowRemoveAllOneSignalPopup] = useState(false);
 
   // Get colors from theme
   const colors = useColors();
@@ -270,6 +272,19 @@ const UsersDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleRemoveAllOneSignalIds = async () => {
+    try {
+      await removeAllOneSignalIds(userId);
+      setUser(prev => ({ ...prev, onesignalId: [] }));
+      setShowRemoveAllOneSignalPopup(false);
+      showSuccessMessage('All OneSignal IDs removed successfully');
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to remove OneSignal IDs';
+      showErrorMessage(msg);
+      setShowRemoveAllOneSignalPopup(false);
+    }
+  };
+
   const openTypeSelection = () => {
     setSelectedUserType(user.type);
     setShowTypeSelectionModal(true);
@@ -377,6 +392,17 @@ const UsersDetailsScreen = ({ navigation, route }) => {
         cancelText="Cancel"
         onConfirm={handleDeleteUser}
         onCancel={() => setShowDeleteUserPopup(false)}
+        type="danger"
+      />
+
+      <PopUp
+        visible={showRemoveAllOneSignalPopup}
+        title="Remove All OneSignal IDs"
+        message={`Are you sure you want to remove all OneSignal IDs for ${user.username}? This will disconnect all devices from push notifications for this user.`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        onConfirm={handleRemoveAllOneSignalIds}
+        onCancel={() => setShowRemoveAllOneSignalPopup(false)}
         type="danger"
       />
 
@@ -876,6 +902,16 @@ const UsersDetailsScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                   </View>
+                  {/* Remove All OneSignal IDs Option (only for Knowledgers) */}
+                  {isKnowledger && user.onesignalId && user.onesignalId.length > 0 && (
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.small, alignSelf: 'flex-start' }}
+                      onPress={() => setShowRemoveAllOneSignalPopup(true)}
+                    >
+                      <Ionicons name="trash" size={18} color={colors.danger} style={{ marginRight: 8 }} />
+                      <Text style={{ color: colors.danger, fontWeight: '600', fontSize: 15 }}>Remove all OneSignal IDs</Text>
+                    </TouchableOpacity>
+                  )}
                   
                   {isCurrentUser && (
                     <Text style={styles.noticeText(colors)}>

@@ -230,3 +230,12 @@ export const checkNotificationPermission = async () => {
     return false;
   }
 };
+
+export const removeAllOneSignalIds = async (userId) => {
+  try {
+    const response = await api.delete(`${API_ENDPOINTS.USERS}${userId}/onesignal`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
