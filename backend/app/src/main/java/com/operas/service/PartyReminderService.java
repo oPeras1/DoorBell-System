@@ -63,8 +63,14 @@ public class PartyReminderService {
             if (!party.isReminder3DaysSent() && party.getDateTime() != null) {
                 LocalDateTime threeDaysBefore = party.getDateTime().minusDays(3);
                 long minutesUntilParty = java.time.Duration.between(now, party.getDateTime()).toMinutes();
-                if ((now.isAfter(threeDaysBefore) || now.equals(threeDaysBefore)) && minutesUntilParty >= 3 * 24 * 60) {
+                // Only send if we're past the 3-day mark but still have more than 24 hours left
+                if (now.isAfter(threeDaysBefore) && minutesUntilParty > 24 * 60) {
                     notificationService.sendPartyReminderNotification(party, "3_DAYS", userIds);
+                    party.setReminder3DaysSent(true);
+                    partyRepository.save(party);
+                }
+                // Mark as sent if it's too late to send (less than 24 hours left)
+                else if (now.isAfter(threeDaysBefore) && minutesUntilParty <= 24 * 60) {
                     party.setReminder3DaysSent(true);
                     partyRepository.save(party);
                 }
@@ -74,8 +80,14 @@ public class PartyReminderService {
             if (!party.isReminder24HoursSent() && party.getDateTime() != null) {
                 LocalDateTime twentyFourHoursBefore = party.getDateTime().minusHours(24);
                 long minutesUntilParty = java.time.Duration.between(now, party.getDateTime()).toMinutes();
-                if ((now.isAfter(twentyFourHoursBefore) || now.equals(twentyFourHoursBefore)) && minutesUntilParty >= 24 * 60) {
+                // Only send if we're past the 24-hour mark but still have more than 1 hour left
+                if (now.isAfter(twentyFourHoursBefore) && minutesUntilParty > 60) {
                     notificationService.sendPartyReminderNotification(party, "24_HOURS", userIds);
+                    party.setReminder24HoursSent(true);
+                    partyRepository.save(party);
+                }
+                // Mark as sent if it's too late to send (less than 1 hour left)
+                else if (now.isAfter(twentyFourHoursBefore) && minutesUntilParty <= 60) {
                     party.setReminder24HoursSent(true);
                     partyRepository.save(party);
                 }
@@ -85,8 +97,14 @@ public class PartyReminderService {
             if (!party.isReminder1HourSent() && party.getDateTime() != null) {
                 LocalDateTime oneHourBefore = party.getDateTime().minusHours(1);
                 long minutesUntilParty = java.time.Duration.between(now, party.getDateTime()).toMinutes();
-                if ((now.isAfter(oneHourBefore) || now.equals(oneHourBefore)) && minutesUntilParty >= 60) {
+                // Only send if we're past the 1-hour mark and party hasn't started yet
+                if (now.isAfter(oneHourBefore) && minutesUntilParty > 0) {
                     notificationService.sendPartyReminderNotification(party, "1_HOUR", userIds);
+                    party.setReminder1HourSent(true);
+                    partyRepository.save(party);
+                }
+                // Mark as sent if party has already started
+                else if (minutesUntilParty <= 0) {
                     party.setReminder1HourSent(true);
                     partyRepository.save(party);
                 }

@@ -15,6 +15,8 @@ import Notifications from '../screens/Notifications/Notifications';
 import UsersDetailsScreen from '../screens/Users/UsersDetailsScreen';
 import ForgotPasswordScreen from '../screens/Settings/ForgotPasswordScreen';
 import LogsScreen from '../screens/Settings/LogsScreen';
+import MusicScreen from '../screens/Music/MusicScreen';
+import MusicCreateScreen from '../screens/Music/MusicCreateScreen';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 
@@ -58,6 +60,8 @@ const AppStack = () => (
     <Stack.Screen name="UserDetails" component={UsersDetailsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Logs" component={LogsScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Music" component={MusicScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="MusicCreateScreen" component={MusicCreateScreen} options={{ unmountOnBlur: true }} />
   </Stack.Navigator>
 );
 

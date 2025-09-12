@@ -305,12 +305,34 @@ const SettingsScreen = ({ navigation }) => {
             >
               <View style={styles.settingsItemContent}>
                 <View style={styles.settingsItemLeft}>
-                  <View style={[styles.settingsIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                  <View style={[styles.settingsIconContainer, { backgroundColor: `${colors.primary}15` }]}> 
                     <Ionicons name="person-outline" size={24} color={colors.primary} />
                   </View>
                   <View style={styles.settingsTextContainer}>
                     <Text style={styles.settingsItemTitle(colors)}>Personal Account</Text>
                     <Text style={styles.settingsItemSubtitle(colors)}>Edit your profile and account details for a better experience.</Text>
+                  </View>
+                </View>
+                <View style={styles.settingsItemRight}>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Music Library Setting */}
+            <TouchableOpacity
+              style={styles.settingsItem(colors)}
+              onPress={() => navigation.navigate('Music')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingsItemContent}>
+                <View style={styles.settingsItemLeft}>
+                  <View style={[styles.settingsIconContainer, { backgroundColor: `${colors.info}15` }]}> 
+                    <Ionicons name="musical-notes-outline" size={24} color={colors.info} />
+                  </View>
+                  <View style={styles.settingsTextContainer}>
+                    <Text style={styles.settingsItemTitle(colors)}>Music Library</Text>
+                    <Text style={styles.settingsItemSubtitle(colors)}>View and manage your House's music library.</Text>
                   </View>
                 </View>
                 <View style={styles.settingsItemRight}>
