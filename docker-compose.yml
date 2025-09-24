@@ -70,13 +70,15 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
     ports:
       - "1883:1883"
-      - "8883:8883"
+      - "9001:9001"
     volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./certs:/mosquitto/certs:ro
-      - ./passwords:/mosquitto/passwords:ro
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
 
 volumes:
   mariadb_data:
