@@ -72,6 +72,9 @@ const HomeScreen = ({ navigation }) => {
   // Animation ref for house plan
   const housePlanAnimation = useRef(new Animated.Value(0)).current;
 
+  // Local uptime state
+  const [localUptime, setLocalUptime] = useState(null);
+
   // Message state
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
@@ -430,13 +433,13 @@ const HomeScreen = ({ navigation }) => {
     return doorOnlineStatus.status === 'online' ? 'Online' : 'Offline';
   };
 
-  const getFormattedUptime = (ping) => {
-    if (!ping || typeof ping !== 'object') return 'N/A';
+  const getFormattedUptime = (totalSeconds) => {
+    if (totalSeconds === null || typeof totalSeconds !== 'number') return '--';
     
-    const days = ping.uptime_days || 0;
-    const hours = ping.uptime_hours || 0;
-    const minutes = ping.uptime_minutes || 0;
-    const seconds = ping.uptime_seconds || 0;
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
     
     return `${days}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
@@ -499,6 +502,31 @@ const HomeScreen = ({ navigation }) => {
   const verticalOffset = (userNameLineCount - 1) * LINE_HEIGHT;
 
   const isDoorOnline = doorOnlineStatus && doorOnlineStatus.status === 'online';
+
+  useEffect(() => {
+    let timer;
+    if (isDoorOnline && doorPing) {
+      const { uptime_days, uptime_hours, uptime_minutes, uptime_seconds } = doorPing;
+      const totalSeconds = (uptime_days || 0) * 86400 + 
+                           (uptime_hours || 0) * 3600 + 
+                           (uptime_minutes || 0) * 60 + 
+                           (uptime_seconds || 0);
+      setLocalUptime(totalSeconds);
+
+      timer = setInterval(() => {
+        setLocalUptime(prevSeconds => (prevSeconds !== null ? prevSeconds + 1 : null));
+      }, 1000);
+    } else {
+      setLocalUptime(null);
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [isDoorOnline, doorPing]);
+
   const canOpenDoor = !isGuest
     ? isDoorOnline && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER')
     : canGuestOpenDoor() && (!isMaintenanceActive || currentUser?.type === 'KNOWLEDGER');
@@ -698,7 +726,7 @@ const HomeScreen = ({ navigation }) => {
                         <View style={styles.statusRow}>
                           <Text style={[styles.statusLabel, { color: "#fff" }]}>Uptime:</Text>
                           <Text style={[styles.statusValue, { color: "#fff" }]}>
-                            {doorPing ? getFormattedUptime(doorPing) : '--'}
+                            {getFormattedUptime(localUptime)}
                           </Text>
                         </View>
                         <View style={styles.statusRow}>
