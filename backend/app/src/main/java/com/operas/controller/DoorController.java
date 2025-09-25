@@ -17,6 +17,7 @@ import com.operas.security.CustomUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.operas.service.DoorService;
 import com.operas.service.KnowledgerService;
+import com.operas.service.ArduinoDataService;
 import com.operas.exceptions.DoorOpenException;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -35,6 +36,9 @@ public class DoorController {
 
     @Autowired
     private KnowledgerService knowledgerService;
+
+    @Autowired
+    private ArduinoDataService arduinoDataService;
 
     @PostMapping
     public ResponseEntity<?> openDoor(
@@ -91,63 +95,45 @@ public class DoorController {
 
     @GetMapping("/ping")
     public ResponseEntity<?> ping(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        String url = DOORBELL_API_BASE_URL + "/ping";
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<Map<String, Object>>() {}
+        Map<String, Object> cachedData = arduinoDataService.getPingData();
+
+        if (cachedData != null) {
+            long lastUpdated = (long) cachedData.get("last_updated");
+            long elapsedSeconds = (System.currentTimeMillis() - lastUpdated) / 1000;
+
+            long days = ((Number) cachedData.get("uptime_days")).longValue();
+            long hours = ((Number) cachedData.get("uptime_hours")).longValue();
+            long minutes = ((Number) cachedData.get("uptime_minutes")).longValue();
+            long seconds = ((Number) cachedData.get("uptime_seconds")).longValue();
+
+            long totalSeconds = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds + elapsedSeconds;
+
+            long newDays = totalSeconds / 86400;
+            long newHours = (totalSeconds % 86400) / 3600;
+            long newMinutes = (totalSeconds % 3600) / 60;
+            long newSeconds = totalSeconds % 60;
+
+            Map<String, Object> result = Map.of(
+                "status", "online",
+                "ping", cachedData.get("ping"),
+                "uptime_days", newDays,
+                "uptime_hours", newHours,
+                "uptime_minutes", newMinutes,
+                "uptime_seconds", newSeconds
             );
-            
-            Map<String, Object> body = response.getBody();
-            if (response.getStatusCode().is2xxSuccessful() && body != null) {
-                Map<String, Object> result = Map.of(
-                    "status", "online",
-                    "ping", body.get("ping"),
-                    "uptime_days", body.get("uptime_days"),
-                    "uptime_hours", body.get("uptime_hours"),
-                    "uptime_minutes", body.get("uptime_minutes"),
-                    "uptime_seconds", body.get("uptime_seconds")
-                );
-                return ResponseEntity.ok(result);
-            } else {
-                Map<String, Object> result = Map.of(
-                    "status", "offline"
-                );
-                return ResponseEntity.status(503).body(result);
-            }
-        } catch (Exception e) {
-            throw new DoorPingException("Error contacting ping service: " + e.getMessage());
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.status(503).body(Map.of("status", "offline"));
         }
     }
 
     @GetMapping("/environment")
     public ResponseEntity<?> environment(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        String url = DOORBELL_API_BASE_URL + "/environment";
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-            Map<String, Object> body = response.getBody();
-            if (response.getStatusCode().is2xxSuccessful() && body != null) {
-                Map<String, Object> result = Map.of(
-                    "temperature", body.get("temperature"),
-                    "humidity", body.get("humidity"),
-                    "pressure", body.get("pressure"),
-                    "air_quality_index", body.get("air_quality_index"),
-                    "tvoc_ppb", body.get("tvoc_ppb"),
-                    "eco2_ppm", body.get("eco2_ppm")
-                );
-                return ResponseEntity.ok(result);
-            } else {
-                throw new DoorPingException("Failed to get response from environment service.");
-            }
-        } catch (Exception e) {
-            throw new DoorPingException("Error contacting environment service: " + e.getMessage());
+        Map<String, Object> data = arduinoDataService.getEnvironmentData();
+        if (data != null) {
+            return ResponseEntity.ok(data);
+        } else {
+            return ResponseEntity.status(503).body(Map.of("error", "Environment data not available"));
         }
     }
 
