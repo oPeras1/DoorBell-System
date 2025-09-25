@@ -4,3 +4,5 @@
 docker-compose.yml
 **/Dockerfile
 data/map/**
+mosquitto/data/
+mosquitto/log/
