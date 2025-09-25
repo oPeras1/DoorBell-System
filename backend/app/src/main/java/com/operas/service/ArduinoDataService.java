@@ -24,7 +24,7 @@ public class ArduinoDataService {
     private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
     private final AtomicReference<Map<String, Object>> cachedPingData = new AtomicReference<>();
 
-    @Scheduled(fixedRate = 60000) // Fetch every 60 seconds
+    @Scheduled(fixedRate = 20000) // Fetch every 20 seconds
     public void refreshArduinoData() {
         fetchEnvironmentData();
         fetchPingData();
