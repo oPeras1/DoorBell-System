@@ -86,7 +86,7 @@ public class DoorService {
                 if (user.isMultipleDoorOpen() && latitude != null && longitude != null) {
                     try {
                         Double travelTime = routingService.getTravelTime(latitude, longitude);
-                        if (travelTime != null && travelTime < 60.0) { // Less than 1 minute (60 seconds)
+                        if (travelTime != null && travelTime < 120.0) { // Less than 2 minutes (120 seconds)
                             shouldOpenInnerDoor = true;
                             logRepository.save(new Log("User " + user.getUsername() + " qualified for inner door opening (travel time: " + String.format("%.1f", travelTime) + "s)", user, "DOOR_OPEN"));
                         } else {
