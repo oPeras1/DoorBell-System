@@ -456,10 +456,10 @@ const HomeScreen = ({ navigation }) => {
 
   const getFormattedHumidity = (humidity) => {
     if (typeof humidity === 'number') {
-      return (humidity * 100).toFixed(1);
+      return humidity.toFixed(1);
     }
     if (typeof humidity === 'string' && !isNaN(Number(humidity))) {
-      return (Number(humidity) * 100).toFixed(1);
+      return (Number(humidity)).toFixed(1);
     }
     return 'N/A';
   };
