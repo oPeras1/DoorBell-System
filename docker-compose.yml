@@ -52,6 +52,7 @@ services:
 
   osrm:
     image: osrm/osrm-backend
+    restart: always
     ports:
       - "5000:5000"
     volumes:
