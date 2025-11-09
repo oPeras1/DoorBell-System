@@ -1,10 +1,11 @@
 package com.operas.service;
 
+import org.eclipse.paho.client.mqttv3.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import com.operas.model.User;
 import com.operas.model.Party;
@@ -15,15 +16,18 @@ import com.operas.exceptions.DoorOpenException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class DoorService {
+
     @Autowired
     private PartyRepository partyRepository;
 
     @Autowired
     private PartyService partyService;
-    
+
     @Autowired
     private LogRepository logRepository;
 
@@ -36,29 +40,50 @@ public class DoorService {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // MQTT broker configuration
+    private static final String MQTT_BROKER = "tcp://localhost:1883";
+    private static final String MQTT_USERNAME = "doorbell";
+    private static final String MQTT_PASSWORD = "hhoeZN68DCOyGR7wy9P9";
 
-    public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user, Double latitude, Double longitude) {
-        // Check for slowdown: limit to 2 door opens per 10 seconds
+    private static final String TOPIC_OPEN_OUTER = "doorbell/open/outer";
+    private static final String TOPIC_OPEN_INNER = "doorbell/open/inner";
+    private static final String TOPIC_STATUS = "doorbell/open/status";
+
+    private final MqttClient mqttClient;
+
+    public DoorService() throws MqttException {
+        mqttClient = new MqttClient(MQTT_BROKER, MqttClient.generateClientId(), new MemoryPersistence());
+
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setUserName(MQTT_USERNAME);
+        options.setPassword(MQTT_PASSWORD.toCharArray());
+        options.setAutomaticReconnect(true);
+        options.setCleanSession(true);
+
+        mqttClient.connect(options);
+    }
+
+    public ResponseEntity<?> openDoor(User user, Double latitude, Double longitude) {
+
+        // Rate limiting (same as before)
         LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
-        List<Log> recentLogs = logRepository.findByUser_IdAndLogTypeAndTimestampAfter(user.getId(), "DOOR_OPEN", tenSecondsAgo);
+        List<Log> recentLogs = logRepository.findByUser_IdAndLogTypeAndTimestampAfter(
+                user.getId(), "DOOR_OPEN", tenSecondsAgo
+        );
         if (recentLogs.size() >= 2) {
             throw new DoorOpenException("Too many door opens in the last 10 seconds. Please wait.");
         }
-
-        String urlOut = DOORBELL_API_BASE_URL + "/open?key=" + jwtSecret;
-        String urlIn = DOORBELL_API_BASE_URL + "/servo?key=" + jwtSecret;
 
         if (user.isMuted() && user.getType() != User.UserType.KNOWLEDGER) {
             throw new DoorOpenException("You are muted and cannot open the door.");
         }
 
+        // Guest validation
         if (user.getType() == User.UserType.GUEST) {
             List<Party> parties = partyRepository.findAll();
             LocalDateTime now = LocalDateTime.now();
-
-            // Update automatic statuses before filtering
             parties.forEach(party -> partyService.updateAutomaticStatus(party, now));
+
             boolean canOpen = parties.stream().anyMatch(party ->
                 party.getStatus() == Party.PartyStatus.IN_PROGRESS &&
                 party.getGuests() != null &&
@@ -71,71 +96,61 @@ public class DoorService {
         }
 
         try {
-            // Always open the outer door
-            ResponseEntity<String> outerResponse = restTemplate.getForEntity(urlOut, String.class);
-            boolean outerDoorSuccess = outerResponse.getStatusCode().is2xxSuccessful();
-            
-            StringBuilder responseMessage = new StringBuilder();
-            boolean shouldOpenInnerDoor = false;
-            
-            if (outerDoorSuccess) {
-                responseMessage.append("Outer door opened successfully");
-                logRepository.save(new Log("User " + user.getUsername() + " opened the outer door", user, "DOOR_OPEN"));
-                
-                // Check if we should attempt to open inner door
-                if (user.isMultipleDoorOpen() && latitude != null && longitude != null) {
-                    try {
-                        Double travelTime = routingService.getTravelTime(latitude, longitude);
-                        if (travelTime != null && travelTime < 120.0) { // Less than 2 minutes (120 seconds)
-                            shouldOpenInnerDoor = true;
-                            logRepository.save(new Log("User " + user.getUsername() + " qualified for inner door opening (travel time: " + String.format("%.1f", travelTime) + "s)", user, "DOOR_OPEN"));
-                        } else {
-                            logRepository.save(new Log("User " + user.getUsername() + " did not qualify for inner door opening (travel time: " + (travelTime != null ? String.format("%.1f", travelTime) + "s" : "unknown") + ")", user, "DOOR_OPEN"));
-                        }
-                    } catch (Exception routingError) {
-                        logRepository.save(new Log("Failed to calculate travel time for user " + user.getUsername() + ": " + routingError.getMessage(), user, "DOOR_OPEN_ERROR"));
-                    }
-                }
-                
-                // Attempt to open inner door if conditions are met
-                if (shouldOpenInnerDoor) {
-                    try {
-                        ResponseEntity<String> innerResponse = restTemplate.getForEntity(urlIn, String.class);
-                        if (innerResponse.getStatusCode().is2xxSuccessful()) {
-                            responseMessage.append(" and inner door opened successfully");
-                            logRepository.save(new Log("User " + user.getUsername() + " opened both outer and inner doors", user, "DOOR_OPEN"));
-                        } else {
-                            responseMessage.append(" but inner door failed to open");
-                            logRepository.save(new Log("Inner door opening failed for user " + user.getUsername() + ". Status: " + innerResponse.getStatusCode(), user, "DOOR_OPEN_FAILED"));
-                        }
-                    } catch (Exception innerDoorError) {
-                        responseMessage.append(" but inner door encountered an error");
-                        logRepository.save(new Log("Inner door error for user " + user.getUsername() + ": " + innerDoorError.getMessage(), user, "DOOR_OPEN_ERROR"));
-                    }
-                } else if (user.isMultipleDoorOpen()) {
-                    responseMessage.append(" (inner door not opened - location/timing requirements not met)");
-                }
-                
-                // Send notification to knowledgers and housers
-                notificationService.sendDoorOpenedNotification(user);
-                
-                return ResponseEntity.ok(responseMessage.toString());
-            } else {
-                // Log outer door failure
-                logRepository.save(new Log("Outer door opening failed for user " + user.getUsername() + ". Status: " + outerResponse.getStatusCode(), user, "DOOR_OPEN_FAILED"));
-                return ResponseEntity.status(outerResponse.getStatusCode())
-                        .body("Failed to open outer door. Status: " + outerResponse.getStatusCode());
+            // Open outer door via MQTT
+            CompletableFuture<Boolean> outerFuture = new CompletableFuture<>();
+            mqttClient.subscribe(TOPIC_STATUS, (topic, message) -> {
+                String payload = new String(message.getPayload());
+                if (payload.contains("outer_success")) outerFuture.complete(true);
+                if (payload.contains("outer_failed")) outerFuture.complete(false);
+            });
+
+            mqttClient.publish(TOPIC_OPEN_OUTER, new MqttMessage("open".getBytes()));
+            boolean outerSuccess = outerFuture.get(5, TimeUnit.SECONDS); // wait up to 5s
+
+            if (!outerSuccess) {
+                logRepository.save(new Log("Outer door failed to open for user " + user.getUsername(), user, "DOOR_OPEN_FAILED"));
+                return ResponseEntity.status(503).body("Outer door failed to open");
             }
 
+            logRepository.save(new Log("Outer door opened successfully for user " + user.getUsername(), user, "DOOR_OPEN"));
+            StringBuilder responseMessage = new StringBuilder("Outer door opened successfully");
+
+            boolean shouldOpenInner = false;
+            if (user.isMultipleDoorOpen() && latitude != null && longitude != null) {
+                Double travelTime = routingService.getTravelTime(latitude, longitude);
+                if (travelTime != null && travelTime < 120.0) shouldOpenInner = true;
+            }
+
+            if (shouldOpenInner) {
+                CompletableFuture<Boolean> innerFuture = new CompletableFuture<>();
+                mqttClient.subscribe(TOPIC_STATUS, (topic, message) -> {
+                    String payload = new String(message.getPayload());
+                    if (payload.contains("inner_success")) innerFuture.complete(true);
+                    if (payload.contains("inner_failed")) innerFuture.complete(false);
+                });
+
+                mqttClient.publish(TOPIC_OPEN_INNER, new MqttMessage("open".getBytes()));
+                boolean innerSuccess = innerFuture.get(5, TimeUnit.SECONDS);
+
+                if (innerSuccess) {
+                    responseMessage.append(" and inner door opened successfully");
+                    logRepository.save(new Log("Inner door opened for user " + user.getUsername(), user, "DOOR_OPEN"));
+                } else {
+                    responseMessage.append(" but inner door failed");
+                    logRepository.save(new Log("Inner door failed for user " + user.getUsername(), user, "DOOR_OPEN_FAILED"));
+                }
+            }
+
+            notificationService.sendDoorOpenedNotification(user);
+            return ResponseEntity.ok(responseMessage.toString());
+
         } catch (Exception e) {
-            // Log door open error
             logRepository.save(new Log("Door open error for user " + user.getUsername() + ": " + e.getMessage(), user, "DOOR_OPEN_ERROR"));
-            throw new DoorOpenException("Error contacting doorbell API: " + e.getMessage());
+            throw new DoorOpenException("Error opening door via MQTT: " + e.getMessage());
         }
     }
 
-    // Keep the old method signature for backward compatibility
-    public ResponseEntity<?> openDoor(String DOORBELL_API_BASE_URL, User user) {
-        return openDoor(DOORBELL_API_BASE_URL, user, null, null);
+    public ResponseEntity<?> openDoor(User user) {
+        return openDoor(user, null, null);
     }
 }

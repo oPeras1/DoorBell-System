@@ -49,6 +49,9 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5' // Use 'jjwt-gson' if using Gson instead
     implementation 'com.fazecast:jSerialComm:2.10.4'
 
+    // Eclipse Paho MQTT client
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+
 }
 
 testing {

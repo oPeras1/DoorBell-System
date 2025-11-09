@@ -1,15 +1,12 @@
 package com.operas.service;
 
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import com.operas.utils.JsonUtils;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,70 +14,54 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class ArduinoDataService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ArduinoDataService.class);
-    private static final String DOORBELL_API_BASE_URL = "https://doorbell-real.houseofknowledge.pt";
-    private final RestTemplate restTemplate = new RestTemplate();
+    private static final String MQTT_BROKER = "tcp://localhost:1883";
+    private static final String MQTT_USERNAME = "doorbell";
+    private static final String MQTT_PASSWORD = "hhoeZN68DCOyGR7wy9P9";
 
-    private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
+    private static final String TOPIC_PING = "doorbell/ping";
+    private static final String TOPIC_ENVIRONMENT = "doorbell/environment";
+
     private final AtomicReference<Map<String, Object>> cachedPingData = new AtomicReference<>();
+    private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
 
-    @Scheduled(fixedRate = 20000) // Fetch every 20 seconds
-    public void refreshArduinoData() {
-        fetchEnvironmentData();
-        fetchPingData();
-    }
+    private final MqttClient mqttClient;
 
-    private void fetchEnvironmentData() {
-        String url = DOORBELL_API_BASE_URL + "/environment";
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
-            );
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                cachedEnvironmentData.set(new ConcurrentHashMap<>(response.getBody()));
-                logger.info("Successfully fetched and cached environment data.");
-            } else {
-                logger.warn("Failed to fetch environment data, status code: {}", response.getStatusCode());
-                cachedEnvironmentData.set(null);
-            }
-        } catch (RestClientException e) {
-            logger.error("Error fetching environment data: {}", e.getMessage());
-            cachedEnvironmentData.set(null);
-        }
-    }
+    public ArduinoDataService() throws MqttException {
+        mqttClient = new MqttClient(MQTT_BROKER, MqttClient.generateClientId(), new MemoryPersistence());
 
-    private void fetchPingData() {
-        String url = DOORBELL_API_BASE_URL + "/ping";
-        try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
-            );
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> data = new ConcurrentHashMap<>(response.getBody());
-                data.put("last_updated", System.currentTimeMillis());
-                cachedPingData.set(data);
-                logger.info("Successfully fetched and cached ping data.");
-            } else {
-                logger.warn("Failed to fetch ping data, status code: {}", response.getStatusCode());
-                cachedPingData.set(null);
-            }
-        } catch (RestClientException e) {
-            logger.error("Error fetching ping data: {}", e.getMessage());
-            cachedPingData.set(null);
-        }
-    }
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setUserName(MQTT_USERNAME);
+        options.setPassword(MQTT_PASSWORD.toCharArray());
+        options.setAutomaticReconnect(true);
+        options.setCleanSession(true);
 
-    public Map<String, Object> getEnvironmentData() {
-        return cachedEnvironmentData.get();
+        mqttClient.connect(options);
+
+        // Subscribe to ping updates
+        mqttClient.subscribe(TOPIC_PING, (topic, message) -> {
+            String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+            Map<String, Object> data = JsonUtils.parseJsonToMap(payload);
+            data.put("last_updated", System.currentTimeMillis());
+            System.out.println("[MQTT] Ping data received: " + data);
+            cachedPingData.set(new ConcurrentHashMap<>(data));
+        });
+
+        // Subscribe to environment updates
+        mqttClient.subscribe(TOPIC_ENVIRONMENT, (topic, message) -> {
+            String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+            Map<String, Object> data = JsonUtils.parseJsonToMap(payload);
+            System.out.println("[MQTT] Environment data received: " + data);
+            cachedEnvironmentData.set(new ConcurrentHashMap<>(data));
+        });
+
+        System.out.println("[MQTT] ArduinoDataService subscribed to topics: " + TOPIC_PING + ", " + TOPIC_ENVIRONMENT);
     }
 
     public Map<String, Object> getPingData() {
         return cachedPingData.get();
+    }
+
+    public Map<String, Object> getEnvironmentData() {
+        return cachedEnvironmentData.get();
     }
 }

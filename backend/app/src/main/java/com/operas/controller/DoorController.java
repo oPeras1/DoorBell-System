@@ -1,16 +1,12 @@
 package com.operas.controller;
 
+import org.eclipse.paho.client.mqttv3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
 import java.util.Map;
 import com.operas.exceptions.DoorPingException;
 import com.operas.security.CustomUserDetails;
@@ -18,8 +14,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.operas.service.DoorService;
 import com.operas.service.KnowledgerService;
 import com.operas.service.ArduinoDataService;
+import com.operas.service.DoorbellMqttService;
 import com.operas.exceptions.DoorOpenException;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.concurrent.*;
 
 @RestController
 @RequestMapping("/door")
@@ -28,7 +26,6 @@ public class DoorController {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    private static final String DOORBELL_API_BASE_URL = "https://doorbell-real.houseofknowledge.pt";
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Autowired
@@ -39,6 +36,15 @@ public class DoorController {
 
     @Autowired
     private ArduinoDataService arduinoDataService;
+    
+    // MQTT
+    private final DoorbellMqttService doorbellMqttService;
+
+    // Constructor to initialize MQTT client
+    @Autowired
+    public DoorController(DoorbellMqttService doorbellMqttService) {
+        this.doorbellMqttService = doorbellMqttService;
+    }
 
     @PostMapping
     public ResponseEntity<?> openDoor(
@@ -61,7 +67,7 @@ public class DoorController {
             }
         }
         
-        return doorService.openDoor(DOORBELL_API_BASE_URL, userDetails.getUser(), latitude, longitude);
+        return doorService.openDoor(userDetails.getUser(), latitude, longitude);
     }
 
     @PostMapping("/bell-event")
@@ -139,26 +145,15 @@ public class DoorController {
 
     @GetMapping("/online")
     public ResponseEntity<?> online(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        String url = DOORBELL_API_BASE_URL + "/online";
         try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-            
-            Map<String, Object> body = response.getBody();
-            if (response.getStatusCode().is2xxSuccessful() && body != null && 
-                Boolean.TRUE.equals(body.get("online"))) {
-                Map<String, Object> result = Map.of("status", "online");
-                return ResponseEntity.ok(result);
+            boolean isOnline = doorbellMqttService.isDeviceOnline();
+            if (isOnline) {
+                return ResponseEntity.ok(Map.of("status", "online"));
             } else {
-                Map<String, Object> result = Map.of("status", "offline");
-                return ResponseEntity.status(503).body(result);
+                return ResponseEntity.status(503).body(Map.of("status", "offline"));
             }
         } catch (Exception e) {
-            throw new DoorPingException("Error contacting online service: " + e.getMessage());
+            throw new DoorPingException("Error checking device status via MQTT: " + e.getMessage());
         }
     }
 }
