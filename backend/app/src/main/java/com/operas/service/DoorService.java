@@ -40,10 +40,14 @@ public class DoorService {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    @Value("${mqtt.password:}")
+    private static final String MQTT_PASSWORD;
+
+    @Value("${mqtt.username:}")
+    private static final String MQTT_USERNAME;
+
     // MQTT broker configuration
     private static final String MQTT_BROKER = "tcp://localhost:1883";
-    private static final String MQTT_USERNAME = "doorbell";
-    private static final String MQTT_PASSWORD = "hhoeZN68DCOyGR7wy9P9";
 
     private static final String TOPIC_OPEN_OUTER = "doorbell/open/outer";
     private static final String TOPIC_OPEN_INNER = "doorbell/open/inner";

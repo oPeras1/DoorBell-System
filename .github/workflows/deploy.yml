@@ -36,6 +36,8 @@ jobs:
           export ONESIGNAL_API_KEY=${{ secrets.ONESIGNAL_API_KEY }}
           export ROUTING_DESTINATION_LAT=${{ secrets.ROUTING_DESTINATION_LAT }}
           export ROUTING_DESTINATION_LNG=${{ secrets.ROUTING_DESTINATION_LNG }}
+          export MQTT_USERNAME=${{ secrets.MQTT_USERNAME }}
+          export MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }}
           git pull origin main
           docker compose down
           docker compose build --no-cache
@@ -44,5 +46,7 @@ jobs:
         APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
         ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
         ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        MQTT_USERNAME: ${{ secrets.MQTT_USERNAME }}
+        MQTT_PASSWORD: ${{ secrets.MQTT_PASSWORD }}
         ROUTING_DESTINATION_LAT: ${{ secrets.ROUTING_DESTINATION_LAT }}
         ROUTING_DESTINATION_LNG: ${{ secrets.ROUTING_DESTINATION_LNG }}
