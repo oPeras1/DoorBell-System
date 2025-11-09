@@ -6,3 +6,4 @@ docker-compose.yml
 data/map/**
 mosquitto/data/
 mosquitto/log/
+mosquitto/config/passwd
