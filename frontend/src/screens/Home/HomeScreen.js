@@ -738,7 +738,7 @@ const HomeScreen = ({ navigation }) => {
                         <View style={styles.statusRow}>
                           <Text style={[styles.statusLabel, { color: "#fff" }]}>Humidity:</Text>
                           <Text style={[styles.statusValue, { color: "#fff" }]}>
-                            {doorEnvironment ? getFormattedHumidity(doorEnvironment.humidity) + '%' : '--'}
+                            {doorEnvironment ? (getFormattedHumidity(doorEnvironment.humidity) * 100).toFixed(1) + '%' : '--'}
                           </Text>
                         </View>
                       </View>
