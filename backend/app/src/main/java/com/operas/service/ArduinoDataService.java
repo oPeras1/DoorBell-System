@@ -3,6 +3,8 @@ package com.operas.service;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 
 import com.operas.utils.JsonUtils;
 
@@ -15,10 +17,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ArduinoDataService {
 
     @Value("${mqtt.password:}")
-    private static final String MQTT_PASSWORD;
+    private String MQTT_PASSWORD;
 
     @Value("${mqtt.username:}")
-    private static final String MQTT_USERNAME;
+    private String MQTT_USERNAME;
 
     private static final String MQTT_BROKER = "tcp://localhost:1883";
 
@@ -28,9 +30,14 @@ public class ArduinoDataService {
     private final AtomicReference<Map<String, Object>> cachedPingData = new AtomicReference<>();
     private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
 
-    private final MqttClient mqttClient;
+    private MqttClient mqttClient;
 
-    public ArduinoDataService() throws MqttException {
+    public ArduinoDataService() {
+        // Constructor left empty for Spring bean instantiation.
+    }
+
+    @PostConstruct
+    public void init() throws MqttException {
         mqttClient = new MqttClient(MQTT_BROKER, MqttClient.generateClientId(), new MemoryPersistence());
 
         MqttConnectOptions options = new MqttConnectOptions();
@@ -60,6 +67,7 @@ public class ArduinoDataService {
 
         System.out.println("[MQTT] ArduinoDataService subscribed to topics: " + TOPIC_PING + ", " + TOPIC_ENVIRONMENT);
     }
+
 
     public Map<String, Object> getPingData() {
         return cachedPingData.get();

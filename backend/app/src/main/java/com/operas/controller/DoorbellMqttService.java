@@ -3,6 +3,8 @@ package com.operas.service;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
@@ -11,10 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DoorbellMqttService {
 
     @Value("${mqtt.password:}")
-    private static final String MQTT_PASSWORD;
+    private static String MQTT_PASSWORD;
 
     @Value("${mqtt.username:}")
-    private static final String MQTT_USERNAME;
+    private static String MQTT_USERNAME;
 
     // MQTT broker configuration
     private static final String MQTT_BROKER = "tcp://localhost:1883";
@@ -26,9 +28,15 @@ public class DoorbellMqttService {
     // Tracks last received heartbeat timestamp (epoch millis)
     private final AtomicLong lastHeartbeat = new AtomicLong(0);
 
-    private final MqttClient mqttClient;
+    private MqttClient mqttClient;
 
-    public DoorbellMqttService() throws MqttException {
+    public DoorbellMqttService() {
+        // The constructor is kept for Spring to instantiate the bean.
+        // Initialization is moved to the init() method.
+    }
+
+    @PostConstruct
+    public void init() throws MqttException {
         mqttClient = new MqttClient(MQTT_BROKER, MqttClient.generateClientId(), new MemoryPersistence());
 
         MqttConnectOptions options = new MqttConnectOptions();
