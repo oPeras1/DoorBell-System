@@ -13,10 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DoorbellMqttService {
 
     @Value("${mqtt.password:}")
-    private static String MQTT_PASSWORD;
+    private String MQTT_PASSWORD;
 
     @Value("${mqtt.username:}")
-    private static String MQTT_USERNAME;
+    private String MQTT_USERNAME;
 
     // MQTT broker configuration
     private static final String MQTT_BROKER = "tcp://localhost:1883";
