@@ -19,7 +19,7 @@ public class DoorbellMqttService {
     private String MQTT_USERNAME;
 
     // MQTT broker configuration
-    private static final String MQTT_BROKER = "tcp://localhost:1883";
+    private static final String MQTT_BROKER = "tcp://10.0.0.33:1883";
     private static final String TOPIC_STATUS = "doorbell/online/status";
 
     // Device considered offline if no heartbeat received within this time (ms)
@@ -38,7 +38,6 @@ public class DoorbellMqttService {
     @PostConstruct
     public void init() throws MqttException {
         mqttClient = new MqttClient(MQTT_BROKER, MqttClient.generateClientId(), new MemoryPersistence());
-
         MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName(MQTT_USERNAME);
         options.setPassword(MQTT_PASSWORD.toCharArray());

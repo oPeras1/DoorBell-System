@@ -48,7 +48,7 @@ public class DoorService {
     private String MQTT_USERNAME;
 
     // MQTT broker configuration
-    private static final String MQTT_BROKER = "tcp://localhost:1883";
+    private static final String MQTT_BROKER = "tcp://10.0.0.33:1883";
 
     private static final String TOPIC_OPEN_OUTER = "doorbell/open/outer";
     private static final String TOPIC_OPEN_INNER = "doorbell/open/inner";

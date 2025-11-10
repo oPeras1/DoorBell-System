@@ -22,7 +22,7 @@ public class ArduinoDataService {
     @Value("${mqtt.username:}")
     private String MQTT_USERNAME;
 
-    private static final String MQTT_BROKER = "tcp://localhost:1883";
+    private static final String MQTT_BROKER = "tcp://10.0.0.33:1883";
 
     private static final String TOPIC_PING = "doorbell/ping";
     private static final String TOPIC_ENVIRONMENT = "doorbell/environment";
