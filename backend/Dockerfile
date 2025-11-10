@@ -1,5 +1,5 @@
 # Use OpenJDK 17 as base image
-FROM openjdk:17-jdk-slim as build
+FROM docker.io/openjdk:17-jdk-slim as build
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN chmod +x ./gradlew
 RUN ./gradlew build --no-daemon
 
 # Runtime stage
-FROM openjdk:17-jdk-slim
+FROM docker.io/openjdk:17-jdk-slim
 
 # Set working directory
 WORKDIR /app
