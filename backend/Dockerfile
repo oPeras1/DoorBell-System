@@ -1,5 +1,5 @@
 # Use OpenJDK 17 as base image
-FROM eclipse-temurin:17-jdk-slim as build
+FROM eclipse-temurin:17-jdk as build
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN chmod +x ./gradlew
 RUN ./gradlew build --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17-jdk-slim
+FROM eclipse-temurin:17-jdk
 
 # Set working directory
 WORKDIR /app
