@@ -4,9 +4,12 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.annotation.PostConstruct;
 
 import com.operas.utils.JsonUtils;
+import com.operas.model.EnvironmentData;
+import com.operas.repository.EnvironmentDataRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -31,6 +34,9 @@ public class ArduinoDataService {
     private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
 
     private MqttClient mqttClient;
+
+    @Autowired
+    private EnvironmentDataRepository environmentDataRepository;
 
     public ArduinoDataService() {
         // Constructor left empty for Spring bean instantiation.
@@ -63,11 +69,24 @@ public class ArduinoDataService {
             Map<String, Object> data = JsonUtils.parseJsonToMap(payload);
             System.out.println("[MQTT] Environment data received: " + data);
             cachedEnvironmentData.set(new ConcurrentHashMap<>(data));
+            saveEnvironmentData(data);
         });
 
         System.out.println("[MQTT] ArduinoDataService subscribed to topics: " + TOPIC_PING + ", " + TOPIC_ENVIRONMENT);
     }
 
+    private void saveEnvironmentData(Map<String, Object> data) {
+        EnvironmentData environmentData = new EnvironmentData();
+        environmentData.setTemperature(((Number) data.get("temperature")).doubleValue());
+        environmentData.setHumidity(((Number) data.get("humidity")).doubleValue());
+        environmentData.setPressure(((Number) data.get("pressure")).doubleValue());
+        environmentData.setAltitude(((Number) data.get("altitude")).doubleValue());
+        environmentData.setAirQualityIndex(((Number) data.get("air_quality_index")).intValue());
+        environmentData.setTvocPpb(((Number) data.get("tvoc_ppb")).intValue());
+        environmentData.setEco2Ppm(((Number) data.get("eco2_ppm")).intValue());
+
+        environmentDataRepository.save(environmentData);
+    }
 
     public Map<String, Object> getPingData() {
         return cachedPingData.get();
