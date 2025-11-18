@@ -33,6 +33,13 @@ const BottomNavBar = ({ navigation, active }) => {
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.navItem}
+        onPress={() => navigation.navigate('Statistics')}
+      >
+        <Ionicons name="stats-chart-outline" size={24} color={active === 'Statistics' ? colors.primary : colors.textSecondary} />
+        <Text style={[styles.navText, active === 'Statistics' && { color: colors.primary }]}>Statistics</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.navItem}
         onPress={() => navigation.navigate('Settings')}
       >
         <Ionicons name="settings-outline" size={24} color={active === 'Settings' ? colors.primary : colors.textSecondary} />

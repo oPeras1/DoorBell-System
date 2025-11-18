@@ -9,6 +9,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import UsersScreen from '../screens/Users/UsersScreen';
 import PartyScreen from '../screens/Party/PartyScreen';
 import PartyCreateScreen from '../screens/Party/PartyCreateScreen';
+import StatisticsScreen from '../screens/Statistics/StatisticsScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import PartyDetailsScreen from '../screens/Party/PartyDetailsScreen';
 import Notifications from '../screens/Notifications/Notifications';
@@ -52,6 +53,7 @@ const AppStack = () => (
     <Stack.Screen name="Users" component={UsersScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Party" component={PartyScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="PartyCreate" component={PartyCreateScreen} options={{ unmountOnBlur: true }} />
+    <Stack.Screen name="Statistics" component={StatisticsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Settings" component={SettingsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="PartyDetails" component={PartyDetailsScreen} options={{ unmountOnBlur: true }} />
     <Stack.Screen name="Notifications" component={Notifications} options={{ unmountOnBlur: true }} />
