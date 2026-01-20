@@ -42,6 +42,7 @@ jobs:
           docker compose down
           docker compose build --no-cache
           docker compose up -d
+          
       env:
         APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
         ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
