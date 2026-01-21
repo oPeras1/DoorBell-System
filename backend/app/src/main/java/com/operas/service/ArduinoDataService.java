@@ -30,6 +30,8 @@ public class ArduinoDataService {
     private static final String TOPIC_PING = "doorbell/ping";
     private static final String TOPIC_ENVIRONMENT = "doorbell/environment";
 
+    private long lastSavedTime = 0;
+
     private final AtomicReference<Map<String, Object>> cachedPingData = new AtomicReference<>();
     private final AtomicReference<Map<String, Object>> cachedEnvironmentData = new AtomicReference<>();
 
@@ -69,7 +71,12 @@ public class ArduinoDataService {
             Map<String, Object> data = JsonUtils.parseJsonToMap(payload);
             System.out.println("[MQTT] Environment data received: " + data);
             cachedEnvironmentData.set(new ConcurrentHashMap<>(data));
-            saveEnvironmentData(data);
+
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastSavedTime >= 120000) { // Save every 2 minutes
+                saveEnvironmentData(data);
+                lastSavedTime = currentTime;
+            }
         });
 
         System.out.println("[MQTT] ArduinoDataService subscribed to topics: " + TOPIC_PING + ", " + TOPIC_ENVIRONMENT);

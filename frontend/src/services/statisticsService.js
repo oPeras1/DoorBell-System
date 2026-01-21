@@ -1,5 +1,5 @@
 import api from './api';
 
 export const getEnvironmentData = (hours = 24) => {
-  return api.get(`/statistics/environment?hours=${hours}`);
+  return api.get(`/api/statistics/environment?hours=${hours}`);
 };
