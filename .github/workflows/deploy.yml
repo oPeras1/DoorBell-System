@@ -2,22 +2,13 @@ name: Deploy DoorBell System
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  # Adjust branch names as needed
   pull_request:
     branches: [ main ]
 
 jobs:
-  deploy-primary:
+  deploy:
     runs-on: ubuntu-latest
-
-    env:
-      APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
-      ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
-      ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
-      MQTT_USERNAME: ${{ secrets.MQTT_USERNAME }}
-      MQTT_PASSWORD: ${{ secrets.MQTT_PASSWORD }}
-      ROUTING_DESTINATION_LAT: ${{ secrets.ROUTING_DESTINATION_LAT }}
-      ROUTING_DESTINATION_LNG: ${{ secrets.ROUTING_DESTINATION_LNG }}
 
     steps:
     - name: Checkout code
@@ -31,7 +22,7 @@ jobs:
       with:
         authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
 
-    - name: Deploy to primary server
+    - name: Deploy to server
       if: github.event_name == 'push'
       uses: appleboy/ssh-action@v1.0.0
       with:
@@ -40,55 +31,23 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         script: |
           cd ~/DoorBell-System
-          export APP_SECRET_KEY=$APP_SECRET_KEY
-          export ONESIGNAL_APP_ID=$ONESIGNAL_APP_ID
-          export ONESIGNAL_API_KEY=$ONESIGNAL_API_KEY
-          export ROUTING_DESTINATION_LAT=$ROUTING_DESTINATION_LAT
-          export ROUTING_DESTINATION_LNG=$ROUTING_DESTINATION_LNG
-          export MQTT_USERNAME=$MQTT_USERNAME
-          export MQTT_PASSWORD=$MQTT_PASSWORD
+          export APP_SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
+          export ONESIGNAL_APP_ID=${{ secrets.ONESIGNAL_APP_ID }}
+          export ONESIGNAL_API_KEY=${{ secrets.ONESIGNAL_API_KEY }}
+          export ROUTING_DESTINATION_LAT=${{ secrets.ROUTING_DESTINATION_LAT }}
+          export ROUTING_DESTINATION_LNG=${{ secrets.ROUTING_DESTINATION_LNG }}
+          export MQTT_USERNAME=${{ secrets.MQTT_USERNAME }}
+          export MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }}
           git pull origin main
           docker compose down
           docker compose build --no-cache
           docker compose up -d
-
-
-  deploy-secondary:
-    runs-on: ubuntu-latest
-
-    env:
-      APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
-      ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
-      ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
-      MQTT_USERNAME: ${{ secrets.MQTT_USERNAME }}
-      MQTT_PASSWORD: ${{ secrets.MQTT_PASSWORD }}
-      ROUTING_DESTINATION_LAT: ${{ secrets.ROUTING_DESTINATION_LAT }}
-      ROUTING_DESTINATION_LNG: ${{ secrets.ROUTING_DESTINATION_LNG }}
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Build
-      uses: docker/setup-buildx-action@v3
-
-    - name: Deploy to secondary server
-      if: github.event_name == 'push'
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.HOST_SECONDARY }}
-        username: ${{ secrets.USERNAME_SECONDARY }}
-        key: ${{ secrets.SSH_KEY_SECONDARY }}
-        script: |
-          cd ~/DoorBell-System
-          export APP_SECRET_KEY=$APP_SECRET_KEY
-          export ONESIGNAL_APP_ID=$ONESIGNAL_APP_ID
-          export ONESIGNAL_API_KEY=$ONESIGNAL_API_KEY
-          export ROUTING_DESTINATION_LAT=$ROUTING_DESTINATION_LAT
-          export ROUTING_DESTINATION_LNG=$ROUTING_DESTINATION_LNG
-          export MQTT_USERNAME=$MQTT_USERNAME
-          export MQTT_PASSWORD=$MQTT_PASSWORD
-          git pull origin main
-          docker compose down
-          docker compose build --no-cache
-          docker compose up -d
+          
+      env:
+        APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+        ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+        ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        MQTT_USERNAME: ${{ secrets.MQTT_USERNAME }}
+        MQTT_PASSWORD: ${{ secrets.MQTT_PASSWORD }}
+        ROUTING_DESTINATION_LAT: ${{ secrets.ROUTING_DESTINATION_LAT }}
+        ROUTING_DESTINATION_LNG: ${{ secrets.ROUTING_DESTINATION_LNG }}
